@@ -81,8 +81,7 @@ function RMG(cy)
 
     -- 移动到指定位置
     function rmg:spreadermove2(x, y, z)
-        rmg:spreadermove(x - rmg.spreaderpos[1], y - rmg.spreaderpos[2],
-            z - rmg.spreaderpos[3])
+        rmg:spreadermove(x - rmg.spreaderpos[1], y - rmg.spreaderpos[2], z - rmg.spreaderpos[3])
     end
 
     -- 车移动(-z方向)
@@ -153,69 +152,64 @@ function RMG(cy)
             end
 
             rmg:spreadermove(ds[1], ds[2], ds[3]) -- 移动差量
-        elseif taskname == "movespreadto" then -- {"movespreadto",{x,y,z}}
-            -- print("execute movespreadto")
-            local target = param
-
-            if target[4] == nil then -- 没有执行记录，创建
-                print("movespreadto param: ", target[1], ",", target[2], ",", target[3])
-                for i = 1, 3 do
-                    target[i + 6] = rmg.spreaderpos[i] -- 当前位置
-                    target[i + 9] = rmg.spreaderpos[i] -- 初始位置
-                    if target[i] - target[i + 9] == 0 then -- 目标距离差为0，向量设为0
-                        target[i + 3] = 0
+        elseif taskname == "move2" then -- 1:col(x), 2:height(y), 3:bay(z), [4:初始bay, 5:已移动bay距离,向量*2(6,7),当前位置*2(8,9),初始位置*2(10,11),到达(12,13)*2]
+            local d = param
+            if d[4] == nil then
+                d[4] = rmg.pos -- 初始位置
+                d[5] = 0 -- 已经移动的距离
+                for i = 1, 2 do
+                    param[i + 7] = rmg.spreaderpos[i] -- 当前位置(8,9)
+                    param[i + 9] = rmg.spreaderpos[i] -- 初始位置(10,11)
+                    if param[i] - param[i + 9] == 0 then -- 目标距离差为0，向量设为0
+                        param[i + 5] = 0
                     else
-                        target[i + 3] = target[i] - target[i + 9] -- 计算初始向量
+                        param[i + 5] = param[i] - param[i + 9] -- 计算初始向量
                     end
                 end
-                -- print("target[i+3]=",target[4],",",target[5],",",target[6])
+                param[12], param[13] = false, false
             end
-            -- print("target = ",target[1],",",target[2],",",target[3])
 
-            -- 计算各方向分速度
-            local l = math.sqrt(target[4] ^ 2 + target[5] ^ 2 + target[6] ^ 2)
-            local speed = {target[4] / l * rmg.speed, target[5] / l * rmg.speed, target[6] / l * rmg.speed}
             local ds = {}
+            -- 计算各方向分速度
+            local l = math.sqrt(param[6] ^ 2 + param[7] ^ 2)
+            local speed = {param[6] / l * rmg.speed, param[7] / l * rmg.speed}
             -- 计算移动值
-            for i = 1, 3 do
+            for i = 1, 2 do
                 ds[i] = speed[i] * dt -- dt移动
                 -- print("ds[",i,"]=",ds[i])
-                target[i + 6] = target[i + 6] + ds[i] -- 累计移动
+                param[i + 7] = param[i + 7] + ds[i] -- 累计移动
             end
-            -- print("ds=",ds[1],",",ds[2],",",ds[3])
+            ds[3] = rmg.speed * dt * ((d[3] - rmg.pos) / math.abs(d[3] - rmg.pos))
 
-            -- 判断是否到达目标
-            -- print("判断是否达到目标")
-            for i = 1, 3 do
-                -- print("target[", i, "]=", target[i], "target[", i, "] - target[", i + 6, "]=",
-                --     target[i] - target[i + 6], " target[", i + 6, "]/target[", i, "]=", target[i + 6] / target[i])
-                if target[i + 3] ~= 0 and (target[i] - target[i + 6]) * target[i + 3] <= 0 then -- 分方向到达目标
-                    -- print("movespreadto reached target: ", target[1], ",", target[2], ",", target[3])
-                    rmg:deltask()
-                    rmg:spreadermove2(target[1], target[2], target[3])
-                    return
+            if not param[12] then -- bay方向没有到达目标                
+                if d[5] / (d[3] - d[4]) > 1 then -- 首次到达目标
+                    -- rmg:deltask()
+                    rmg:move(d[5] - d[3] + d[4])
+                    param[12] = true
+                else
+                    d[5] = d[5] + ds[3] -- 已移动bay
+                    rmg:move(ds[3])
                 end
             end
 
-            -- print("spreadermoveto:",target[7],",",target[8],",",target[9])
-            rmg:spreadermove2(target[7], target[8], target[9]) -- 设置到累计移动值
-        elseif taskname == "moveto" then -- {"moveto", {pos}} 移动到bay
-            -- print("execute moveto")
-            local d = param
-            if d[2] == nil then
-                d[2] = rmg.pos -- 初始位置
-                d[3] = 0 -- 已经移动的距离
+            if not param[13] then
+                for i = 1, 2 do
+                    if param[i + 5] ~= 0 and (param[i] - param[i + 7]) * param[i + 5] <= 0 then -- 分方向到达目标
+                        -- rmg:deltask()
+                        rmg:spreadermove2(param[1], param[2], 0)
+                        -- return
+                        param[13] = true
+                        break
+                    end
+                end
+                rmg:spreadermove2(param[8], param[9], 0) -- 设置到累计移动值
             end
 
-            if d[3] >= d[1] then -- 到达目标
+            if param[12] and param[13] then
+                print("param 12 and 13:", param[12], ",", param[13])
                 rmg:deltask()
-                rmg:move(d[1] - d[3])
-                return
             end
 
-            local ds = rmg.speed * dt * (d[1] / math.abs(d[1]))
-            d[3] = d[3] + ds
-            rmg:move(ds)
         elseif taskname == "attach" then -- {"attach", {cy.row,cy.col}}
             rmg:attach(param[1], param[2])
             rmg:deltask()
@@ -243,7 +237,7 @@ function RMG(cy)
     end
 
     -- 获取爪子移动坐标（x,y)
-    function rmg:getcontainercoord(bay,level,col)
+    function rmg:getcontainercoord2(bay, level, col)
         local x
         if col == -1 then
             x = rmg.iox
@@ -252,21 +246,24 @@ function RMG(cy)
         end
         -- print("rmg.origin[1]=",rmg.origin[1]," rmg.iox=",rmg.iox," x=",x)
         local y = rmg.level[level] - rmg.origin[2]
-        local z = 0 --通过车移动解决z
+        local z = cy.pos[bay][1][2] - cy.origin[3] -- 通过车移动解决z
 
-        return {x,y,z}
+        print("go (", bay, ",", level, ",", col, ")->(x", x, ",y", y, ",z", z, ")")
+        return {x, y, z}
     end
 
     function rmg:getcontainerdelta(dcol, dlevel)
-        local dx = dcol*(cy.cwidth+cy.cspan)
-        local dy = dlevel*rmg.level[1]
-        local dz = 0 --通过车移动解决z
+        local dx = dcol * (cy.cwidth + cy.cspan)
+        local dy = dlevel * rmg.level[1]
+        local dz = 0 -- 通过车移动解决z
 
-        return {dx,dy,dz}
+        print("原版爪移动delta：dx=", dx, " ,dy=", dy)
+        return {dx, dy, dz}
     end
 
     -- 获取车移动坐标（z）
     function rmg:getlen(bay)
+        print("原版车移动：", cy.pos[bay][1][2] - cy.origin[3])
         return {cy.pos[bay][1][2] - cy.origin[3]}
     end
 
@@ -331,16 +328,27 @@ print("cy.origin = ", cy.origin[1], ",", cy.origin[2])
 print("rmg.origin = ", rmg.origin[1], ",", rmg.origin[2])
 
 -- 添加任务
-rmg:addtask({"moveto", rmg:getlen(2)}) -- 移动到指定箱位置
--- print("cy目标真实位置:",cy.pos[2][4][2]," cy目标相对位置:",cy.pos[2][4][2]-cy.origin[3])
-rmg:addtask({"movespreadto", rmg:getcontainercoord(2,2,3)}) -- 移动爪子到指定箱位置
-rmg:addtask({"movespread", rmg:getcontainerdelta(0,-1)}) -- 移动爪子到指定高度
+rmg:addtask({"move2", rmg:getcontainercoord2(2, 2, 3)}) -- 移动爪子到指定位置
+rmg:addtask({"movespread", rmg:getcontainerdelta(0, -1)}) -- 移动爪子到指定高度
 rmg:addtask({"attach", {2, 3}}) -- 抓取指定箱
-rmg:addtask({"movespread", rmg:getcontainerdelta(0,2)}) -- 移动爪子到指定高度
-rmg:addtask({"movespreadto", rmg:getcontainercoord(0,3,-1)}) -- 移动爪子到指定位置
-rmg:addtask({"movespread", rmg:getcontainerdelta(0,-2)}) -- 移动爪子到指定高度
+rmg:addtask({"movespread", rmg:getcontainerdelta(0, 2)}) -- 移动爪子到指定高度
+rmg:addtask({"move2", rmg:getcontainercoord2(2, 3, -1)}) -- 移动爪子到指定位置
+rmg:addtask({"movespread", rmg:getcontainerdelta(0, -2)}) -- 移动爪子到指定高度
 rmg:addtask({"detach"}) -- 放下指定箱
-rmg:addtask({"movespreadto", {0, rmg.level[2], 0}}) -- 移动爪子到指定位置
+rmg:addtask({"move2", rmg:getcontainercoord2(3, 2, 1)}) -- 移动爪子到指定位置
+rmg:addtask({"movespread", rmg:getcontainerdelta(0, -1)}) -- 移动爪子到指定高度
+rmg:addtask({"attach", {3, 1}}) -- 抓取指定箱
+rmg:addtask({"movespread", rmg:getcontainerdelta(0, 2)}) -- 移动爪子到指定高度
+rmg:addtask({"move2", rmg:getcontainercoord2(3, 3, -1)}) -- 移动爪子到指定位置
+rmg:addtask({"movespread", rmg:getcontainerdelta(0, -2)}) -- 移动爪子到指定高度
+rmg:addtask({"detach"}) -- 放下指定箱
+rmg:addtask({"move2", rmg:getcontainercoord2(5, 3, 4)}) -- 移动爪子到指定位置
+rmg:addtask({"movespread", rmg:getcontainerdelta(0, -2)}) -- 移动爪子到指定高度
+rmg:addtask({"attach", {5, 4}}) -- 抓取指定箱
+rmg:addtask({"movespread", rmg:getcontainerdelta(0, 2)}) -- 移动爪子到指定高度
+rmg:addtask({"move2", rmg:getcontainercoord2(5, 3, -1)}) -- 移动爪子到指定位置
+rmg:addtask({"movespread", rmg:getcontainerdelta(0, -2)}) -- 移动爪子到指定高度
+rmg:addtask({"detach"}) -- 放下指定箱
 
 local t = os.clock()
 local dt = 0
@@ -357,7 +365,7 @@ while scene.render() and #rmg.tasksequence > 0 do
     end
 end
 
-print("rmg.attached:", rmg.attached)
-print("rmg.stash:", rmg.stash)
+-- print("rmg.attached:", rmg.attached)
+-- print("rmg.stash:", rmg.stash)
 
 scene.render()
