@@ -3,6 +3,11 @@ scene.setenv({
 })
 -- local obj = scene.addobj('/res/ct/container.glb')
 
+function delete(obj)
+    obj:setpos(999, 999, 999)
+    obj = nil
+end
+
 function RMG(cy)
     -- 初始化对象
     local rmg = scene.addobj('/res/ct/rmg.glb')
@@ -18,14 +23,18 @@ function RMG(cy)
     rmg.tasksequence = {} -- 初始化任务队列
     rmg.finishedTask = 0 -- 任务数量
     rmg.iox = -16 -- 进出口x坐标
-    rmg.speed = 14 -- 移动速度
+    rmg.speed = 4 -- 移动速度
     rmg.attached = nil
     rmg.stash = nil -- io物品暂存
 
     -- 初始化位置
-    wirerope:setscale(1, 17.57 - rmg.spreaderpos[2], 1) -- trolly离地面高度17.57，wirerope长宽设为1
-    wirerope:setpos(0 + rmg.spreaderpos[1], 1.15 + rmg.spreaderpos[2], 0) -- spreader高度1.1
-    spreader:setpos(-0.01 + rmg.spreaderpos[1], rmg.spreaderpos[2] + 0.05, 0.012)
+    rmg.origin = cy.origin -- 原点
+    rmg:setpos(rmg.origin[1], rmg.origin[2], rmg.origin[3]) -- 设置车的位置
+    trolley:setpos(rmg.origin[1], rmg.origin[2], rmg.origin[3]) -- 设置trolley的位置
+    wirerope:setscale(1, rmg.origin[2] + 17.57 - rmg.spreaderpos[2], 1) -- trolly离地面高度17.57，wirerope长宽设为1
+    wirerope:setpos(rmg.origin[1] + rmg.spreaderpos[1], rmg.origin[2] + 1.15 + rmg.spreaderpos[2], rmg.origin[3] + 0) -- spreader高度1.1
+    spreader:setpos(rmg.origin[1] - 0.01 + rmg.spreaderpos[1], rmg.origin[2] + rmg.spreaderpos[2] + 0.05,
+        rmg.origin[3] + .012)
     -- trolley:setpos(0,0,0)
 
     rmg.trolley = trolley
@@ -35,13 +44,13 @@ function RMG(cy)
     -- 函数
     -- 抓箱子
     function rmg:attach(row, col)
-        print("cy container[", row, ",", col, "] =", rmg.cy.containers[row][col])
-        print("rmg attached =", rmg.attached)
-        print("rmg attach cy container[", row, ",", col, "]")
+        -- print("cy container[", row, ",", col, "] =", rmg.cy.containers[row][col])
+        -- print("rmg attached =", rmg.attached)
+        -- print("rmg attach cy container[", row, ",", col, "]")
         rmg.attached = rmg.cy.containers[row][col]
         rmg.cy.containers[row][col] = nil
-        print("rmg attached =", rmg.attached)
-        print("cy container[", row, ",", col, "] =", rmg.cy.containers[row][col])
+        -- print("rmg attached =", rmg.attached)
+        -- print("cy container[", row, ",", col, "] =", rmg.cy.containers[row][col])
     end
 
     -- 放箱子
@@ -52,26 +61,28 @@ function RMG(cy)
 
     -- 爪子移动
     -- x移动：横向；y移动：上下；z移动(负方向)：纵向(微调,不常用)
-    function rmg:spreadermove(x, y, z)
-        rmg.spreaderpos = {rmg.spreaderpos[1] + x, rmg.spreaderpos[2] + y, rmg.spreaderpos[3] + z}
+    function rmg:spreadermove(dx, dy, dz)
+        rmg.spreaderpos = {rmg.spreaderpos[1] + dx, rmg.spreaderpos[2] + dy, rmg.spreaderpos[3] + dz}
         local wx, wy, wz = rmg.wirerope:getpos()
         local sx, sy, sz = rmg.spreader:getpos()
         local tx, ty, tz = rmg.trolley:getpos()
 
-        rmg.wirerope:setpos(wx + x, wy + y, wz - z)
-        rmg.wirerope:setscale(1, 17.57 - wy - y, 1)
-        rmg.trolley:setpos(tx + x, ty, tz)
-        rmg.spreader:setpos(sx + x, sy + y, sz - z)
+        rmg.wirerope:setpos(wx + dx, wy + dy, wz - dz)
+        rmg.wirerope:setscale(1, 17.57 - wy - dy, 1)
+        rmg.trolley:setpos(tx + dx, ty, tz)
+        rmg.spreader:setpos(sx + dx, sy + dy, sz - dz)
 
         -- 移动箱子
         if rmg.attached then
             local cx, cy, cz = rmg.attached:getpos()
-            rmg.attached:setpos(cx + x, cy + y, cz - z)
+            rmg.attached:setpos(cx + dx, cy + dy, cz - dz)
         end
     end
 
+    -- 移动到指定位置
     function rmg:spreadermove2(x, y, z)
-        rmg:spreadermove(x - rmg.spreaderpos[1], y - rmg.spreaderpos[2], z - rmg.spreaderpos[3])
+        rmg:spreadermove(x - rmg.spreaderpos[1], y - rmg.spreaderpos[2],
+            z - rmg.spreaderpos[3])
     end
 
     -- 车移动(-z方向)
@@ -179,7 +190,7 @@ function RMG(cy)
                 -- print("target[", i, "]=", target[i], "target[", i, "] - target[", i + 6, "]=",
                 --     target[i] - target[i + 6], " target[", i + 6, "]/target[", i, "]=", target[i + 6] / target[i])
                 if target[i + 3] ~= 0 and (target[i] - target[i + 6]) * target[i + 3] <= 0 then -- 分方向到达目标
-                    print("movespreadto reached target: ", target[1], ",", target[2], ",", target[3])
+                    -- print("movespreadto reached target: ", target[1], ",", target[2], ",", target[3])
                     rmg:deltask()
                     rmg:spreadermove2(target[1], target[2], target[3])
                     return
@@ -188,7 +199,7 @@ function RMG(cy)
 
             -- print("spreadermoveto:",target[7],",",target[8],",",target[9])
             rmg:spreadermove2(target[7], target[8], target[9]) -- 设置到累计移动值
-        elseif taskname == "moveto" then -- {"moveto", {pos}}
+        elseif taskname == "moveto" then -- {"moveto", {pos}} 移动到bay
             -- print("execute moveto")
             local d = param
             if d[2] == nil then
@@ -231,6 +242,34 @@ function RMG(cy)
         end
     end
 
+    -- 获取爪子移动坐标（x,y)
+    function rmg:getcontainercoord(bay,level,col)
+        local x
+        if col == -1 then
+            x = rmg.iox
+        else
+            x = cy.pos[bay][col][1] - rmg.origin[1]
+        end
+        -- print("rmg.origin[1]=",rmg.origin[1]," rmg.iox=",rmg.iox," x=",x)
+        local y = rmg.level[level] - rmg.origin[2]
+        local z = 0 --通过车移动解决z
+
+        return {x,y,z}
+    end
+
+    function rmg:getcontainerdelta(dcol, dlevel)
+        local dx = dcol*(cy.cwidth+cy.cspan)
+        local dy = dlevel*rmg.level[1]
+        local dz = 0 --通过车移动解决z
+
+        return {dx,dy,dz}
+    end
+
+    -- 获取车移动坐标（z）
+    function rmg:getlen(bay)
+        return {cy.pos[bay][1][2] - cy.origin[3]}
+    end
+
     return rmg
 end
 
@@ -240,8 +279,8 @@ function CY(p1, p2, levels)
         cwidth = 2.44,
         cspan = 0.6,
         pos = {}, -- 初始化
-        containers = {}, -- 集装箱对象
-        origin = p1 -- 参照点
+        containers = {}, -- 集装箱对象(相对坐标)
+        origin = {(p1[1] + p2[1]) / 2, 0, (p1[2] + p2[2]) / 2} -- 参照点
     }
     local p1obj = scene.addobj("points", {
         vertices = {p1[1], 0, p1[2]},
@@ -283,16 +322,23 @@ end
 
 -- 创建堆场
 local cy = CY({19.66 / 2, 51.49 / 2}, {-19.66 / 2, -51.49 / 2}, 3)
+-- local cy = CY({-2 / 2, 20 / 2}, {-30 / 2, 50 / 2}, 3) --位置测试
+
 -- 分配堆场给场桥
 local rmg = RMG(cy)
 
-rmg:addtask({"moveto", {cy.pos[2][4][2]}}) -- 移动到指定箱位置
-rmg:addtask({"movespreadto", {cy.pos[2][4][1], rmg.level[2], 0}}) -- 移动爪子到指定箱位置
-rmg:addtask({"movespread", {0, -rmg.level[1], 0}}) -- 移动爪子到指定高度
-rmg:addtask({"attach", {2, 4}}) -- 抓取指定箱
-rmg:addtask({"movespread", {0, rmg.level[2], 0}}) -- 移动爪子到指定高度
-rmg:addtask({"movespreadto", {rmg.iox, rmg.level[3], 0}}) -- 移动爪子到指定位置
-rmg:addtask({"movespread", {0, -rmg.level[2], 0}}) -- 移动爪子到指定高度
+print("cy.origin = ", cy.origin[1], ",", cy.origin[2])
+print("rmg.origin = ", rmg.origin[1], ",", rmg.origin[2])
+
+-- 添加任务
+rmg:addtask({"moveto", rmg:getlen(2)}) -- 移动到指定箱位置
+-- print("cy目标真实位置:",cy.pos[2][4][2]," cy目标相对位置:",cy.pos[2][4][2]-cy.origin[3])
+rmg:addtask({"movespreadto", rmg:getcontainercoord(2,2,3)}) -- 移动爪子到指定箱位置
+rmg:addtask({"movespread", rmg:getcontainerdelta(0,-1)}) -- 移动爪子到指定高度
+rmg:addtask({"attach", {2, 3}}) -- 抓取指定箱
+rmg:addtask({"movespread", rmg:getcontainerdelta(0,2)}) -- 移动爪子到指定高度
+rmg:addtask({"movespreadto", rmg:getcontainercoord(0,3,-1)}) -- 移动爪子到指定位置
+rmg:addtask({"movespread", rmg:getcontainerdelta(0,-2)}) -- 移动爪子到指定高度
 rmg:addtask({"detach"}) -- 放下指定箱
 rmg:addtask({"movespreadto", {0, rmg.level[2], 0}}) -- 移动爪子到指定位置
 
@@ -304,7 +350,14 @@ while scene.render() and #rmg.tasksequence > 0 do
     -- print(dt)
     -- print("#rmg.tasksequence:", #rmg.tasksequence)
     rmg:executeTask(dt)
+
+    if rmg.stash ~= nil then
+        delete(rmg.stash)
+        rmg.stash = nil
+    end
 end
 
 print("rmg.attached:", rmg.attached)
 print("rmg.stash:", rmg.stash)
+
+scene.render()
