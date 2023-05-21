@@ -106,7 +106,7 @@ function RMG(cy)
 
         local task = rmg.tasksequence[1]
         local taskname, param = task[1], task[2]
-        if taskname == "movespread" then -- {"movespread",{x,y,z}}
+        if taskname == "movespread" then -- {"movespread",{x,y,z}} 各方向移动多少
             -- print("execute movespread")
             local d = param -- 导入距离
 
@@ -121,16 +121,20 @@ function RMG(cy)
                     d[i + 9] = rmg.spreaderpos[i] -- 初始位置(10~12)
                     -- print("d[", i, "]=", d[i], " d[", i + 3, "]=", d[i + 3], "d[", i + 6, "]=", d[i + 6], " d[", i + 9, "]=", d[i + 9])
                 end
+
+                -- 计算各方向分速度
+                local l = math.sqrt(d[4] ^ 2 + d[5] ^ 2 + d[6] ^ 2)
+                param.speed = {d[4] / l * rmg.speed, d[5] / l * rmg.speed, d[6] / l * rmg.speed} -- 向量*速度
             end
 
             -- 计算各方向分速度
-            local l = math.sqrt(d[4] ^ 2 + d[5] ^ 2 + d[6] ^ 2)
-            local speed = {d[4] / l * rmg.speed, d[5] / l * rmg.speed, d[6] / l * rmg.speed} -- 向量*速度
+            -- local l = math.sqrt(d[4] ^ 2 + d[5] ^ 2 + d[6] ^ 2)
+            -- local speed = {d[4] / l * rmg.speed, d[5] / l * rmg.speed, d[6] / l * rmg.speed} -- 向量*速度
 
             -- 计算移动值
             local ds = {}
             for i = 1, 3 do
-                ds[i] = speed[i] * dt -- speed已经包括方向
+                ds[i] = param.speed[i] * dt -- speed已经包括方向
                 d[i + 6] = d[i + 6] + ds[i]
                 -- print("d[", i + 6, "]=", d[i + 6])
             end
@@ -161,19 +165,24 @@ function RMG(cy)
                     end
                 end
                 param[12], param[13] = false, false
+
+                -- 计算各方向分速度
+                local l = math.sqrt(param[6] ^ 2 + param[7] ^ 2)
+                param.speed = {param[6] / l * rmg.speed, param[7] / l * rmg.speed,
+                               rmg.speed * ((d[3] - rmg.pos) / math.abs(d[3] - rmg.pos))} -- speed[3]:速度乘方向
             end
 
             local ds = {}
-            -- 计算各方向分速度
-            local l = math.sqrt(param[6] ^ 2 + param[7] ^ 2)
-            local speed = {param[6] / l * rmg.speed, param[7] / l * rmg.speed}
+            -- -- 计算各方向分速度
+            -- local l = math.sqrt(param[6] ^ 2 + param[7] ^ 2)
+            -- local speed = {param[6] / l * rmg.speed, param[7] / l * rmg.speed}
             -- 计算移动值
             for i = 1, 2 do
-                ds[i] = speed[i] * dt -- dt移动
+                ds[i] = param.speed[i] * dt -- dt移动
                 -- print("ds[",i,"]=",ds[i])
                 param[i + 7] = param[i + 7] + ds[i] -- 累计移动
             end
-            ds[3] = rmg.speed * dt * ((d[3] - rmg.pos) / math.abs(d[3] - rmg.pos))
+            ds[3] = param.speed[3] * dt -- rmg向量速度*时间
 
             if not param[12] then -- bay方向没有到达目标                
                 if d[5] / (d[3] - d[4]) > 1 then -- 首次到达目标
@@ -186,7 +195,7 @@ function RMG(cy)
                 end
             end
 
-            if not param[13] then
+            if not param[13] then -- 列方向没有到达目标
                 for i = 1, 2 do
                     if param[i + 5] ~= 0 and (param[i] - param[i + 7]) * param[i + 5] <= 0 then -- 分方向到达目标
                         -- rmg:deltask()
@@ -200,7 +209,7 @@ function RMG(cy)
             end
 
             if param[12] and param[13] then
-                print("param 12 and 13:", param[12], ",", param[13])
+                -- print("param 12 and 13:", param[12], ",", param[13])
                 rmg:deltask()
             end
 
@@ -213,11 +222,45 @@ function RMG(cy)
         end
     end
 
+    -- interface:计算最大允许步进
+    function rmg:maxstep()
+        local dt = math.huge -- 初始化步进
+        if rmg.tasksequence[1] == nil then -- 对象无任务，直接返回0
+            return dt
+        end
+
+        local taskname = rmg.tasksequence[1][1] -- 任务名称
+        local param = rmg.tasksequence[1][2] -- 任务参数
+        if taskname == "movespread" then
+            for i = 1, 3 do
+                if param[i] ~= 0 then -- 只要分方向移动，就计算最大步进
+                    dt = math.min(dt, math.abs(param[i] - param[i + 6]) / param.speed[i]) -- 根据movespread判断条件
+                end
+            end
+        elseif taskname == "move2" then
+            if not param[12] then -- bay方向没有到达目标
+                dt = math.min(dt, (param[3] - param[4]) / param.speed[3])
+            end
+            if not param[13] then -- 列方向没有到达目标
+                for i = 1, 2 do
+                    if param[i + 5] ~= 0 then -- 只要分方向移动，就计算最大步进
+                        dt = math.min(dt, math.abs(param[i] - param[i + 7]) / param.speed[i]) -- 根据move2判断条件
+                    end
+                end
+            end
+        elseif taskname == "attach" or taskname == "detach" then
+            dt = math.min(dt, 1) -- 假设装卸1秒
+        end
+        return dt
+    end
+
+    -- 添加任务
     function rmg:addtask(obj)
         table.insert(rmg.tasksequence, obj)
         print("rmg:addtask(): ", rmg.tasksequence[#rmg.tasksequence][1], ", task count:", #rmg.tasksequence)
     end
 
+    -- 删除任务
     function rmg:deltask()
         print("rmg:deltask(): ", rmg.tasksequence[1][1], ", task count:", #rmg.tasksequence)
         table.remove(rmg.tasksequence, 1)
@@ -239,22 +282,23 @@ function RMG(cy)
         local y = rmg.level[level] - rmg.origin[2]
         local z = cy.pos[bay][1][2] - cy.origin[3] -- 通过车移动解决z
 
-        print("go (", bay, ",", level, ",", col, ")->(x", x, ",y", y, ",z", z, ")")
+        -- print("go (", bay, ",", level, ",", col, ")->(x", x, ",y", y, ",z", z, ")")
         return {x, y, z}
     end
 
+    -- 获取爪子移动坐标长度（x,y)
     function rmg:getcontainerdelta(dcol, dlevel)
         local dx = dcol * (cy.cwidth + cy.cspan)
         local dy = dlevel * rmg.level[1]
         local dz = 0 -- 通过车移动解决z
 
-        print("原版爪移动delta：dx=", dx, " ,dy=", dy)
+        -- print("原版爪移动delta：dx=", dx, " ,dy=", dy)
         return {dx, dy, dz}
     end
 
     -- 获取车移动坐标（z）
     function rmg:getlen(bay)
-        print("原版车移动：", cy.pos[bay][1][2] - cy.origin[3])
+        -- print("原版车移动：", cy.pos[bay][1][2] - cy.origin[3])
         return {cy.pos[bay][1][2] - cy.origin[3]}
     end
 
@@ -316,8 +360,8 @@ local cy2 = CY({19.66 / 2, 150 / 2}, {-19.66 / 2, 65 / 2}, 3)
 local rmg = RMG(cy)
 local rmg2 = RMG(cy2)
 
-print("cy.origin = ", cy.origin[1], ",", cy.origin[2])
-print("rmg.origin = ", rmg.origin[1], ",", rmg.origin[2])
+-- print("cy.origin = ", cy.origin[1], ",", cy.origin[2])
+-- print("rmg.origin = ", rmg.origin[1], ",", rmg.origin[2])
 
 -- 添加任务 rmg1
 rmg:addtask({"move2", rmg:getcontainercoord(2, 2, 3)}) -- 移动爪子到指定位置
@@ -353,25 +397,35 @@ rmg2:addtask({"detach"}) -- 放下指定箱
 rmg2:addtask({"move2", rmg2:getcontainercoord(3, 3, 1)}) -- 移动爪子到指定位置
 
 -- 存在任务序列的对象列表
-local actionobj = {rmg,rmg2}
+local actionobj = {rmg, rmg2}
 
 -- 判断所有任务是否执行完成
 function havetask()
-    for i = 1,#actionobj do
-        if #actionobj[i].tasksequence>0 then
+    for i = 1, #actionobj do
+        if #actionobj[i].tasksequence > 0 then
             return true
         end
     end
     return false
 end
 
+-- 初始时间
 local t = os.clock()
 local dt = 0
-while scene.render() and havetask() do
-    dt = os.clock() - t
-    t = os.clock()
 
-    for i =1,#actionobj do
+function update()
+    coroutine.queue(dt, update)
+
+    -- 计算最小更新时间
+    -- local maxstep = math.huge
+    -- for i = 1, #actionobj do
+    --     if #actionobj[i].tasksequence > 0 then
+    --         maxstep = math.min(maxstep, actionobj[i]:maxstep())
+    --     end
+    -- end
+
+    -- 执行更新
+    for i = 1, #actionobj do
         actionobj[i]:executeTask(dt)
     end
 
@@ -379,6 +433,15 @@ while scene.render() and havetask() do
         delete(rmg.stash)
         rmg.stash = nil
     end
+
+    -- 绘图
+    scene.render()
+
+    -- 刷新时间间隔
+    dt = os.clock() - t
+    -- print("dt = ", dt, " maxstep = ", maxstep)
+    -- dt = math.min(dt, maxstep)
+    t = os.clock()
 end
 
-scene.render()
+update()
