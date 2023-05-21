@@ -110,22 +110,22 @@ function RMG(cy)
             -- print("execute movespread")
             local d = param -- 导入距离
 
-            if d[4] == nil then -- 没有执行记录，创建
-                for i = 1, 3 do
-                    if d[i] == 0 then -- 无移动，向量设为0
-                        d[i + 3] = 0
-                    else
-                        d[i + 3] = d[i] / math.abs(d[i]) -- 计算向量(4~6)
-                    end
-                    d[i + 6] = 0 -- 已移动距离(7~9)
-                    d[i + 9] = rmg.spreaderpos[i] -- 初始位置(10~12)
-                    -- print("d[", i, "]=", d[i], " d[", i + 3, "]=", d[i + 3], "d[", i + 6, "]=", d[i + 6], " d[", i + 9, "]=", d[i + 9])
-                end
+            -- if d[4] == nil then -- 没有执行记录，创建
+            --     for i = 1, 3 do
+            --         if d[i] == 0 then -- 无移动，向量设为0
+            --             d[i + 3] = 0
+            --         else
+            --             d[i + 3] = d[i] / math.abs(d[i]) -- 计算向量(4~6)
+            --         end
+            --         d[i + 6] = 0 -- 已移动距离(7~9)
+            --         d[i + 9] = rmg.spreaderpos[i] -- 初始位置(10~12)
+            --         -- print("d[", i, "]=", d[i], " d[", i + 3, "]=", d[i + 3], "d[", i + 6, "]=", d[i + 6], " d[", i + 9, "]=", d[i + 9])
+            --     end
 
-                -- 计算各方向分速度
-                local l = math.sqrt(d[4] ^ 2 + d[5] ^ 2 + d[6] ^ 2)
-                param.speed = {d[4] / l * rmg.speed, d[5] / l * rmg.speed, d[6] / l * rmg.speed} -- 向量*速度
-            end
+            --     -- 计算各方向分速度
+            --     local l = math.sqrt(d[4] ^ 2 + d[5] ^ 2 + d[6] ^ 2)
+            --     param.speed = {d[4] / l * rmg.speed, d[5] / l * rmg.speed, d[6] / l * rmg.speed} -- 向量*速度
+            -- end
 
             -- 计算各方向分速度
             -- local l = math.sqrt(d[4] ^ 2 + d[5] ^ 2 + d[6] ^ 2)
@@ -151,26 +151,25 @@ function RMG(cy)
 
             rmg:spreadermove(ds[1], ds[2], ds[3]) -- 移动差量
         elseif taskname == "move2" then -- 1:col(x), 2:height(y), 3:bay(z), [4:初始bay, 5:已移动bay距离,向量*2(6,7),当前位置*2(8,9),初始位置*2(10,11),到达(12,13)*2]
-            local d = param
-            if d[4] == nil then
-                d[4] = rmg.pos -- 初始位置
-                d[5] = 0 -- 已经移动的距离
-                for i = 1, 2 do
-                    param[i + 7] = rmg.spreaderpos[i] -- 当前位置(8,9)
-                    param[i + 9] = rmg.spreaderpos[i] -- 初始位置(10,11)
-                    if param[i] - param[i + 9] == 0 then -- 目标距离差为0，向量设为0
-                        param[i + 5] = 0
-                    else
-                        param[i + 5] = param[i] - param[i + 9] -- 计算初始向量
-                    end
-                end
-                param[12], param[13] = false, false
+            -- if param[4] == nil then
+            --     param[4] = rmg.pos -- 初始位置
+            --     param[5] = 0 -- 已经移动的距离
+            --     for i = 1, 2 do
+            --         param[i + 7] = rmg.spreaderpos[i] -- 当前位置(8,9)
+            --         param[i + 9] = rmg.spreaderpos[i] -- 初始位置(10,11)
+            --         if param[i] - param[i + 9] == 0 then -- 目标距离差为0，向量设为0
+            --             param[i + 5] = 0
+            --         else
+            --             param[i + 5] = param[i] - param[i + 9] -- 计算初始向量
+            --         end
+            --     end
+            --     param[12], param[13] = param[3]==param[4], false
 
-                -- 计算各方向分速度
-                local l = math.sqrt(param[6] ^ 2 + param[7] ^ 2)
-                param.speed = {param[6] / l * rmg.speed, param[7] / l * rmg.speed,
-                               rmg.speed * ((d[3] - rmg.pos) / math.abs(d[3] - rmg.pos))} -- speed[3]:速度乘方向
-            end
+            --     -- 计算各方向分速度
+            --     local l = math.sqrt(param[6] ^ 2 + param[7] ^ 2)
+            --     param.speed = {param[6] / l * rmg.speed, param[7] / l * rmg.speed,
+            --                    rmg.speed * ((param[3] - rmg.pos) / math.abs(param[3] - rmg.pos))} -- speed[3]:速度乘方向
+            -- end
 
             local ds = {}
             -- -- 计算各方向分速度
@@ -185,12 +184,12 @@ function RMG(cy)
             ds[3] = param.speed[3] * dt -- rmg向量速度*时间
 
             if not param[12] then -- bay方向没有到达目标                
-                if d[5] / (d[3] - d[4]) > 1 then -- 首次到达目标
+                if param[5] / (param[3] - param[4]) > 1 then -- 首次到达目标
                     -- rmg:deltask()
-                    rmg:move(d[5] - d[3] + d[4])
+                    rmg:move(param[5] - param[3] + param[4])
                     param[12] = true
                 else
-                    d[5] = d[5] + ds[3] -- 已移动bay
+                    param[5] = param[5] + ds[3] -- 已移动bay
                     rmg:move(ds[3])
                 end
             end
@@ -232,23 +231,69 @@ function RMG(cy)
         local taskname = rmg.tasksequence[1][1] -- 任务名称
         local param = rmg.tasksequence[1][2] -- 任务参数
         if taskname == "movespread" then
+            -- print("maxstep: movespread")
+            if param[4] == nil then -- 没有执行记录，创建
+                for i = 1, 3 do
+                    if param[i] == 0 then -- 无移动，向量设为0
+                        param[i + 3] = 0
+                    else
+                        param[i + 3] = param[i] / math.abs(param[i]) -- 计算向量(4~6)
+                    end
+                    param[i + 6] = 0 -- 已移动距离(7~9)
+                    param[i + 9] = rmg.spreaderpos[i] -- 初始位置(10~12)
+                    -- print("d[", i, "]=", d[i], " d[", i + 3, "]=", d[i + 3], "d[", i + 6, "]=", d[i + 6], " d[", i + 9, "]=", d[i + 9])
+                end
+
+                -- 计算各方向分速度
+                local l = math.sqrt(param[4] ^ 2 + param[5] ^ 2 + param[6] ^ 2)
+                param.speed = {param[4] / l * rmg.speed, param[5] / l * rmg.speed, param[6] / l * rmg.speed} -- 向量*速度
+            end
+
             for i = 1, 3 do
                 if param[i] ~= 0 then -- 只要分方向移动，就计算最大步进
-                    dt = math.min(dt, math.abs(param[i] - param[i + 6]) / param.speed[i]) -- 根据movespread判断条件
+                    dt = math.min(dt, math.abs((param[i] - param[i + 6]) / param.speed[i])) -- 根据movespread判断条件
                 end
             end
         elseif taskname == "move2" then
+            -- print("maxstep: move2")
+            if param[4] == nil then
+                param[4] = rmg.pos -- 初始位置
+                param[5] = 0 -- 已经移动的距离
+                for i = 1, 2 do
+                    param[i + 7] = rmg.spreaderpos[i] -- 当前位置(8,9)
+                    param[i + 9] = rmg.spreaderpos[i] -- 初始位置(10,11)
+                    if param[i] - param[i + 9] == 0 then -- 目标距离差为0，向量设为0
+                        param[i + 5] = 0
+                    else
+                        param[i + 5] = param[i] - param[i + 9] -- 计算初始向量
+                    end
+                end
+                param[12], param[13] = param[3]==param[4], false
+
+                -- 计算各方向分速度
+                local l = math.sqrt(param[6] ^ 2 + param[7] ^ 2)
+                param.speed = {param[6] / l * rmg.speed, param[7] / l * rmg.speed,
+                               rmg.speed * ((param[3] - rmg.pos) / math.abs(param[3] - rmg.pos))} -- speed[3]:速度乘方向
+            end
+
             if not param[12] then -- bay方向没有到达目标
-                dt = math.min(dt, (param[3] - param[4]) / param.speed[3])
+                dt = math.min(dt, math.abs((param[3] - param[4] - param[5]) / param.speed[3]))
+                -- if dt < 0 then --debug
+                --     print("maxstep更新：(param[3] - param[4] - param[5]) / param.speed[3]=",(param[3] - param[4] - param[5]) / param.speed[3])
+                -- end
             end
             if not param[13] then -- 列方向没有到达目标
                 for i = 1, 2 do
                     if param[i + 5] ~= 0 then -- 只要分方向移动，就计算最大步进
-                        dt = math.min(dt, math.abs(param[i] - param[i + 7]) / param.speed[i]) -- 根据move2判断条件
+                        dt = math.min(dt, (param[i] - param[i + 7]) / param.speed[i]) -- 根据move2判断条件
+                        -- if dt<0 then --debug
+                        --     print("maxstep更新：(param[i] - param[i + 7]) / param.speed[i]=",(param[i] - param[i + 7]) / param.speed[i])
+                        -- end
                     end
                 end
             end
         elseif taskname == "attach" or taskname == "detach" then
+            print("maxstep: attach or detach")
             dt = math.min(dt, 1) -- 假设装卸1秒
         end
         return dt
@@ -417,12 +462,12 @@ function update()
     coroutine.queue(dt, update)
 
     -- 计算最小更新时间
-    -- local maxstep = math.huge
-    -- for i = 1, #actionobj do
-    --     if #actionobj[i].tasksequence > 0 then
-    --         maxstep = math.min(maxstep, actionobj[i]:maxstep())
-    --     end
-    -- end
+    local maxstep = math.huge
+    for i = 1, #actionobj do
+        if #actionobj[i].tasksequence > 0 then
+            maxstep = math.min(maxstep, actionobj[i]:maxstep())
+        end
+    end
 
     -- 执行更新
     for i = 1, #actionobj do
@@ -440,7 +485,7 @@ function update()
     -- 刷新时间间隔
     dt = os.clock() - t
     -- print("dt = ", dt, " maxstep = ", maxstep)
-    -- dt = math.min(dt, maxstep)
+    dt = math.min(dt, maxstep)
     t = os.clock()
 end
 
