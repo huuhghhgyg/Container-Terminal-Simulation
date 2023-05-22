@@ -17,6 +17,7 @@ function RMG(cy)
 
     -- 参数设置
     rmg.level = {2.42, 2.42 * 2, 2.42 * 3, 2.42 * 4}
+    rmg.level.agv = 2.1 -- agv高度
     rmg.spreaderpos = {0, rmg.level[2], 0} -- 初始位置(x,y)
     rmg.pos = 0 -- 初始位置(x,y,z)
     rmg.cy = cy -- 初始化对应堆场
@@ -25,6 +26,15 @@ function RMG(cy)
     rmg.speed = 4 -- 移动速度
     rmg.attached = nil
     rmg.stash = nil -- io物品暂存
+
+    -- 停车位
+    for i = 1, cy.row do
+        rmg.cy.parkingspace.occupied[i] = false
+        -- print("rmg.cy.origin=",rmg.cy.origin[1],",",rmg.cy.origin[2])
+        rmg.cy.parkingspace.pos[i] = {rmg.cy.origin[1]+rmg.iox, 0, rmg.cy.origin[2]+rmg.cy.pos[i][1][2]} -- x,y,z
+        -- local sign = scene.addobj("box")
+        -- sign:setpos(table.unpack(rmg.cy.parkingspace.pos[i]))
+    end
 
     -- 初始化位置
     rmg.origin = cy.origin -- 原点
@@ -107,29 +117,7 @@ function RMG(cy)
         local task = rmg.tasksequence[1]
         local taskname, param = task[1], task[2]
         if taskname == "movespread" then -- {"movespread",{x,y,z}} 各方向移动多少
-            -- print("execute movespread")
             local d = param -- 导入距离
-
-            -- if d[4] == nil then -- 没有执行记录，创建
-            --     for i = 1, 3 do
-            --         if d[i] == 0 then -- 无移动，向量设为0
-            --             d[i + 3] = 0
-            --         else
-            --             d[i + 3] = d[i] / math.abs(d[i]) -- 计算向量(4~6)
-            --         end
-            --         d[i + 6] = 0 -- 已移动距离(7~9)
-            --         d[i + 9] = rmg.spreaderpos[i] -- 初始位置(10~12)
-            --         -- print("d[", i, "]=", d[i], " d[", i + 3, "]=", d[i + 3], "d[", i + 6, "]=", d[i + 6], " d[", i + 9, "]=", d[i + 9])
-            --     end
-
-            --     -- 计算各方向分速度
-            --     local l = math.sqrt(d[4] ^ 2 + d[5] ^ 2 + d[6] ^ 2)
-            --     param.speed = {d[4] / l * rmg.speed, d[5] / l * rmg.speed, d[6] / l * rmg.speed} -- 向量*速度
-            -- end
-
-            -- 计算各方向分速度
-            -- local l = math.sqrt(d[4] ^ 2 + d[5] ^ 2 + d[6] ^ 2)
-            -- local speed = {d[4] / l * rmg.speed, d[5] / l * rmg.speed, d[6] / l * rmg.speed} -- 向量*速度
 
             -- 计算移动值
             local ds = {}
@@ -151,30 +139,7 @@ function RMG(cy)
 
             rmg:spreadermove(ds[1], ds[2], ds[3]) -- 移动差量
         elseif taskname == "move2" then -- 1:col(x), 2:height(y), 3:bay(z), [4:初始bay, 5:已移动bay距离,向量*2(6,7),当前位置*2(8,9),初始位置*2(10,11),到达(12,13)*2]
-            -- if param[4] == nil then
-            --     param[4] = rmg.pos -- 初始位置
-            --     param[5] = 0 -- 已经移动的距离
-            --     for i = 1, 2 do
-            --         param[i + 7] = rmg.spreaderpos[i] -- 当前位置(8,9)
-            --         param[i + 9] = rmg.spreaderpos[i] -- 初始位置(10,11)
-            --         if param[i] - param[i + 9] == 0 then -- 目标距离差为0，向量设为0
-            --             param[i + 5] = 0
-            --         else
-            --             param[i + 5] = param[i] - param[i + 9] -- 计算初始向量
-            --         end
-            --     end
-            --     param[12], param[13] = param[3]==param[4], false
-
-            --     -- 计算各方向分速度
-            --     local l = math.sqrt(param[6] ^ 2 + param[7] ^ 2)
-            --     param.speed = {param[6] / l * rmg.speed, param[7] / l * rmg.speed,
-            --                    rmg.speed * ((param[3] - rmg.pos) / math.abs(param[3] - rmg.pos))} -- speed[3]:速度乘方向
-            -- end
-
             local ds = {}
-            -- -- 计算各方向分速度
-            -- local l = math.sqrt(param[6] ^ 2 + param[7] ^ 2)
-            -- local speed = {param[6] / l * rmg.speed, param[7] / l * rmg.speed}
             -- 计算移动值
             for i = 1, 2 do
                 ds[i] = param.speed[i] * dt -- dt移动
@@ -354,6 +319,7 @@ function AGV()
     local agv = scene.addobj("/res/ct/agv.glb")
     agv.speed = 2
     agv.targetCY = nil -- 目标堆场
+    agv.tasksequence = {} -- 初始化任务队列
 
     function agv:move(dx, dz)
         local x, _, z = agv:getpos()
@@ -361,10 +327,7 @@ function AGV()
         agv:setpos(x, 0, z)
     end
 
-    agv.tasksequence = {} -- 初始化任务队列
-
-    -- task: {任务名称,{参数}}
-    function agv:executeTask(dt) -- 执行任务
+    function agv:executeTask(dt) -- 执行任务 task: {任务名称,{参数}}
         if agv.tasksequence[1] == nil then
             return
         end
@@ -465,8 +428,14 @@ function CY(p1, p2, levels)
         cspan = 0.6,
         pos = {}, -- 初始化
         containers = {}, -- 集装箱对象(相对坐标)
+        parkingspace = {
+            pos = {}, -- 停车位坐标
+            occupied = {} -- 停车位占用情况
+        }, -- 停车位对象(相对坐标)
         origin = {(p1[1] + p2[1]) / 2, 0, (p1[2] + p2[2]) / 2} -- 参照点
     }
+
+    -- 显示堆场锚点
     local p1obj = scene.addobj("points", {
         vertices = {p1[1], 0, p1[2]},
         color = "blue",
@@ -477,12 +446,13 @@ function CY(p1, p2, levels)
         color = "red",
         size = 10
     })
+
     -- print("#p2=",#p2," #p1=",#p1)
     local pdx = (p2[1] - p1[1]) / math.abs(p1[1] - p2[1])
     local pdy = (p2[2] - p1[2]) / math.abs(p1[2] - p2[2])
 
     -- 计算属性
-    cy.dir = {pdx, pdy}
+    cy.dir = {pdx, pdy} -- 方向
     cy.width, cy.length = math.abs(p1[1] - p2[1]), math.abs(p1[2] - p2[2])
     -- print("cy.length = ",cy.length," cy.width = ",cy.width, "cwidth, clength = ",cy.cwidth,",",cy.clength)
     cy.col = math.floor((cy.width + cy.cspan) / (cy.cwidth + cy.cspan)) -- 列数
@@ -517,37 +487,37 @@ local rmg2 = RMG(cy2)
 -- print("rmg.origin = ", rmg.origin[1], ",", rmg.origin[2])
 
 -- 添加任务 rmg1
--- rmg:addtask({"move2", rmg:getcontainercoord(2, 2, 3)}) -- 移动爪子到指定位置
--- rmg:addtask({"movespread", rmg:getcontainerdelta(0, -1)}) -- 移动爪子到指定高度
--- rmg:addtask({"attach", {2, 3}}) -- 抓取指定箱
--- rmg:addtask({"movespread", rmg:getcontainerdelta(0, 2)}) -- 移动爪子到指定高度
--- rmg:addtask({"move2", rmg:getcontainercoord(2, 3, -1)}) -- 移动爪子到指定位置
--- rmg:addtask({"movespread", rmg:getcontainerdelta(0, -2)}) -- 移动爪子到指定高度
--- rmg:addtask({"detach"}) -- 放下指定箱
--- rmg:addtask({"move2", rmg:getcontainercoord(3, 2, 1)}) -- 移动爪子到指定位置
--- rmg:addtask({"movespread", rmg:getcontainerdelta(0, -1)}) -- 移动爪子到指定高度
--- rmg:addtask({"attach", {3, 1}}) -- 抓取指定箱
--- rmg:addtask({"movespread", rmg:getcontainerdelta(0, 2)}) -- 移动爪子到指定高度
--- rmg:addtask({"move2", rmg:getcontainercoord(3, 3, -1)}) -- 移动爪子到指定位置
--- rmg:addtask({"movespread", rmg:getcontainerdelta(0, -2)}) -- 移动爪子到指定高度
--- rmg:addtask({"detach"}) -- 放下指定箱
--- rmg:addtask({"move2", rmg:getcontainercoord(5, 3, 4)}) -- 移动爪子到指定位置
--- rmg:addtask({"movespread", rmg:getcontainerdelta(0, -2)}) -- 移动爪子到指定高度
--- rmg:addtask({"attach", {5, 4}}) -- 抓取指定箱
--- rmg:addtask({"movespread", rmg:getcontainerdelta(0, 2)}) -- 移动爪子到指定高度
--- rmg:addtask({"move2", rmg:getcontainercoord(5, 3, -1)}) -- 移动爪子到指定位置
--- rmg:addtask({"movespread", rmg:getcontainerdelta(0, -2)}) -- 移动爪子到指定高度
--- rmg:addtask({"detach"}) -- 放下指定箱
+rmg:addtask({"move2", rmg:getcontainercoord(2, 2, 3)}) -- 移动爪子到指定位置
+rmg:addtask({"movespread", rmg:getcontainerdelta(0, -1)}) -- 移动爪子到指定高度
+rmg:addtask({"attach", {2, 3}}) -- 抓取指定箱
+rmg:addtask({"movespread", rmg:getcontainerdelta(0, 2)}) -- 移动爪子到指定高度
+rmg:addtask({"move2", rmg:getcontainercoord(2, 3, -1)}) -- 移动爪子到指定位置
+rmg:addtask({"movespread", rmg:getcontainerdelta(0, -2)}) -- 移动爪子到指定高度
+rmg:addtask({"detach"}) -- 放下指定箱
+rmg:addtask({"move2", rmg:getcontainercoord(3, 2, 1)}) -- 移动爪子到指定位置
+rmg:addtask({"movespread", rmg:getcontainerdelta(0, -1)}) -- 移动爪子到指定高度
+rmg:addtask({"attach", {3, 1}}) -- 抓取指定箱
+rmg:addtask({"movespread", rmg:getcontainerdelta(0, 2)}) -- 移动爪子到指定高度
+rmg:addtask({"move2", rmg:getcontainercoord(3, 3, -1)}) -- 移动爪子到指定位置
+rmg:addtask({"movespread", rmg:getcontainerdelta(0, -2)}) -- 移动爪子到指定高度
+rmg:addtask({"detach"}) -- 放下指定箱
+rmg:addtask({"move2", rmg:getcontainercoord(5, 3, 4)}) -- 移动爪子到指定位置
+rmg:addtask({"movespread", rmg:getcontainerdelta(0, -2)}) -- 移动爪子到指定高度
+rmg:addtask({"attach", {5, 4}}) -- 抓取指定箱
+rmg:addtask({"movespread", rmg:getcontainerdelta(0, 2)}) -- 移动爪子到指定高度
+rmg:addtask({"move2", rmg:getcontainercoord(5, 3, -1)}) -- 移动爪子到指定位置
+rmg:addtask({"movespread", rmg:getcontainerdelta(0, -2)}) -- 移动爪子到指定高度
+rmg:addtask({"detach"}) -- 放下指定箱
 
--- -- 添加任务 rmg2
--- rmg2:addtask({"move2", rmg2:getcontainercoord(5, 2, 5)}) -- 移动爪子到指定位置
--- rmg2:addtask({"movespread", rmg2:getcontainerdelta(0, -1)}) -- 移动爪子到指定高度
--- rmg2:addtask({"attach", {5, 5}}) -- 抓取指定箱
--- rmg2:addtask({"movespread", rmg2:getcontainerdelta(0, 2)}) -- 移动爪子到指定高度
--- rmg2:addtask({"move2", rmg2:getcontainercoord(5, 2, -1)}) -- 移动爪子到指定位置
--- rmg2:addtask({"movespread", rmg2:getcontainerdelta(0, -1)}) -- 移动爪子到指定高度
--- rmg2:addtask({"detach"}) -- 放下指定箱
--- rmg2:addtask({"move2", rmg2:getcontainercoord(3, 3, 1)}) -- 移动爪子到指定位置
+-- 添加任务 rmg2
+rmg2:addtask({"move2", rmg2:getcontainercoord(5, 2, 5)}) -- 移动爪子到指定位置
+rmg2:addtask({"movespread", rmg2:getcontainerdelta(0, -1)}) -- 移动爪子到指定高度
+rmg2:addtask({"attach", {5, 5}}) -- 抓取指定箱
+rmg2:addtask({"movespread", rmg2:getcontainerdelta(0, 2)}) -- 移动爪子到指定高度
+rmg2:addtask({"move2", rmg2:getcontainercoord(5, 2, -1)}) -- 移动爪子到指定位置
+rmg2:addtask({"movespread", rmg2:getcontainerdelta(0, -1)}) -- 移动爪子到指定高度
+rmg2:addtask({"detach"}) -- 放下指定箱
+rmg2:addtask({"move2", rmg2:getcontainercoord(3, 3, 1)}) -- 移动爪子到指定位置
 
 local agv = AGV()
 agv:addtask({"move2", {0, 10}})
