@@ -17,6 +17,7 @@ function RMG(cy)
 
     -- 参数设置
     rmg.level = {2.42, 2.42 * 2, 2.42 * 3, 2.42 * 4}
+    rmg.level.agv = 2.1 -- agv高度
     rmg.spreaderpos = {0, rmg.level[2], 0} -- 初始位置(x,y)
     rmg.pos = 0 -- 初始位置(x,y,z)
     rmg.cy = cy -- 初始化对应堆场
@@ -25,6 +26,15 @@ function RMG(cy)
     rmg.speed = 4 -- 移动速度
     rmg.attached = nil
     rmg.stash = nil -- io物品暂存
+
+    -- 停车位
+    for i = 1, cy.row do
+        rmg.cy.parkingspace.occupied[i] = false
+        -- print("rmg.cy.origin=",rmg.cy.origin[1],",",rmg.cy.origin[2])
+        rmg.cy.parkingspace.pos[i] = {rmg.cy.origin[1]+rmg.iox, 0, rmg.cy.origin[2]+rmg.cy.pos[i][1][2]} -- x,y,z
+        -- local sign = scene.addobj("box")
+        -- sign:setpos(table.unpack(rmg.cy.parkingspace.pos[i]))
+    end
 
     -- 初始化位置
     rmg.origin = cy.origin -- 原点
@@ -107,29 +117,7 @@ function RMG(cy)
         local task = rmg.tasksequence[1]
         local taskname, param = task[1], task[2]
         if taskname == "movespread" then -- {"movespread",{x,y,z}} 各方向移动多少
-            -- print("execute movespread")
             local d = param -- 导入距离
-
-            if d[4] == nil then -- 没有执行记录，创建
-                for i = 1, 3 do
-                    if d[i] == 0 then -- 无移动，向量设为0
-                        d[i + 3] = 0
-                    else
-                        d[i + 3] = d[i] / math.abs(d[i]) -- 计算向量(4~6)
-                    end
-                    d[i + 6] = 0 -- 已移动距离(7~9)
-                    d[i + 9] = rmg.spreaderpos[i] -- 初始位置(10~12)
-                    -- print("d[", i, "]=", d[i], " d[", i + 3, "]=", d[i + 3], "d[", i + 6, "]=", d[i + 6], " d[", i + 9, "]=", d[i + 9])
-                end
-
-                -- 计算各方向分速度
-                local l = math.sqrt(d[4] ^ 2 + d[5] ^ 2 + d[6] ^ 2)
-                param.speed = {d[4] / l * rmg.speed, d[5] / l * rmg.speed, d[6] / l * rmg.speed} -- 向量*速度
-            end
-
-            -- 计算各方向分速度
-            -- local l = math.sqrt(d[4] ^ 2 + d[5] ^ 2 + d[6] ^ 2)
-            -- local speed = {d[4] / l * rmg.speed, d[5] / l * rmg.speed, d[6] / l * rmg.speed} -- 向量*速度
 
             -- 计算移动值
             local ds = {}
@@ -151,31 +139,7 @@ function RMG(cy)
 
             rmg:spreadermove(ds[1], ds[2], ds[3]) -- 移动差量
         elseif taskname == "move2" then -- 1:col(x), 2:height(y), 3:bay(z), [4:初始bay, 5:已移动bay距离,向量*2(6,7),当前位置*2(8,9),初始位置*2(10,11),到达(12,13)*2]
-            local d = param
-            if d[4] == nil then
-                d[4] = rmg.pos -- 初始位置
-                d[5] = 0 -- 已经移动的距离
-                for i = 1, 2 do
-                    param[i + 7] = rmg.spreaderpos[i] -- 当前位置(8,9)
-                    param[i + 9] = rmg.spreaderpos[i] -- 初始位置(10,11)
-                    if param[i] - param[i + 9] == 0 then -- 目标距离差为0，向量设为0
-                        param[i + 5] = 0
-                    else
-                        param[i + 5] = param[i] - param[i + 9] -- 计算初始向量
-                    end
-                end
-                param[12], param[13] = false, false
-
-                -- 计算各方向分速度
-                local l = math.sqrt(param[6] ^ 2 + param[7] ^ 2)
-                param.speed = {param[6] / l * rmg.speed, param[7] / l * rmg.speed,
-                               rmg.speed * ((d[3] - rmg.pos) / math.abs(d[3] - rmg.pos))} -- speed[3]:速度乘方向
-            end
-
             local ds = {}
-            -- -- 计算各方向分速度
-            -- local l = math.sqrt(param[6] ^ 2 + param[7] ^ 2)
-            -- local speed = {param[6] / l * rmg.speed, param[7] / l * rmg.speed}
             -- 计算移动值
             for i = 1, 2 do
                 ds[i] = param.speed[i] * dt -- dt移动
@@ -185,12 +149,12 @@ function RMG(cy)
             ds[3] = param.speed[3] * dt -- rmg向量速度*时间
 
             if not param[12] then -- bay方向没有到达目标                
-                if d[5] / (d[3] - d[4]) > 1 then -- 首次到达目标
+                if param[5] / (param[3] - param[4]) > 1 then -- 首次到达目标
                     -- rmg:deltask()
-                    rmg:move(d[5] - d[3] + d[4])
+                    rmg:move(param[5] - param[3] + param[4])
                     param[12] = true
                 else
-                    d[5] = d[5] + ds[3] -- 已移动bay
+                    param[5] = param[5] + ds[3] -- 已移动bay
                     rmg:move(ds[3])
                 end
             end
@@ -232,23 +196,69 @@ function RMG(cy)
         local taskname = rmg.tasksequence[1][1] -- 任务名称
         local param = rmg.tasksequence[1][2] -- 任务参数
         if taskname == "movespread" then
+            -- print("maxstep: movespread")
+            if param[4] == nil then -- 没有执行记录，创建
+                for i = 1, 3 do
+                    if param[i] == 0 then -- 无移动，向量设为0
+                        param[i + 3] = 0
+                    else
+                        param[i + 3] = param[i] / math.abs(param[i]) -- 计算向量(4~6)
+                    end
+                    param[i + 6] = 0 -- 已移动距离(7~9)
+                    param[i + 9] = rmg.spreaderpos[i] -- 初始位置(10~12)
+                    -- print("d[", i, "]=", d[i], " d[", i + 3, "]=", d[i + 3], "d[", i + 6, "]=", d[i + 6], " d[", i + 9, "]=", d[i + 9])
+                end
+
+                -- 计算各方向分速度
+                local l = math.sqrt(param[4] ^ 2 + param[5] ^ 2 + param[6] ^ 2)
+                param.speed = {param[4] / l * rmg.speed, param[5] / l * rmg.speed, param[6] / l * rmg.speed} -- 向量*速度
+            end
+
             for i = 1, 3 do
                 if param[i] ~= 0 then -- 只要分方向移动，就计算最大步进
-                    dt = math.min(dt, math.abs(param[i] - param[i + 6]) / param.speed[i]) -- 根据movespread判断条件
+                    dt = math.min(dt, math.abs((param[i] - param[i + 6]) / param.speed[i])) -- 根据movespread判断条件
                 end
             end
         elseif taskname == "move2" then
+            -- print("maxstep: move2")
+            if param[4] == nil then
+                param[4] = rmg.pos -- 初始位置
+                param[5] = 0 -- 已经移动的距离
+                for i = 1, 2 do
+                    param[i + 7] = rmg.spreaderpos[i] -- 当前位置(8,9)
+                    param[i + 9] = rmg.spreaderpos[i] -- 初始位置(10,11)
+                    if param[i] - param[i + 9] == 0 then -- 目标距离差为0，向量设为0
+                        param[i + 5] = 0
+                    else
+                        param[i + 5] = param[i] - param[i + 9] -- 计算初始向量
+                    end
+                end
+                param[12], param[13] = param[3] == param[4], false
+
+                -- 计算各方向分速度
+                local l = math.sqrt(param[6] ^ 2 + param[7] ^ 2)
+                param.speed = {param[6] / l * rmg.speed, param[7] / l * rmg.speed,
+                               rmg.speed * ((param[3] - rmg.pos) / math.abs(param[3] - rmg.pos))} -- speed[3]:速度乘方向
+            end
+
             if not param[12] then -- bay方向没有到达目标
-                dt = math.min(dt, (param[3] - param[4]) / param.speed[3])
+                dt = math.min(dt, math.abs((param[3] - param[4] - param[5]) / param.speed[3]))
+                -- if dt < 0 then --debug
+                --     print("maxstep更新：(param[3] - param[4] - param[5]) / param.speed[3]=",(param[3] - param[4] - param[5]) / param.speed[3])
+                -- end
             end
             if not param[13] then -- 列方向没有到达目标
                 for i = 1, 2 do
                     if param[i + 5] ~= 0 then -- 只要分方向移动，就计算最大步进
-                        dt = math.min(dt, math.abs(param[i] - param[i + 7]) / param.speed[i]) -- 根据move2判断条件
+                        dt = math.min(dt, (param[i] - param[i + 7]) / param.speed[i]) -- 根据move2判断条件
+                        -- if dt<0 then --debug
+                        --     print("maxstep更新：(param[i] - param[i + 7]) / param.speed[i]=",(param[i] - param[i + 7]) / param.speed[i])
+                        -- end
                     end
                 end
             end
         elseif taskname == "attach" or taskname == "detach" then
+            print("maxstep: attach or detach")
             dt = math.min(dt, 1) -- 假设装卸1秒
         end
         return dt
@@ -305,6 +315,112 @@ function RMG(cy)
     return rmg
 end
 
+function AGV()
+    local agv = scene.addobj("/res/ct/agv.glb")
+    agv.speed = 2
+    agv.targetCY = nil -- 目标堆场
+    agv.tasksequence = {} -- 初始化任务队列
+
+    function agv:move(dx, dz)
+        local x, _, z = agv:getpos()
+        x, z = x + dx, z + dz
+        agv:setpos(x, 0, z)
+    end
+
+    function agv:executeTask(dt) -- 执行任务 task: {任务名称,{参数}}
+        if agv.tasksequence[1] == nil then
+            return
+        end
+
+        local task = agv.tasksequence[1]
+        local taskname, param = task[1], task[2]
+        if taskname == "move2" then -- {"move2",x,z} 移动到指定位置 {x,z, 向量距离*2(3,4), moved*2(5,6), 初始位置*2(7,8)}
+            local ds = {param.speed[1] * dt, param.speed[2] * dt} -- xz方向移动距离
+            param[5], param[6] = param[5] + ds[1], param[6] + ds[2] -- xz方向已经移动的距离
+
+            -- 判断是否到达
+            for i = 1, 2 do
+                if param[i + 2] ~= 0 and (param[i] - param[i + 6] - param[i + 4]) * param[i + 2] <= 0 then -- 如果分方向到达则视为到达
+                    agv:setpos(param[1], 0, param[2])
+                    agv:deltask()
+                    return
+                end
+            end
+
+            -- 设置步进移动
+            agv:setpos(param[7] + param[5], 0, param[8] + param[6])
+        elseif taskname == "attach" then
+            if param[1] == 1 then
+                agv.targetCY:attach()
+            else
+                agv.targetCY:detach()
+            end
+            agv:deltask()
+        elseif taskname == "wait" then
+            if param[1] <= 0 then
+                agv:deltask()
+            else
+                param[1] = param[1] - dt
+            end
+        end
+    end
+
+    -- 添加任务
+    function agv:addtask(obj)
+        table.insert(agv.tasksequence, obj)
+        print("agv:addtask(): ", agv.tasksequence[#agv.tasksequence][1], ", task count:", #agv.tasksequence)
+    end
+
+    -- 删除任务
+    function agv:deltask()
+        print("agv:deltask(): ", agv.tasksequence[1][1], ", task count:", #agv.tasksequence)
+        table.remove(agv.tasksequence, 1)
+
+        if (agv.tasksequence[1] ~= nil) then
+            print("task executing: ", agv.tasksequence[1][1])
+        end
+    end
+
+    function agv:maxstep() -- 初始化和计算最大允许步进时间
+        local dt = math.huge -- 初始化步进
+        if agv.tasksequence[1] == nil then -- 对象无任务，直接返回0
+            return dt
+        end
+
+        local taskname = agv.tasksequence[1][1] -- 任务名称
+        local param = agv.tasksequence[1][2] -- 任务参数
+
+        if taskname == "move2" then
+            -- 初始判断
+            if param[3] == nil then
+                local x, _, z = agv:getpos() -- 获取当前位置
+                param[3] = param[1] - x -- x方向需要移动的距离
+                param[4] = param[2] - z -- z方向需要移动的距离
+                if param[3] == 0 and param[4] == 0 then
+                    print("agv不需要移动")
+                    agv:deltask()
+                    return
+                end
+
+                param[5], param[6] = 0, 0 -- xz方向已经移动的距离
+                param[7], param[8] = x, z -- xz方向初始位置
+
+                local l = math.sqrt(param[3] ^ 2 + param[4] ^ 2)
+                param.speed = {param[3] / l * agv.speed, param[4] / l * agv.speed} -- xz向量速度分量
+            end
+
+            for i = 1, 2 do
+                if param[i + 2] ~= 0 then -- 只要分方向移动，就计算最大步进
+                    dt = math.min(dt, math.abs((param[i] - param[i + 6] - param[i + 4]) / param.speed[i]))
+                end
+            end
+        end
+        return dt
+    end
+
+    return agv
+end
+
 function CY(p1, p2, levels)
     local cy = {
         clength = 6.06,
@@ -312,8 +428,14 @@ function CY(p1, p2, levels)
         cspan = 0.6,
         pos = {}, -- 初始化
         containers = {}, -- 集装箱对象(相对坐标)
+        parkingspace = {
+            pos = {}, -- 停车位坐标
+            occupied = {} -- 停车位占用情况
+        }, -- 停车位对象(相对坐标)
         origin = {(p1[1] + p2[1]) / 2, 0, (p1[2] + p2[2]) / 2} -- 参照点
     }
+
+    -- 显示堆场锚点
     local p1obj = scene.addobj("points", {
         vertices = {p1[1], 0, p1[2]},
         color = "blue",
@@ -324,12 +446,13 @@ function CY(p1, p2, levels)
         color = "red",
         size = 10
     })
+
     -- print("#p2=",#p2," #p1=",#p1)
     local pdx = (p2[1] - p1[1]) / math.abs(p1[1] - p2[1])
     local pdy = (p2[2] - p1[2]) / math.abs(p1[2] - p2[2])
 
     -- 计算属性
-    cy.dir = {pdx, pdy}
+    cy.dir = {pdx, pdy} -- 方向
     cy.width, cy.length = math.abs(p1[1] - p2[1]), math.abs(p1[2] - p2[2])
     -- print("cy.length = ",cy.length," cy.width = ",cy.width, "cwidth, clength = ",cy.cwidth,",",cy.clength)
     cy.col = math.floor((cy.width + cy.cspan) / (cy.cwidth + cy.cspan)) -- 列数
@@ -396,8 +519,14 @@ rmg2:addtask({"movespread", rmg2:getcontainerdelta(0, -1)}) -- 移动爪子到�
 rmg2:addtask({"detach"}) -- 放下指定箱
 rmg2:addtask({"move2", rmg2:getcontainercoord(3, 3, 1)}) -- 移动爪子到指定位置
 
+local agv = AGV()
+agv:addtask({"move2", {0, 10}})
+agv:addtask({"move2", {10, 10}})
+agv:addtask({"move2", {10, 0}})
+agv:addtask({"move2", {0, 0}})
+
 -- 存在任务序列的对象列表
-local actionobj = {rmg, rmg2}
+local actionobj = {rmg, rmg2, agv}
 
 -- 判断所有任务是否执行完成
 function havetask()
@@ -416,13 +545,13 @@ local dt = 0
 function update()
     coroutine.queue(dt, update)
 
-    -- 计算最小更新时间
-    -- local maxstep = math.huge
-    -- for i = 1, #actionobj do
-    --     if #actionobj[i].tasksequence > 0 then
-    --         maxstep = math.min(maxstep, actionobj[i]:maxstep())
-    --     end
-    -- end
+    -- 计算最大更新时间
+    local maxstep = math.huge
+    for i = 1, #actionobj do
+        if #actionobj[i].tasksequence > 0 then
+            maxstep = math.min(maxstep, actionobj[i]:maxstep())
+        end
+    end
 
     -- 执行更新
     for i = 1, #actionobj do
@@ -440,7 +569,7 @@ function update()
     -- 刷新时间间隔
     dt = os.clock() - t
     -- print("dt = ", dt, " maxstep = ", maxstep)
-    -- dt = math.min(dt, maxstep)
+    dt = math.min(dt, maxstep)
     t = os.clock()
 end
 
