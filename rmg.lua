@@ -372,24 +372,6 @@ function AGV()
         local task = agv.tasksequence[1]
         local taskname, param = task[1], task[2]
         if taskname == "move2" then -- {"move2",x,z} 移动到指定位置 {x,z, 向量距离*2(3,4), moved*2(5,6), 初始位置*2(7,8)}
-            -- 初始判断
-            if param[3] == nil then
-                local x, _, z = agv:getpos() -- 获取当前位置
-                param[3] = param[1] - x -- x方向需要移动的距离
-                param[4] = param[2] - z -- z方向需要移动的距离
-                if param[3] == 0 and param[4] == 0 then
-                    print("agv不需要移动")
-                    agv:deltask()
-                    return
-                end
-
-                param[5], param[6] = 0, 0 -- xz方向已经移动的距离
-                param[7], param[8] = x, z -- xz方向初始位置
-
-                local l = math.sqrt(param[3] ^ 2 + param[4] ^ 2)
-                param.speed = {param[3] / l * agv.speed, param[4] / l * agv.speed} -- xz向量速度分量
-            end
-
             local ds = {param.speed[1] * dt, param.speed[2] * dt} -- xz方向移动距离
             param[5], param[6] = param[5] + ds[1], param[6] + ds[2] -- xz方向已经移动的距离
 
@@ -437,7 +419,40 @@ function AGV()
     end
 
     function agv:maxstep() -- 初始化和计算最大允许步进时间
+        local dt = math.huge -- 初始化步进
+        if agv.tasksequence[1] == nil then -- 对象无任务，直接返回0
+            return dt
+        end
 
+        local taskname = agv.tasksequence[1][1] -- 任务名称
+        local param = agv.tasksequence[1][2] -- 任务参数
+
+        if taskname == "move2" then
+            -- 初始判断
+            if param[3] == nil then
+                local x, _, z = agv:getpos() -- 获取当前位置
+                param[3] = param[1] - x -- x方向需要移动的距离
+                param[4] = param[2] - z -- z方向需要移动的距离
+                if param[3] == 0 and param[4] == 0 then
+                    print("agv不需要移动")
+                    agv:deltask()
+                    return
+                end
+
+                param[5], param[6] = 0, 0 -- xz方向已经移动的距离
+                param[7], param[8] = x, z -- xz方向初始位置
+
+                local l = math.sqrt(param[3] ^ 2 + param[4] ^ 2)
+                param.speed = {param[3] / l * agv.speed, param[4] / l * agv.speed} -- xz向量速度分量
+            end
+
+            for i = 1, 2 do
+                if param[i + 2] ~= 0 then -- 只要分方向移动，就计算最大步进
+                    dt = math.min(dt, math.abs((param[i] - param[i + 6] - param[i + 4]) / param.speed[i]))
+                end
+            end
+        end
+        return dt
     end
 
     return agv
