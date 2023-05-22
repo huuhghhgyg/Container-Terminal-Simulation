@@ -268,7 +268,7 @@ function RMG(cy)
                         param[i + 5] = param[i] - param[i + 9] -- 计算初始向量
                     end
                 end
-                param[12], param[13] = param[3]==param[4], false
+                param[12], param[13] = param[3] == param[4], false
 
                 -- 计算各方向分速度
                 local l = math.sqrt(param[6] ^ 2 + param[7] ^ 2)
@@ -350,6 +350,99 @@ function RMG(cy)
     return rmg
 end
 
+function AGV()
+    local agv = scene.addobj("/res/ct/agv.glb")
+    agv.speed = 2
+    agv.targetCY = nil -- 目标堆场
+
+    function agv:move(dx, dz)
+        local x, _, z = agv:getpos()
+        x, z = x + dx, z + dz
+        agv:setpos(x, 0, z)
+    end
+
+    agv.tasksequence = {} -- 初始化任务队列
+
+    -- task: {任务名称,{参数}}
+    function agv:executeTask(dt) -- 执行任务
+        if agv.tasksequence[1] == nil then
+            return
+        end
+
+        local task = agv.tasksequence[1]
+        local taskname, param = task[1], task[2]
+        if taskname == "move2" then -- {"move2",x,z} 移动到指定位置 {x,z, 向量距离*2(3,4), moved*2(5,6), 初始位置*2(7,8)}
+            -- 初始判断
+            if param[3] == nil then
+                local x, _, z = agv:getpos() -- 获取当前位置
+                param[3] = param[1] - x -- x方向需要移动的距离
+                param[4] = param[2] - z -- z方向需要移动的距离
+                if param[3] == 0 and param[4] == 0 then
+                    print("agv不需要移动")
+                    agv:deltask()
+                    return
+                end
+
+                param[5], param[6] = 0, 0 -- xz方向已经移动的距离
+                param[7], param[8] = x, z -- xz方向初始位置
+
+                local l = math.sqrt(param[3] ^ 2 + param[4] ^ 2)
+                param.speed = {param[3] / l * agv.speed, param[4] / l * agv.speed} -- xz向量速度分量
+            end
+
+            local ds = {param.speed[1] * dt, param.speed[2] * dt} -- xz方向移动距离
+            param[5], param[6] = param[5] + ds[1], param[6] + ds[2] -- xz方向已经移动的距离
+
+            -- 判断是否到达
+            for i = 1, 2 do
+                if param[i + 2] ~= 0 and (param[i] - param[i + 6] - param[i + 4]) * param[i + 2] <= 0 then -- 如果分方向到达则视为到达
+                    agv:setpos(param[1], 0, param[2])
+                    agv:deltask()
+                    return
+                end
+            end
+
+            -- 设置步进移动
+            agv:setpos(param[7] + param[5], 0, param[8] + param[6])
+        elseif taskname == "attach" then
+            if param[1] == 1 then
+                agv.targetCY:attach()
+            else
+                agv.targetCY:detach()
+            end
+            agv:deltask()
+        elseif taskname == "wait" then
+            if param[1] <= 0 then
+                agv:deltask()
+            else
+                param[1] = param[1] - dt
+            end
+        end
+    end
+
+    -- 添加任务
+    function agv:addtask(obj)
+        table.insert(agv.tasksequence, obj)
+        print("agv:addtask(): ", agv.tasksequence[#agv.tasksequence][1], ", task count:", #agv.tasksequence)
+    end
+
+    -- 删除任务
+    function agv:deltask()
+        print("agv:deltask(): ", agv.tasksequence[1][1], ", task count:", #agv.tasksequence)
+        table.remove(agv.tasksequence, 1)
+
+        if (agv.tasksequence[1] ~= nil) then
+            print("task executing: ", agv.tasksequence[1][1])
+        end
+    end
+
+    function agv:maxstep() -- 初始化和计算最大允许步进时间
+
+    end
+
+    return agv
+end
+
 function CY(p1, p2, levels)
     local cy = {
         clength = 6.06,
@@ -409,40 +502,46 @@ local rmg2 = RMG(cy2)
 -- print("rmg.origin = ", rmg.origin[1], ",", rmg.origin[2])
 
 -- 添加任务 rmg1
-rmg:addtask({"move2", rmg:getcontainercoord(2, 2, 3)}) -- 移动爪子到指定位置
-rmg:addtask({"movespread", rmg:getcontainerdelta(0, -1)}) -- 移动爪子到指定高度
-rmg:addtask({"attach", {2, 3}}) -- 抓取指定箱
-rmg:addtask({"movespread", rmg:getcontainerdelta(0, 2)}) -- 移动爪子到指定高度
-rmg:addtask({"move2", rmg:getcontainercoord(2, 3, -1)}) -- 移动爪子到指定位置
-rmg:addtask({"movespread", rmg:getcontainerdelta(0, -2)}) -- 移动爪子到指定高度
-rmg:addtask({"detach"}) -- 放下指定箱
-rmg:addtask({"move2", rmg:getcontainercoord(3, 2, 1)}) -- 移动爪子到指定位置
-rmg:addtask({"movespread", rmg:getcontainerdelta(0, -1)}) -- 移动爪子到指定高度
-rmg:addtask({"attach", {3, 1}}) -- 抓取指定箱
-rmg:addtask({"movespread", rmg:getcontainerdelta(0, 2)}) -- 移动爪子到指定高度
-rmg:addtask({"move2", rmg:getcontainercoord(3, 3, -1)}) -- 移动爪子到指定位置
-rmg:addtask({"movespread", rmg:getcontainerdelta(0, -2)}) -- 移动爪子到指定高度
-rmg:addtask({"detach"}) -- 放下指定箱
-rmg:addtask({"move2", rmg:getcontainercoord(5, 3, 4)}) -- 移动爪子到指定位置
-rmg:addtask({"movespread", rmg:getcontainerdelta(0, -2)}) -- 移动爪子到指定高度
-rmg:addtask({"attach", {5, 4}}) -- 抓取指定箱
-rmg:addtask({"movespread", rmg:getcontainerdelta(0, 2)}) -- 移动爪子到指定高度
-rmg:addtask({"move2", rmg:getcontainercoord(5, 3, -1)}) -- 移动爪子到指定位置
-rmg:addtask({"movespread", rmg:getcontainerdelta(0, -2)}) -- 移动爪子到指定高度
-rmg:addtask({"detach"}) -- 放下指定箱
+-- rmg:addtask({"move2", rmg:getcontainercoord(2, 2, 3)}) -- 移动爪子到指定位置
+-- rmg:addtask({"movespread", rmg:getcontainerdelta(0, -1)}) -- 移动爪子到指定高度
+-- rmg:addtask({"attach", {2, 3}}) -- 抓取指定箱
+-- rmg:addtask({"movespread", rmg:getcontainerdelta(0, 2)}) -- 移动爪子到指定高度
+-- rmg:addtask({"move2", rmg:getcontainercoord(2, 3, -1)}) -- 移动爪子到指定位置
+-- rmg:addtask({"movespread", rmg:getcontainerdelta(0, -2)}) -- 移动爪子到指定高度
+-- rmg:addtask({"detach"}) -- 放下指定箱
+-- rmg:addtask({"move2", rmg:getcontainercoord(3, 2, 1)}) -- 移动爪子到指定位置
+-- rmg:addtask({"movespread", rmg:getcontainerdelta(0, -1)}) -- 移动爪子到指定高度
+-- rmg:addtask({"attach", {3, 1}}) -- 抓取指定箱
+-- rmg:addtask({"movespread", rmg:getcontainerdelta(0, 2)}) -- 移动爪子到指定高度
+-- rmg:addtask({"move2", rmg:getcontainercoord(3, 3, -1)}) -- 移动爪子到指定位置
+-- rmg:addtask({"movespread", rmg:getcontainerdelta(0, -2)}) -- 移动爪子到指定高度
+-- rmg:addtask({"detach"}) -- 放下指定箱
+-- rmg:addtask({"move2", rmg:getcontainercoord(5, 3, 4)}) -- 移动爪子到指定位置
+-- rmg:addtask({"movespread", rmg:getcontainerdelta(0, -2)}) -- 移动爪子到指定高度
+-- rmg:addtask({"attach", {5, 4}}) -- 抓取指定箱
+-- rmg:addtask({"movespread", rmg:getcontainerdelta(0, 2)}) -- 移动爪子到指定高度
+-- rmg:addtask({"move2", rmg:getcontainercoord(5, 3, -1)}) -- 移动爪子到指定位置
+-- rmg:addtask({"movespread", rmg:getcontainerdelta(0, -2)}) -- 移动爪子到指定高度
+-- rmg:addtask({"detach"}) -- 放下指定箱
 
--- 添加任务 rmg2
-rmg2:addtask({"move2", rmg2:getcontainercoord(5, 2, 5)}) -- 移动爪子到指定位置
-rmg2:addtask({"movespread", rmg2:getcontainerdelta(0, -1)}) -- 移动爪子到指定高度
-rmg2:addtask({"attach", {5, 5}}) -- 抓取指定箱
-rmg2:addtask({"movespread", rmg2:getcontainerdelta(0, 2)}) -- 移动爪子到指定高度
-rmg2:addtask({"move2", rmg2:getcontainercoord(5, 2, -1)}) -- 移动爪子到指定位置
-rmg2:addtask({"movespread", rmg2:getcontainerdelta(0, -1)}) -- 移动爪子到指定高度
-rmg2:addtask({"detach"}) -- 放下指定箱
-rmg2:addtask({"move2", rmg2:getcontainercoord(3, 3, 1)}) -- 移动爪子到指定位置
+-- -- 添加任务 rmg2
+-- rmg2:addtask({"move2", rmg2:getcontainercoord(5, 2, 5)}) -- 移动爪子到指定位置
+-- rmg2:addtask({"movespread", rmg2:getcontainerdelta(0, -1)}) -- 移动爪子到指定高度
+-- rmg2:addtask({"attach", {5, 5}}) -- 抓取指定箱
+-- rmg2:addtask({"movespread", rmg2:getcontainerdelta(0, 2)}) -- 移动爪子到指定高度
+-- rmg2:addtask({"move2", rmg2:getcontainercoord(5, 2, -1)}) -- 移动爪子到指定位置
+-- rmg2:addtask({"movespread", rmg2:getcontainerdelta(0, -1)}) -- 移动爪子到指定高度
+-- rmg2:addtask({"detach"}) -- 放下指定箱
+-- rmg2:addtask({"move2", rmg2:getcontainercoord(3, 3, 1)}) -- 移动爪子到指定位置
+
+local agv = AGV()
+agv:addtask({"move2", {0, 10}})
+agv:addtask({"move2", {10, 10}})
+agv:addtask({"move2", {10, 0}})
+agv:addtask({"move2", {0, 0}})
 
 -- 存在任务序列的对象列表
-local actionobj = {rmg, rmg2}
+local actionobj = {rmg, rmg2, agv}
 
 -- 判断所有任务是否执行完成
 function havetask()
@@ -461,7 +560,7 @@ local dt = 0
 function update()
     coroutine.queue(dt, update)
 
-    -- 计算最小更新时间
+    -- 计算最大更新时间
     local maxstep = math.huge
     for i = 1, #actionobj do
         if #actionobj[i].tasksequence > 0 then
