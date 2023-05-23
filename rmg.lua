@@ -30,14 +30,7 @@ function RMG(cy)
     rmg.attached = nil
     rmg.stash = nil -- io物品暂存
 
-    -- 停车位
-    for i = 1, cy.row do
-        rmg.cy.parkingspace.occupied[i] = false
-        -- print("rmg.cy.origin=",rmg.cy.origin[1],",",rmg.cy.origin[2])
-        rmg.cy.parkingspace.pos[i] = {rmg.cy.origin[1] + rmg.iox, 0, rmg.cy.origin[3] + rmg.cy.pos[i][1][1][3]} -- x,y,z
-        -- local sign = scene.addobj("box")
-        -- sign:setpos(table.unpack(rmg.cy.parkingspace.pos[i]))
-    end
+    cy:initqueue(rmg.iox) -- 初始化停车队列
 
     -- 初始化位置
     rmg.origin = cy.origin -- 原点
@@ -432,11 +425,9 @@ function CY(p1, p2, level)
         cspan = 0.6,
         pos = {}, -- 初始化
         containers = {}, -- 集装箱对象(相对坐标)
-        parkingspace = {
-            pos = {}, -- 停车位坐标
-            occupied = {} -- 停车位占用情况
-        }, -- 停车位对象(相对坐标)
-        origin = {(p1[1] + p2[1]) / 2, 0, (p1[2] + p2[2]) / 2} -- 参照点
+        parkingspace = {}, -- 停车位对象(相对坐标)
+        origin = {(p1[1] + p2[1]) / 2, 0, (p1[2] + p2[2]) / 2}, -- 参照点
+        queuelen = 6 -- 服务队列长度（额外）
     }
 
     -- 显示堆场锚点
@@ -486,6 +477,41 @@ function CY(p1, p2, level)
 
                 -- print("container[",i,",",j,"]=(",cy.pos[i][j][1],",",cy.pos[i][j][2],")")
             end
+        end
+    end
+
+    function cy:initqueue(iox) -- 初始化队列 iox出入位置x相对坐标
+        -- 停车队列(iox)
+        cy.parkingspace = {} -- occupied:停车位占用情况，pos:停车位坐标，bay:对应堆场bay位
+
+        -- 停车位
+        for i = 1, cy.row do
+            cy.parkingspace[i] = {} -- 初始化
+            cy.parkingspace[i].occupied = 0 -- 0:空闲，1:临时占用，2:作业占用
+            -- print("cy.origin=",cy.origin[1],",",cy.origin[2])
+            cy.parkingspace[i].pos = {cy.origin[1] + iox, 0, cy.origin[3] + cy.pos[cy.row - i + 1][1][1][3]} -- x,y,z
+            cy.parkingspace[i].bay = i
+            local sign = scene.addobj("box")
+            sign:setpos(table.unpack(cy.parkingspace[i].pos))
+        end
+
+        local lastbaypos = cy.parkingspace[1].pos -- 记录最后一个添加的位置
+
+        -- 队列停车位
+        for i = 1, cy.queuelen do
+            local pos = {lastbaypos[1], 0, lastbaypos[3] - i * (cy.clength + cy.cspan)}
+            table.insert(cy.parkingspace, 1, {
+                occupied = 0,
+                pos = pos
+            }) -- 无对应bay
+            -- print("队列位置=", cy.queuelen - i + 1, " pos={", pos[1], ",", pos[2], ",", pos[3], "}")
+            local sign = scene.addobj("box")
+            sign:setpos(table.unpack(cy.parkingspace[1].pos))
+        end
+
+        -- unittest
+        for i = 1,#cy.parkingspace do
+            print("parkingspace[",i,"] = ",cy.parkingspace[i].pos[3]," bay = ",cy.parkingspace[i].bay)
         end
     end
 
