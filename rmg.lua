@@ -3,7 +3,9 @@ scene.setenv({
 })
 -- local obj = scene.addobj('/res/ct/container.glb')
 
+local simv = 6 -- 仿真速度
 local actionobj = {} -- 动作队列声明
+local agvSummonSpan = 30 -- agv生成间隔
 
 function RMG(cy)
     -- 初始化对象
@@ -64,11 +66,8 @@ function RMG(cy)
 
     -- 抓箱子
     function rmg:attach(row, col, level)
-        print("rmg attach(", row, ",", col, ",", level, ")=", rmg.cy.containers[row][col][level])
         rmg.attached = rmg.cy.containers[row][col][level]
         rmg.cy.containers[row][col][level] = nil
-        print("rmg.cy.containers[", row, "][", col, "][", level, "]=", rmg.cy.containers[row][col][level])
-        print("rmg.attached=", rmg.attached)
     end
 
     -- 放箱子
@@ -279,9 +278,6 @@ function RMG(cy)
                     end
                 end
             end
-        elseif taskname == "attach" or taskname == "detach" then
-            print("maxstep: attach or detach")
-            dt = math.min(dt, 1) -- 假设装卸1秒
         end
         return dt
     end
@@ -289,16 +285,16 @@ function RMG(cy)
     -- 添加任务
     function rmg:addtask(obj)
         table.insert(rmg.tasksequence, obj)
-        print("rmg:addtask(): ", rmg.tasksequence[#rmg.tasksequence][1], ", task count:", #rmg.tasksequence)
+        -- print("rmg:addtask(): ", rmg.tasksequence[#rmg.tasksequence][1], ", task count:", #rmg.tasksequence)
     end
 
     -- 删除任务
     function rmg:deltask()
-        print("rmg:deltask(): ", rmg.tasksequence[1][1], ", task count:", #rmg.tasksequence)
+        -- print("rmg:deltask(): ", rmg.tasksequence[1][1], ", task count:", #rmg.tasksequence)
         table.remove(rmg.tasksequence, 1)
 
-        if (rmg.tasksequence[1] ~= nil) then
-            print("task executing: ", rmg.tasksequence[1][1])
+        if (rmg.tasksequence[1] ~= nil and rmg.tasksequence[1][1] ~= "move2") then
+            print("[rmg] task executing: ", rmg.tasksequence[1][1])
         end
     end
 
@@ -360,7 +356,7 @@ function RMG(cy)
     return rmg
 end
 
-function AGV(targetcy, targetcontainer) -- 目标堆场，目标列，目标集装箱{bay, col, level}
+function AGV(targetcy, targetcontainer) -- 目标堆场，目标集装箱{bay, col, level}
     local agv = scene.addobj("/res/ct/agv.glb")
     agv.type = "agv"
     agv.speed = 10
@@ -392,7 +388,7 @@ function AGV(targetcy, targetcontainer) -- 目标堆场，目标列，目标集�
 
         -- 判断下一个位置
         if nextoccupy > #agv.targetCY.parkingspace then -- 下一个位置是exit
-            print("agv下一个位置是exit")
+            -- print("agv下一个位置是exit")
             agv:addtask({"move2", {agv.targetCY.exit[1], agv.targetCY.exit[3]}}) -- 不需要设置occupy，直接设置目标位置
 
             -- 释放最后一个车位(没有阻塞环节导致无法解除占用)
@@ -458,14 +454,15 @@ function AGV(targetcy, targetcontainer) -- 目标堆场，目标列，目标集�
         elseif taskname == "attach" then
             if agv.targetCY.rmg.stash ~= nil then
                 agv:attach()
-                print("agv.contaienr=", agv.container)
+                print("agv attached container at ", coroutine.qtime())
                 agv:deltask()
             end
         elseif taskname == "waitagv" then -- {"waitagv",{occupy}} 等待前方agv移动 occupy:当前占用道路位置
             -- 如果前面是exit则不适用于使用此任务
             -- 检测前方占用，如果占用则等待；否则删除任务，根据条件添加move2
-            local span = agv.targetCY.agvspan --agv元胞间隔
-            if param.occupy + span > #agv.targetCY.parkingspace or agv.targetCY.parkingspace[param.occupy + span].occupied == 0 then
+            local span = agv.targetCY.agvspan -- agv元胞间隔
+            if param.occupy + span > #agv.targetCY.parkingspace or
+                agv.targetCY.parkingspace[param.occupy + span].occupied == 0 then
                 agv:deltask()
                 agv.targetCY.parkingspace[param.occupy].occupied = agv.targetCY.parkingspace[param.occupy].occupied - 1 -- 解除占用当前车位
                 if param.occupy + span <= #agv.targetCY.parkingspace then
@@ -487,16 +484,16 @@ function AGV(targetcy, targetcontainer) -- 目标堆场，目标列，目标集�
     -- 添加任务
     function agv:addtask(obj)
         table.insert(agv.tasksequence, obj)
-        print("agv:addtask(): ", agv.tasksequence[#agv.tasksequence][1], ", task count:", #agv.tasksequence)
+        -- print("agv:addtask(): ", agv.tasksequence[#agv.tasksequence][1], ", task count:", #agv.tasksequence)
     end
 
     -- 删除任务
     function agv:deltask()
-        print("agv:deltask(): ", agv.tasksequence[1][1], ", task count:", #agv.tasksequence)
+        -- print("agv:deltask(): ", agv.tasksequence[1][1], ", task count:", #agv.tasksequence)
         table.remove(agv.tasksequence, 1)
 
-        if (agv.tasksequence[1] ~= nil) then
-            print("task executing: ", agv.tasksequence[1][1])
+        if (agv.tasksequence[1] ~= nil and agv.tasksequence[1][1] ~= "move2") then
+            print("[agv] task executing: ", agv.tasksequence[1][1])
         end
     end
 
@@ -516,7 +513,7 @@ function AGV(targetcy, targetcontainer) -- 目标堆场，目标列，目标集�
                     -- 设置目标位置
                     param[1], param[2] = agv.targetCY.parkingspace[param.occupy + 1].pos[1],
                         agv.targetCY.parkingspace[param.occupy + 1].pos[3] -- 设置目标xz坐标
-                    print("agv移动目标", " currentoccupy=", param.occupy, " x,z=", param[1], param[2])
+                    -- print("agv移动目标", " currentoccupy=", param.occupy, " x,z=", param[1], param[2])
                 end
 
                 local x, _, z = agv:getpos() -- 获取当前位置
@@ -571,7 +568,7 @@ function CY(p1, p2, level)
         queuelen = 6, -- 服务队列长度（额外）
         summon = {}, -- 车生成点
         exit = {}, -- 车出口
-        agvspan = 2, -- agv间距
+        agvspan = 2 -- agv间距
     }
 
     -- 显示堆场锚点
@@ -697,8 +694,8 @@ table.insert(actionobj, rmg)
 -- rmg:addtask({"waitagv"})
 -- rmg:lift2agv(2, 3)
 
-local agv2 = AGV(cy, {4, 1, 3})
-local agv = AGV(cy, {2, 3, 3})
+-- local agv2 = AGV(cy, {4, 1, 3})
+-- local agv = AGV(cy, {2, 3, 3})
 
 -- agv:addtask({"move2", {0, 10}})
 -- agv:addtask({"move2", {10, 10}})
@@ -708,6 +705,41 @@ local agv = AGV(cy, {2, 3, 3})
 -- 存在任务序列的对象列表
 -- local actionobj = {rmg, rmg2, agv}
 -- local actionobj = {rmg}
+
+-- 生成具有任务的agv（取货）
+function generateagv()
+    -- 生成有箱子位置的列表
+    local availablepos = {}
+    for i = 1, cy.row do
+        for j = 1, cy.col do
+            for k = cy.level, 1, -1 do -- 只要最高层的箱子
+                local found = false -- 本次循环预定了最高层的箱子
+                -- 对应位置有集装箱且没有被预定
+                if cy.containers[i][j][k] ~= nil and cy.containers[i][j][k].observed == nil then
+                    table.insert(availablepos, {i, j, k})
+                    found = true
+                end
+                if found then
+                    break
+                end
+            end
+        end
+    end
+
+    -- 判断堆场是否有箱子，如果没有则停止
+    if #availablepos == 0 then
+        return
+    end
+
+    local tArriveSpan = math.random(agvSummonSpan) + 1 -- 平均到达间隔120s
+    coroutine.queue(tArriveSpan, generateagv)
+
+    -- 随机抽取一个位置，生成agv
+    local pos = availablepos[math.random(#availablepos)]
+    cy.containers[pos[1]][pos[2]][pos[3]].observed = true -- 标记为已经被预定
+    local agv = AGV(cy, pos)
+    print("agv summoned at: ", coroutine.qtime())
+end
 
 -- 判断所有任务是否执行完成
 function havetask()
@@ -760,10 +792,13 @@ function update()
     scene.render()
 
     -- 刷新时间间隔
-    dt = os.clock() - t
+    dt = (os.clock() - t) * simv
     -- print("dt = ", dt, " maxstep = ", maxstep)
     dt = math.min(dt, maxstep)
     t = os.clock()
 end
 
 update()
+
+-- 生成agv
+generateagv()
