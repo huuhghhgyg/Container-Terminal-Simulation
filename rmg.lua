@@ -162,9 +162,9 @@ function RMG(cy)
             ds[3] = param.speed[3] * dt -- rmg向量速度*时间
 
             if not param[12] then -- bay方向没有到达目标                
-                if param[5] / (param[3] - param[4]) > 1 then -- 首次到达目标
+                if (param[5]+ds[3]) / (param[3] - param[4]) > 1 then -- 首次到达目标
                     -- rmg:deltask()
-                    rmg:move(param[5] - param[3] + param[4])
+                    rmg:move(param[3] - param[4] -param[5])
                     param[12] = true
                 else
                     param[5] = param[5] + ds[3] -- 已移动bay
@@ -264,7 +264,7 @@ function RMG(cy)
 
             if not param[12] then -- bay方向没有到达目标
                 dt = math.min(dt, math.abs((param[3] - param[4] - param[5]) / param.speed[3]))
-                -- if dt < 0 then --debug
+                -- if dt == math.abs((param[3] - param[4] - param[5]) / param.speed[3]) then --debug
                 --     print("maxstep更新：(param[3] - param[4] - param[5]) / param.speed[3]=",(param[3] - param[4] - param[5]) / param.speed[3])
                 -- end
             end
@@ -462,7 +462,7 @@ function AGV(targetcy, targetcontainer) -- 目标堆场，目标集装箱{bay, c
             -- 检测前方占用，如果占用则等待；否则删除任务，根据条件添加move2
             local span = agv.targetCY.agvspan -- agv元胞间隔
             if param.occupy + span > #agv.targetCY.parkingspace or
-                agv.targetCY.parkingspace[param.occupy + span].occupied == 0 then
+                agv.targetCY.parkingspace[param.occupy + span].occupied == 0 then --前方1格无占用或者前方是exit
                 agv:deltask()
                 agv.targetCY.parkingspace[param.occupy].occupied = agv.targetCY.parkingspace[param.occupy].occupied - 1 -- 解除占用当前车位
                 if param.occupy + span <= #agv.targetCY.parkingspace then
