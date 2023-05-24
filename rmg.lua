@@ -16,13 +16,14 @@ function RMG(cy)
     local wirerope = scene.addobj('/res/ct/wirerope.glb')
 
     -- 参数设置
-    rmg.type = "rmg" --对象种类标识(interface)
+    rmg.type = "rmg" -- 对象种类标识(interface)
     rmg.cy = cy -- 初始化对应堆场
     rmg.cy.rmg = rmg -- 堆场对应rmg
     rmg.level = {}
     for i = 1, #cy.levels do
         rmg.level[i] = cy.levels[i] + cy.cheight
     end
+    rmg.toplevel = #rmg.level -- 最高层(吊具行走层)
     rmg.level.agv = 2.1 -- agv高度
     rmg.spreaderpos = {0, rmg.level[2], 0} -- 初始位置(x,y)
     rmg.pos = 0 -- 初始位置(x,y,z)
@@ -31,6 +32,7 @@ function RMG(cy)
     rmg.speed = 4 -- 移动速度
     rmg.attached = nil -- 抓取的集装箱
     rmg.stash = nil -- io物品暂存
+    rmg.agvqueue = {} -- agv服务队列
 
     cy:initqueue(rmg.iox) -- 初始化停车队列
 
@@ -49,6 +51,16 @@ function RMG(cy)
     rmg.wirerope = wirerope
 
     -- 函数
+    -- 注册agv
+    function rmg:registeragv(agv)
+        local targetcontainer = agv.targetcontainer -- 获取目标集装箱
+        table.insert(agv.targetCY.rmg.agvqueue, agv) -- 加入agv队列
+
+        rmg:attachcontainer(table.unpack(targetcontainer)) -- 抓取集装箱
+        rmg:addtask({"waitagv"}) -- 等待agv到达
+        rmg:lift2agv(targetcontainer[1], targetcontainer[2]) -- 将抓住的集装箱移动到agv上
+    end
+
     -- 抓箱子
     function rmg:attach(row, col, level)
         print("rmg attach(", row, ",", col, ",", level, ")=", rmg.cy.containers[row][col][level])
@@ -177,7 +189,15 @@ function RMG(cy)
                 -- print("param 12 and 13:", param[12], ",", param[13])
                 rmg:deltask()
             end
-
+        elseif taskname == "waitagv" then -- {"waitagv", nil}
+            if rmg.agvqueue[1] == nil then
+                -- rmg:deltask()
+                print("rmg: rmg.agvqueue[1]=nil")
+            end
+            if rmg.agvqueue[1] ~= nil and rmg.agvqueue[1].arrived then -- agv到达
+                table.remove(rmg.agvqueue, 1) -- 移除等待的agv
+                rmg:deltask()
+            end
         elseif taskname == "attach" then -- {"attach", {cy.row,cy.col,cy.level}}
             rmg:attach(param[1], param[2], param[3])
             rmg:deltask()
@@ -282,7 +302,7 @@ function RMG(cy)
     end
 
     -- 获取爪子移动坐标（x,y)
-    function rmg:getcontainercoord(bay, level, col)
+    function rmg:getcontainercoord(bay, col, level)
         local x
         if col == -1 then
             x = rmg.iox
@@ -319,18 +339,38 @@ function RMG(cy)
         return {cy.pos[bay][1][1][3] - cy.origin[3]}
     end
 
+    -- 添加任务，抓取指定位置的集装箱
+    function rmg:attachcontainer(bay, col, level)
+        -- todo: 考虑翻箱
+        rmg:addtask({"move2", rmg:getcontainercoord(bay, col, rmg.toplevel)}) -- 移动爪子到指定位置
+        rmg:addtask({"move2", rmg:getcontainercoord(bay, col, level)}) -- 移动爪子到指定位置
+        rmg:addtask({"attach", {bay, col, level}}) -- 抓取指定箱
+    end
+
+    -- 添加任务，将attached的集装箱放到agv上
+    function rmg:lift2agv(bay, col)
+        rmg:addtask({"move2", rmg:getcontainercoord(bay, col, rmg.toplevel)}) -- 将集装箱从目标向上提升
+        rmg:addtask({"move2", rmg:getcontainercoord(bay, -1, rmg.toplevel)}) -- 移动集装箱到agv对应列
+        rmg:addtask({"move2", rmg:getcontainercoord(bay, -1, 1)}) -- 放下箱子到agv上
+        rmg:addtask({"detach"}) -- 放下指定箱
+        rmg:addtask({"move2", rmg:getcontainercoord(bay, -1, rmg.toplevel)}) -- 吊具提升到移动层
+    end
+
     return rmg
 end
 
-function AGV(targetcy, targetbay)
+function AGV(targetcy, targetcontainer) -- 目标堆场，目标列，目标集装箱{bay, col, level}
     local agv = scene.addobj("/res/ct/agv.glb")
     agv.type = "agv"
     agv.speed = 10
     agv.targetCY = targetcy -- 目标堆场
-    agv.targetbay = targetbay -- 目标bay
+    agv.targetcontainer = targetcontainer -- 目标集装箱{bay, col, level}
+    agv.targetbay = targetcontainer[1] -- 目标bay
     agv.tasksequence = {} -- 初始化任务队列
     agv.container = nil -- 初始化集装箱
     agv.height = 2.10 -- agv平台高度
+    agv.arrived = false -- 是否到达目标
+    agv.targetCY.rmg:registeragv(agv)
 
     function agv:move(dx, dz)
         local x, _, z = agv:getpos()
@@ -353,6 +393,7 @@ function AGV(targetcy, targetbay)
         -- 判断是否到达目标
         if agv.targetCY.parkingspace[currentoccupy].bay == agv.targetbay then -- 到达目标
             print("agv到达目标，准备装卸")
+            agv.arrived = true -- 设置agv到达目标标识
             agv:addtask({"waitrmg", {
                 occupy = currentoccupy
             }})
@@ -409,7 +450,8 @@ function AGV(targetcy, targetbay)
             -- 设置步进移动
             agv:move2(param[7] + param[5], 0, param[8] + param[6])
         elseif taskname == "attach" then
-            print("exec agv attach task, agv.targetCY.rmg.stash=", agv.targetCY.rmg.stash, " ,agv.container=", agv.container)
+            print("exec agv attach task, agv.targetCY.rmg.stash=", agv.targetCY.rmg.stash, " ,agv.container=",
+                agv.container)
             if agv.targetCY.rmg.stash ~= nil then
                 agv:attach()
                 print("agv.contaienr=", agv.container)
@@ -431,7 +473,6 @@ function AGV(targetcy, targetbay)
                 -- agv:movenexttask(param.occupy)
             end
         end
-        -- todo:move2设置占用
     end
 
     -- 添加任务
@@ -498,6 +539,14 @@ function AGV(targetcy, targetbay)
         end
         return dt
     end
+
+    -- 初始化agv
+    
+    -- initialize
+    agv:setpos(table.unpack(agv.targetCY.summon))
+    agv:addtask({"move2", {
+        occupy = 1
+    }}) -- 移动到第一个车位
 
     return agv
 end
@@ -620,44 +669,25 @@ local rmg = RMG(cy)
 -- print("rmg.origin = ", rmg.origin[1], ",", rmg.origin[2])
 
 -- 添加任务 rmg1
-rmg:addtask({"move2", rmg:getcontainercoord(2, 4, 3)}) -- 移动爪子到指定位置
-rmg:addtask({"movespread", rmg:getcontainerdelta(0, -1)}) -- 移动爪子到指定高度
-rmg:addtask({"attach", {2, 3, 3}}) -- 抓取指定箱
-rmg:addtask({"movespread", rmg:getcontainerdelta(0, 2)}) -- 移动爪子到指定高度
-rmg:addtask({"move2", rmg:getcontainercoord(2, 5, -1)}) -- 移动爪子到指定位置
-rmg:addtask({"move2", rmg:getcontainercoord(2, 1, -1)}) -- 放下箱子
--- rmg:addtask({"movespread", rmg:getcontainerdelta(0, -2)}) -- 移动爪子到指定高度
-rmg:addtask({"detach"}) -- 放下指定箱
--- rmg:addtask({"move2", rmg:getcontainercoord(3, 2, 1)}) -- 移动爪子到指定位置
--- rmg:addtask({"movespread", rmg:getcontainerdelta(0, -1)}) -- 移动爪子到指定高度
--- rmg:addtask({"attach", {3, 1}}) -- 抓取指定箱
--- rmg:addtask({"movespread", rmg:getcontainerdelta(0, 2)}) -- 移动爪子到指定高度
--- rmg:addtask({"move2", rmg:getcontainercoord(3, 3, -1)}) -- 移动爪子到指定位置
--- rmg:addtask({"movespread", rmg:getcontainerdelta(0, -2)}) -- 移动爪子到指定高度
--- rmg:addtask({"detach"}) -- 放下指定箱
--- rmg:addtask({"move2", rmg:getcontainercoord(5, 3, 4)}) -- 移动爪子到指定位置
--- rmg:addtask({"movespread", rmg:getcontainerdelta(0, -2)}) -- 移动爪子到指定高度
--- rmg:addtask({"attach", {5, 4}}) -- 抓取指定箱
--- rmg:addtask({"movespread", rmg:getcontainerdelta(0, 2)}) -- 移动爪子到指定高度
--- rmg:addtask({"move2", rmg:getcontainercoord(5, 3, -1)}) -- 移动爪子到指定位置
--- rmg:addtask({"movespread", rmg:getcontainerdelta(0, -2)}) -- 移动爪子到指定高度
+-- rmg:addtask({"move2", rmg:getcontainercoord(2, 3, 4)}) -- 移动爪子到指定位置
+-- -- rmg:addtask({"movespread", rmg:getcontainerdelta(0, -1)}) -- 移动爪子到指定高度
+-- rmg:addtask({"move2", rmg:getcontainercoord(2, 3, 3)}) -- 移动爪子到指定位置
+-- rmg:addtask({"attach", {2, 3, 3}}) -- 抓取指定箱
+-- -- rmg:addtask({"movespread", rmg:getcontainerdelta(0, 2)}) -- 移动爪子到指定高度
+-- rmg:addtask({"move2", rmg:getcontainercoord(2, 3, 5)}) -- 移动爪子到指定位置
+-- rmg:addtask({"move2", rmg:getcontainercoord(2, -1, 5)}) -- 移动爪子到指定位置
+-- rmg:addtask({"move2", rmg:getcontainercoord(2, -1, 1)}) -- 放下箱子
+-- -- rmg:addtask({"movespread", rmg:getcontainerdelta(0, -2)}) -- 移动爪子到指定高度
 -- rmg:addtask({"detach"}) -- 放下指定箱
 
--- -- 添加任务 rmg2
--- rmg2:addtask({"move2", rmg2:getcontainercoord(5, 2, 5)}) -- 移动爪子到指定位置
--- rmg2:addtask({"movespread", rmg2:getcontainerdelta(0, -1)}) -- 移动爪子到指定高度
--- rmg2:addtask({"attach", {5, 5}}) -- 抓取指定箱
--- rmg2:addtask({"movespread", rmg2:getcontainerdelta(0, 2)}) -- 移动爪子到指定高度
--- rmg2:addtask({"move2", rmg2:getcontainercoord(5, 2, -1)}) -- 移动爪子到指定位置
--- rmg2:addtask({"movespread", rmg2:getcontainerdelta(0, -1)}) -- 移动爪子到指定高度
--- rmg2:addtask({"detach"}) -- 放下指定箱
--- rmg2:addtask({"move2", rmg2:getcontainercoord(3, 3, 1)}) -- 移动爪子到指定位置
+-- -- new task
+-- rmg:attachcontainer(2, 3, 3)
+-- rmg:addtask({"waitagv"})
+-- rmg:lift2agv(2, 3)
 
-local agv = AGV(cy, 2)
-agv:setpos(table.unpack(cy.summon))
-agv:addtask({"move2", {
-    occupy = 1
-}})
+local agv = AGV(cy, {2, 3, 3})
+local agv2 = AGV(cy, {4, 1, 3})
+
 -- agv:addtask({"move2", {0, 10}})
 -- agv:addtask({"move2", {10, 10}})
 -- agv:addtask({"move2", {10, 0}})
@@ -665,7 +695,7 @@ agv:addtask({"move2", {
 
 -- 存在任务序列的对象列表
 -- local actionobj = {rmg, rmg2, agv}
-local actionobj = {rmg, agv}
+local actionobj = {rmg, agv, agv2}
 
 -- 判断所有任务是否执行完成
 function havetask()
@@ -679,7 +709,7 @@ end
 
 function recycle(obj)
     if obj.type == "agv" then
-        if obj.container~=nil then
+        if obj.container ~= nil then
             obj.container:delete()
         end
         obj:delete()
@@ -709,7 +739,7 @@ function update()
     -- 回收
     for i = 1, #actionobj do
         local obj = actionobj[i]
-        if #obj.tasksequence==0 then
+        if #obj.tasksequence == 0 then
             recycle(obj)
         end
     end
