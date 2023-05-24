@@ -40,7 +40,7 @@ function RMG(cy)
     wirerope:setscale(1, rmg.origin[2] + 17.57 - rmg.spreaderpos[2], 1) -- trolly离地面高度17.57，wirerope长宽设为1
     wirerope:setpos(rmg.origin[1] + rmg.spreaderpos[1], rmg.origin[2] + 1.15 + rmg.spreaderpos[2], rmg.origin[3] + 0) -- spreader高度1.1
     spreader:setpos(rmg.origin[1] - 0.01 + rmg.spreaderpos[1], rmg.origin[2] + rmg.spreaderpos[2] + 0.05,
-        rmg.origin[3] + .012)
+        rmg.origin[3] + 0.012)
     -- trolley:setpos(0,0,0)
 
     rmg.trolley = trolley
@@ -52,7 +52,9 @@ function RMG(cy)
     function rmg:registeragv(agv)
         local targetcontainer = agv.targetcontainer -- 获取目标集装箱
         table.insert(agv.targetCY.rmg.agvqueue, agv) -- 加入agv队列
-        rmg.cy.parkingspace[1].occupied = rmg.cy.parkingspace[1].occupied + 1 -- 停车位占用数+1
+        for i = 1, rmg.cy.agvspan do
+            rmg.cy.parkingspace[i].occupied = rmg.cy.parkingspace[i].occupied + 1 -- 停车位占用数+1
+        end
         table.insert(actionobj, agv) -- 加入动作队列
 
         rmg:attachcontainer(table.unpack(targetcontainer)) -- 抓取集装箱
@@ -462,14 +464,17 @@ function AGV(targetcy, targetcontainer) -- 目标堆场，目标列，目标集�
         elseif taskname == "waitagv" then -- {"waitagv",{occupy}} 等待前方agv移动 occupy:当前占用道路位置
             -- 如果前面是exit则不适用于使用此任务
             -- 检测前方占用，如果占用则等待；否则删除任务，根据条件添加move2
-            if agv.targetCY.parkingspace[param.occupy + 1].occupied == 0 then
+            local span = agv.targetCY.agvspan --agv元胞间隔
+            if param.occupy + span > #agv.targetCY.parkingspace or agv.targetCY.parkingspace[param.occupy + span].occupied == 0 then
                 agv:deltask()
-                print("waitagv param.occpy=", param.occupy)
                 agv.targetCY.parkingspace[param.occupy].occupied = agv.targetCY.parkingspace[param.occupy].occupied - 1 -- 解除占用当前车位
-                if param.occupy + 1 <= #agv.targetCY.parkingspace then
-                    agv.targetCY.parkingspace[param.occupy + 1].occupied =
-                        agv.targetCY.parkingspace[param.occupy + 1].occupied + 1 -- 占用下一个车位
+                if param.occupy + span <= #agv.targetCY.parkingspace then
+                    agv.targetCY.parkingspace[param.occupy + span].occupied =
+                        agv.targetCY.parkingspace[param.occupy + span].occupied + 1 -- 占用下一个车位
                 end
+                -- agv.targetCY:getstate()
+                -- print("waitagv param.occpy=", param.occupy, "param.occupy+2=", param.occupy + 2,
+                --     " #agv.targetCY.parkingspace=", #agv.targetCY.parkingspace)
             end
         elseif taskname == "waitrmg" then -- {"waitrmg",{occupy}} 等待rmg移动 occupy:当前占用道路位置
             -- 检测rmg.stash是否为空，如果为空则等待；否则进行所有权转移，并设置move2
@@ -565,7 +570,8 @@ function CY(p1, p2, level)
         origin = {(p1[1] + p2[1]) / 2, 0, (p1[2] + p2[2]) / 2}, -- 参照点
         queuelen = 6, -- 服务队列长度（额外）
         summon = {}, -- 车生成点
-        exit = {} -- 车出口
+        exit = {}, -- 车出口
+        agvspan = 2, -- agv间距
     }
 
     -- 显示堆场锚点
