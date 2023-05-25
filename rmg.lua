@@ -3,6 +3,10 @@ scene.setenv({
 })
 -- local obj = scene.addobj('/res/ct/container.glb')
 
+-- 程序控制
+local runcommand = true
+
+-- 参数设置
 local simv = 15 -- 仿真速度
 local actionobj = {} -- 动作队列声明
 local agvSummonSpan = 30 -- agv生成间隔
@@ -760,7 +764,7 @@ function generateagv()
     end
 
     -- 判断堆场是否有箱子，如果没有则停止
-    if #availablepos == 0 then
+    if #availablepos == 0 and runcommand then
         return
     end
 
@@ -798,7 +802,9 @@ local t = os.clock()
 local dt = 0
 
 function update()
-    coroutine.queue(dt, update)
+    if runcommand then
+        coroutine.queue(dt, update)
+    end
 
     -- 计算最大更新时间
     local maxstep = math.huge
@@ -822,7 +828,7 @@ function update()
     end
 
     -- 绘图
-    scene.render()
+    runcommand = scene.render()
 
     -- 刷新时间间隔
     dt = (os.clock() - t) * simv
