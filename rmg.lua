@@ -3,7 +3,7 @@ scene.setenv({
 })
 -- local obj = scene.addobj('/res/ct/container.glb')
 
-local simv = 6 -- 仿真速度
+local simv = 15 -- 仿真速度
 local actionobj = {} -- 动作队列声明
 local agvSummonSpan = 30 -- agv生成间隔
 
@@ -162,9 +162,9 @@ function RMG(cy)
             ds[3] = param.speed[3] * dt -- rmg向量速度*时间
 
             if not param[12] then -- bay方向没有到达目标                
-                if (param[5]+ds[3]) / (param[3] - param[4]) > 1 then -- 首次到达目标
+                if (param[5] + ds[3]) / (param[3] - param[4]) > 1 then -- 首次到达目标
                     -- rmg:deltask()
-                    rmg:move(param[3] - param[4] -param[5])
+                    rmg:move(param[3] - param[4] - param[5])
                     param[12] = true
                 else
                     param[5] = param[5] + ds[3] -- 已移动bay
@@ -386,17 +386,24 @@ function AGV(targetcy, targetcontainer) -- 目标堆场，目标集装箱{bay, c
     function agv:movenexttask(currentoccupy) -- 添加下一个任务准备移动，无返回值。只有当当前车位的任务完成后才应调用
         local nextoccupy = currentoccupy + 1
 
-        -- 判断下一个位置
-        if nextoccupy > #agv.targetCY.parkingspace then -- 下一个位置是exit
-            -- print("agv下一个位置是exit")
-            agv:addtask({"move2", {agv.targetCY.exit[1], agv.targetCY.exit[3]}}) -- 不需要设置occupy，直接设置目标位置
+        -- -- debug 
+        -- agv.targetCY:getstate()
+        -- print("waitagv param.occpy=", currentoccupy, "currentoccupy+2=", currentoccupy + 2,
+        --     " #agv.targetCY.parkingspace=", #agv.targetCY.parkingspace)
 
-            -- 释放最后一个车位(没有阻塞环节导致无法解除占用)
-            local parkingspace = agv.targetCY.parkingspace
-            parkingspace[#parkingspace].occupied = parkingspace[#parkingspace].occupied - 1
+        -- 判断下一个位置
+        -- print("agv:movenexttask\t(occupy: ", currentoccupy, ")=============================")
+        -- print("nextoccupy:", nextoccupy, "\t#cy.parkingspace:", #agv.targetCY.parkingspace)
+        if nextoccupy > #agv.targetCY.parkingspace then -- 下一个位置是exit
+            print("[agv] 下一个位置是exit")
+            agv:addtask({"move2", {
+                occupy = currentoccupy
+            }}) -- 不需要设置occupy，直接设置目标位置
+
             return -- 不需要判断，直接返回流程
         end
 
+        -- print("添加waitagv和move2(occupy: ", currentoccupy, ")")
         -- 等待下一个占用释放并移动
         agv:addtask({"waitagv", {
             occupy = currentoccupy
@@ -407,13 +414,13 @@ function AGV(targetcy, targetcontainer) -- 目标堆场，目标集装箱{bay, c
 
         -- 判断下一个是否到达目标
         if agv.targetCY.parkingspace[nextoccupy].bay == agv.targetbay then -- 到达目标
-            print("agv到达目标，准备装卸")
+            -- print("下一个occupy为agv目标，添加waitrmg和attach(occupy: ", nextoccupy, ")")
             agv.arrived = true -- 设置agv到达目标标识
             agv:addtask({"waitrmg", {
-                occupy = currentoccupy
+                occupy = nextoccupy
             }})
             agv:addtask({"attach", {
-                occupy = currentoccupy
+                occupy = nextoccupy
             }})
         end
 
@@ -443,7 +450,18 @@ function AGV(targetcy, targetcontainer) -- 目标堆场，目标集装箱{bay, c
 
                     -- 如果有占用道路位置，则设置下一个占用
                     if param.occupy ~= nil then
-                        agv:movenexttask(param.occupy + 1)
+                        -- 解除占用
+                        agv.targetCY.parkingspace[param.occupy].occupied =
+                            agv.targetCY.parkingspace[param.occupy].occupied - 1 -- 解除占用当前车位                            
+
+                        if param.occupy < #agv.targetCY.parkingspace then
+                            agv:movenexttask(param.occupy + 1)
+                        end
+
+                        -- print("occupy: ", param.occupy, "\tistargetbay():", agv:istargetbay(param.occupy),
+                        --     "\toccupybay:", agv.targetCY.parkingspace[param.occupy].bay, "\ttargetbay:", agv.targetbay)
+                        -- print("occupy is target bay: ", agv.targetbay)
+
                     end
                     return
                 end
@@ -454,7 +472,7 @@ function AGV(targetcy, targetcontainer) -- 目标堆场，目标集装箱{bay, c
         elseif taskname == "attach" then
             if agv.targetCY.rmg.stash ~= nil then
                 agv:attach()
-                print("agv attached container at ", coroutine.qtime())
+                print("[agv] agv attached container at ", coroutine.qtime())
                 agv:deltask()
             end
         elseif taskname == "waitagv" then -- {"waitagv",{occupy}} 等待前方agv移动 occupy:当前占用道路位置
@@ -462,13 +480,14 @@ function AGV(targetcy, targetcontainer) -- 目标堆场，目标集装箱{bay, c
             -- 检测前方占用，如果占用则等待；否则删除任务，根据条件添加move2
             local span = agv.targetCY.agvspan -- agv元胞间隔
             if param.occupy + span > #agv.targetCY.parkingspace or
-                agv.targetCY.parkingspace[param.occupy + span].occupied == 0 then --前方1格无占用或者前方是exit
+                agv.targetCY.parkingspace[param.occupy + span].occupied == 0 then -- 前方1格无占用或者前方是exit
                 agv:deltask()
-                agv.targetCY.parkingspace[param.occupy].occupied = agv.targetCY.parkingspace[param.occupy].occupied - 1 -- 解除占用当前车位
                 if param.occupy + span <= #agv.targetCY.parkingspace then
                     agv.targetCY.parkingspace[param.occupy + span].occupied =
                         agv.targetCY.parkingspace[param.occupy + span].occupied + 1 -- 占用下一个车位
                 end
+
+                -- -- debug 
                 -- agv.targetCY:getstate()
                 -- print("waitagv param.occpy=", param.occupy, "param.occupy+2=", param.occupy + 2,
                 --     " #agv.targetCY.parkingspace=", #agv.targetCY.parkingspace)
@@ -479,6 +498,14 @@ function AGV(targetcy, targetcontainer) -- 目标堆场，目标集装箱{bay, c
                 agv:deltask()
             end
         end
+    end
+
+    -- 判断是否目标bay
+    function agv:istargetbay(occupy)
+        if agv.targetCY.parkingspace[occupy] == nil then
+            return false
+        end
+        return agv.targetCY.parkingspace[occupy].bay == agv.targetbay
     end
 
     -- 添加任务
@@ -511,8 +538,14 @@ function AGV(targetcy, targetcontainer) -- 目标堆场，目标集装箱{bay, c
             if param[3] == nil then
                 if param.occupy ~= nil then -- 占用车位要求判断
                     -- 设置目标位置
-                    param[1], param[2] = agv.targetCY.parkingspace[param.occupy + 1].pos[1],
-                        agv.targetCY.parkingspace[param.occupy + 1].pos[3] -- 设置目标xz坐标
+                    if param.occupy == #agv.targetCY.parkingspace then -- 判断当前占用是否为最后一个
+                        param[1], param[2] = agv.targetCY.exit[1], agv.targetCY.exit[3] -- 直接设置为出口
+                        -- print("agv：当前占用为最后一个，目标设为exit:(",param[1],",",param[2],"), param.occupy=",param.occupy,", #agv.targetCY.parkingspace=",#agv.targetCY.parkingspace)
+                    else
+                        -- print("agv move2: param.occupy=",param.occupy)
+                        param[1], param[2] = agv.targetCY.parkingspace[param.occupy + 1].pos[1],
+                            agv.targetCY.parkingspace[param.occupy + 1].pos[3] -- 设置目标xz坐标
+                    end
                     -- print("agv移动目标", " currentoccupy=", param.occupy, " x,z=", param[1], param[2])
                 end
 
@@ -694,8 +727,8 @@ table.insert(actionobj, rmg)
 -- rmg:addtask({"waitagv"})
 -- rmg:lift2agv(2, 3)
 
--- local agv2 = AGV(cy, {4, 1, 3})
--- local agv = AGV(cy, {2, 3, 3})
+-- local agv2 = AGV(cy, {1, 4, 3})
+-- local agv = AGV(cy, {1, 3, 3})
 
 -- agv:addtask({"move2", {0, 10}})
 -- agv:addtask({"move2", {10, 10}})
