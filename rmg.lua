@@ -618,9 +618,7 @@ function RMGQC()
     rmgqc.stash = nil -- io物品暂存
     rmgqc.agvqueue = {} -- agv服务队列
     rmgqc.queuelen = 11 -- 服务队列长度（额外）
-    rmgqc.summon = {} -- 车生成点
-    rmgqc.exit = {} -- 车出口
-
+    
     rmgqc.posbay = {} -- 船对应的bay位
     for i = 1, 8 do -- 初始化船bay位
         rmgqc.posbay[i] = (5 - i) * 6.06
@@ -899,7 +897,7 @@ function SHIP(rmgqc)
     ship.cols = 9
     ship.level = 2
     ship.clength, ship.cspan = 6.06, 0
-    ship.agvspan = 2 -- agv间距
+    ship.agvspan = 2 -- agv占用元胞数量（元胞长度）
 
     -- 初始化集装箱位置和集装箱
     ship.pos = {}
@@ -934,7 +932,7 @@ function SHIP(rmgqc)
 
         local lastbaypos = ship.parkingspace[1].pos -- 记录最后一个添加的位置
 
-        -- 队列停车位
+        -- bay外停车位
         for i = 1, rmgqc.queuelen do
             local pos = {lastbaypos[1], 0, lastbaypos[3] - i * (ship.clength + ship.cspan)}
             table.insert(ship.parkingspace, 1, {
@@ -945,10 +943,6 @@ function SHIP(rmgqc)
 
         ship.summon = {ship.parkingspace[1].pos[1], 0, ship.parkingspace[1].pos[3]}
         ship.exit = {ship.parkingspace[1].pos[1], 0, ship.parkingspace[#ship.parkingspace].pos[3] + 20} -- 设置离开位置
-    end
-
-    function ship:reservepos(bay, col, level)
-        ship.containers[bay][col][level] = {}
     end
 
     -- 返回空余位置编号
