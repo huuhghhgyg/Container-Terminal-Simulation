@@ -6,7 +6,7 @@ scene.setenv({
 local runcommand = true
 
 -- 参数设置
-local simv = 5 -- 仿真速度
+local simv = 10 -- 仿真速度
 local actionobj = {} -- 动作队列声明
 local agvSummonSpan = 46 -- agv生成间隔
 
