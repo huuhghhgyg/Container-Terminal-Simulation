@@ -134,27 +134,7 @@ function RMG(cy)
 
         local task = rmg.tasksequence[1]
         local taskname, param = task[1], task[2]
-        if taskname == "movespread" then -- {"movespread",{x,y,z}} 各方向移动多少
-            local d = param -- 导入距离
-
-            -- 计算移动值
-            local ds = {}
-            for i = 1, 3 do
-                ds[i] = param.speed[i] * dt -- speed已经包括方向
-                d[i + 6] = d[i + 6] + ds[i]
-            end
-
-            -- 判断是否到达目标
-            for i = 1, 3 do
-                if d[i] ~= 0 and d[i + 6] / d[i] >= 1 then -- 分方向到达目标
-                    rmg:deltask()
-                    rmg:spreadermove2(d[1] + d[10], d[2] + d[11], d[3] + d[12]) -- 直接设定到目标位置
-                    return
-                end
-            end
-
-            rmg:spreadermove(ds[1], ds[2], ds[3]) -- 移动差量
-        elseif taskname == "move2" then -- 1:col(x), 2:height(y), 3:bay(z), [4:初始bay, 5:已移动bay距离,向量*2(6,7),当前位置*2(8,9),初始位置*2(10,11),到达(12,13)*2]
+        if taskname == "move2" then -- 1:col(x), 2:height(y), 3:bay(z), [4:初始bay, 5:已移动bay距离,向量*2(6,7),当前位置*2(8,9),初始位置*2(10,11),到达(12,13)*2]
             local ds = {}
             -- 计算移动值
             for i = 1, 2 do
@@ -214,29 +194,7 @@ function RMG(cy)
 
         local taskname = rmg.tasksequence[1][1] -- 任务名称
         local param = rmg.tasksequence[1][2] -- 任务参数
-        if taskname == "movespread" then
-            if param[4] == nil then -- 没有执行记录，创建
-                for i = 1, 3 do
-                    if param[i] == 0 then -- 无移动，向量设为0
-                        param[i + 3] = 0
-                    else
-                        param[i + 3] = param[i] / math.abs(param[i]) -- 计算向量(4~6)
-                    end
-                    param[i + 6] = 0 -- 已移动距离(7~9)
-                    param[i + 9] = rmg.spreaderpos[i] -- 初始位置(10~12)
-                end
-
-                -- 计算各方向分速度
-                local l = math.sqrt(param[4] ^ 2 + param[5] ^ 2 + param[6] ^ 2)
-                param.speed = {param[4] / l * rmg.speed, param[5] / l * rmg.speed, param[6] / l * rmg.speed} -- 向量*速度
-            end
-
-            for i = 1, 3 do
-                if param[i] ~= 0 then -- 只要分方向移动，就计算最大步进
-                    dt = math.min(dt, math.abs((param[i] - param[i + 6]) / param.speed[i])) -- 根据movespread判断条件
-                end
-            end
-        elseif taskname == "move2" then
+        if taskname == "move2" then
             if param[4] == nil then
                 param[4] = rmg.pos -- 初始位置
                 param[5] = 0 -- 已经移动的距离
@@ -352,12 +310,6 @@ function AGV(targetcy, targetcontainer) -- 目标堆场，目标集装箱{bay, c
     agv.arrived = false -- 是否到达目标
     agv.operator:registeragv(agv)
 
-    function agv:move(dx, dz)
-        local x, _, z = agv:getpos()
-        x, z = x + dx, z + dz
-        agv:move2(x, 0, z)
-    end
-
     function agv:move2(x, y, z)
         agv:setpos(x, y, z)
         if agv.container ~= nil then
@@ -451,7 +403,7 @@ function AGV(targetcy, targetcontainer) -- 目标堆场，目标集装箱{bay, c
             -- 设置步进移动
             agv:move2(param[7] + param[5], 0, param[8] + param[6])
         elseif taskname == "attach" then
-            if agv.operator.stash ~= nil and agv.targetbay == agv.operator.bay or agv.targetbay==nil then
+            if agv.operator.stash ~= nil and agv.targetbay == agv.operator.bay or agv.targetbay == nil then
                 agv:attach()
                 print("[agv] attached container at ", coroutine.qtime())
                 agv:deltask()
@@ -578,7 +530,8 @@ function CY(p1, p2, level)
         summon = {}, -- 车生成点
         exit = {}, -- 车出口
         agvspan = 2, -- agv间距
-        containerUrls = {'/res/ct/container.glb','/res/ct/container_brown.glb','/res/ct/container_blue.glb','/res/ct/container_yellow.glb'}
+        containerUrls = {'/res/ct/container.glb', '/res/ct/container_brown.glb', '/res/ct/container_blue.glb',
+                         '/res/ct/container_yellow.glb'}
     }
 
     local pdx = (p2[1] - p1[1]) / math.abs(p1[1] - p2[1])
@@ -608,7 +561,7 @@ function CY(p1, p2, level)
                 cy.pos[i][j][k] = {p1[1] + pdx * (cy.marginx + (j - 1) * (cy.cwidth + cy.cspan) + cy.cwidth / 2),
                                    cy.origin[2] + cy.levels[k],
                                    p1[2] + pdy * ((i - 1) * (cy.clength + cy.cspan) + cy.clength / 2)}
-                local url = cy.containerUrls[math.random(1,#cy.containerUrls)] -- 随机选择集装箱颜色
+                local url = cy.containerUrls[math.random(1, #cy.containerUrls)] -- 随机选择集装箱颜色
                 cy.containers[i][j][k] = scene.addobj(url) -- 添加集装箱
                 cy.containers[i][j][k]:setpos(cy.pos[i][j][k][1], cy.pos[i][j][k][2], cy.pos[i][j][k][3])
             end
@@ -675,7 +628,7 @@ function RMGQC()
     rmgqc.queuelen = 11 -- 服务队列长度（额外）
     rmgqc.summon = {} -- 车生成点
     rmgqc.exit = {} -- 车出口
-    
+
     rmgqc.posbay = {} -- 船对应的bay位
     for i = 1, 8 do -- 初始化船bay位
         rmgqc.posbay[i] = (5 - i) * 6.06
