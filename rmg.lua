@@ -867,7 +867,6 @@ function RMGQC()
 
     -- 添加任务，将抓住的集装箱移动到agv上
     function rmgqc:lift2agv(bay)
-        -- rmgqc:addtask({"move2", rmgqc:getcontainercoord(bay, col, rmgqc.toplevel)}) -- 将集装箱从目标向上提升
         rmgqc:addtask({"move2", rmgqc:getcontainercoord(bay, -1, rmgqc.toplevel)}) -- 移动集装箱到agv对应列
     end
 
