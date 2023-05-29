@@ -641,7 +641,7 @@ function CY(p1, p2, level)
         containers = {}, -- 集装箱对象(相对坐标)
         parkingspace = {}, -- 停车位对象(相对坐标)
         origin = {(p1[1] + p2[1]) / 2, 0, (p1[2] + p2[2]) / 2}, -- 参照点
-        queuelen = 6, -- 服务队列长度（额外）
+        queuelen = 16, -- 服务队列长度（额外）
         summon = {}, -- 车生成点
         exit = {}, -- 车出口
         agvspan = 2, -- agv间距
