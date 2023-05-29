@@ -595,14 +595,6 @@ function CY(p1, p2, level)
         cy.exit = {cy.parkingspace[1].pos[1], 0, cy.parkingspace[#cy.parkingspace].pos[3] + 20} -- 设置离开位置
     end
 
-    -- unit test debug
-    function cy:getstate()
-        for i = 1, #cy.parkingspace do
-            print("parkingspace[", i, "] = ", cy.parkingspace[i].pos[3], " bay = ", cy.parkingspace[i].bay,
-                " occupied = ", cy.parkingspace[i].occupied)
-        end
-    end
-
     return cy
 end
 
