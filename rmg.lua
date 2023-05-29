@@ -33,9 +33,11 @@ function RMG(cy)
     rmg.tasksequence = {} -- 初始化任务队列
     rmg.iox = -16 -- 进出口x坐标
     rmg.speed = 4 -- 移动速度
+    rmg.zspeed = 2 -- 车移动速度
     rmg.attached = nil -- 抓取的集装箱
     rmg.stash = nil -- io物品暂存
     rmg.agvqueue = {} -- agv服务队列
+    rmg.bay = nil
 
     cy:initqueue(rmg.iox) -- 初始化停车队列
 
@@ -206,6 +208,7 @@ function RMG(cy)
             end
         elseif taskname == "attach" then -- {"attach", {cy.row,cy.col,cy.level}}
             rmg:attach(param[1], param[2], param[3])
+            rmg.bay = param[1]
             rmg:deltask()
         elseif taskname == "detach" then -- {"detach", nil}
             rmg:detach()
@@ -265,7 +268,7 @@ function RMG(cy)
                 -- 计算各方向分速度
                 local l = math.sqrt(param[6] ^ 2 + param[7] ^ 2)
                 param.speed = {param[6] / l * rmg.speed, param[7] / l * rmg.speed,
-                               rmg.speed * ((param[3] - rmg.pos) / math.abs(param[3] - rmg.pos))} -- speed[3]:速度乘方向
+                               rmg.zspeed * ((param[3] - rmg.pos) / math.abs(param[3] - rmg.pos))} -- speed[3]:速度乘方向
             end
 
             if not param[12] then -- bay方向没有到达目标
@@ -498,9 +501,9 @@ function AGV(targetcy, targetcontainer) -- 目标堆场，目标集装箱{bay, c
             -- 设置步进移动
             agv:move2(param[7] + param[5], 0, param[8] + param[6])
         elseif taskname == "attach" then
-            if agv.operator.stash ~= nil then
+            if agv.operator.stash ~= nil and agv.targetbay == agv.operator.bay or agv.targetbay==nil then
                 agv:attach()
-                print("[agv] agv attached container at ", coroutine.qtime())
+                print("[agv] attached container at ", coroutine.qtime())
                 agv:deltask()
             end
         elseif taskname == "waitagv" then -- {"waitagv",{occupy}} 等待前方agv移动 occupy:当前占用道路位置
@@ -759,6 +762,7 @@ function RMGQC()
     rmgqc.iox = 0
     rmgqc.tasksequence = {} -- 初始化任务队列
     rmgqc.speed = 5 -- 移动速度
+    rmgqc.zspeed = 2 -- 车移动速度
     rmgqc.attached = nil -- 抓取的集装箱
     rmgqc.stash = nil -- io物品暂存
     rmgqc.agvqueue = {} -- agv服务队列
@@ -980,7 +984,7 @@ function RMGQC()
                 -- 计算各方向分速度
                 local l = math.sqrt(param[6] ^ 2 + param[7] ^ 2)
                 param.speed = {param[6] / l * rmgqc.speed, param[7] / l * rmgqc.speed,
-                               rmgqc.speed * ((param[3] - rmgqc.pos) / math.abs(param[3] - rmgqc.pos))} -- speed[3]:速度乘方向
+                               rmgqc.zspeed * ((param[3] - rmgqc.pos) / math.abs(param[3] - rmgqc.pos))} -- speed[3]:速度乘方向
             end
 
             if not param[12] then -- bay方向没有到达目标
@@ -1205,8 +1209,10 @@ local pt = scene.addobj("points", {
 -- rmg:addtask({"waitagv"})
 -- rmg:lift2agv(2, 3)
 
--- local agv2 = AGV(cy, {1, 4, 3})
 -- local agv = AGV(cy, {1, 3, 3})
+-- local agv2 = AGV(cy, {2, 4, 3})
+-- local agv3 = AGV(cy, {1, 4, 3})
+-- local agv4 = AGV(cy, {3, 4, 3})
 
 -- agv:addtask({"move2", {0, 10}})
 -- agv:addtask({"move2", {10, 10}})
