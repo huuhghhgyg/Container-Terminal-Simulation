@@ -1,7 +1,6 @@
 scene.setenv({
     grid = 'plane'
 })
--- local obj = scene.addobj('/res/ct/container.glb')
 
 -- 程序控制
 local runcommand = true
@@ -49,7 +48,6 @@ function RMG(cy)
     wirerope:setpos(rmg.origin[1] + rmg.spreaderpos[1], rmg.origin[2] + 1.15 + rmg.spreaderpos[2], rmg.origin[3] + 0) -- spreader高度1.1
     spreader:setpos(rmg.origin[1] - 0.01 + rmg.spreaderpos[1], rmg.origin[2] + rmg.spreaderpos[2] + 0.05,
         rmg.origin[3] + 0.012)
-    -- trolley:setpos(0,0,0)
 
     rmg.trolley = trolley
     rmg.spreader = spreader
@@ -144,12 +142,10 @@ function RMG(cy)
             for i = 1, 3 do
                 ds[i] = param.speed[i] * dt -- speed已经包括方向
                 d[i + 6] = d[i + 6] + ds[i]
-                -- print("d[", i + 6, "]=", d[i + 6])
             end
 
             -- 判断是否到达目标
             for i = 1, 3 do
-                -- print("d[", i, "]=", d[i], "d[",i+6,"]=",d[i+6]," d[", i + 6, "]/d[", i, "]=", d[i + 6] / d[i])
                 if d[i] ~= 0 and d[i + 6] / d[i] >= 1 then -- 分方向到达目标
                     rmg:deltask()
                     rmg:spreadermove2(d[1] + d[10], d[2] + d[11], d[3] + d[12]) -- 直接设定到目标位置
@@ -163,14 +159,12 @@ function RMG(cy)
             -- 计算移动值
             for i = 1, 2 do
                 ds[i] = param.speed[i] * dt -- dt移动
-                -- print("ds[",i,"]=",ds[i])
                 param[i + 7] = param[i + 7] + ds[i] -- 累计移动
             end
             ds[3] = param.speed[3] * dt -- rmg向量速度*时间
 
             if not param[12] then -- bay方向没有到达目标                
                 if (param[5] + ds[3]) / (param[3] - param[4]) > 1 then -- 首次到达目标
-                    -- rmg:deltask()
                     rmg:move(param[3] - param[4] - param[5])
                     param[12] = true
                 else
@@ -182,9 +176,7 @@ function RMG(cy)
             if not param[13] then -- 列方向没有到达目标
                 for i = 1, 2 do
                     if param[i + 5] ~= 0 and (param[i] - param[i + 7]) * param[i + 5] <= 0 then -- 分方向到达目标
-                        -- rmg:deltask()
                         rmg:spreadermove2(param[1], param[2], 0)
-                        -- return
                         param[13] = true
                         break
                     end
@@ -193,15 +185,12 @@ function RMG(cy)
             end
 
             if param[12] and param[13] then
-                -- print("param 12 and 13:", param[12], ",", param[13])
                 rmg:deltask()
             end
         elseif taskname == "waitagv" then -- {"waitagv", nil}
             if rmg.agvqueue[1] == nil then
-                -- rmg:deltask()
                 print("rmg: rmg.agvqueue[1]=nil, #rmg.agvqueue=", #rmg.agvqueue)
             end
-            -- print("rmg: waiting agv")
             if rmg.agvqueue[1] ~= nil and rmg.agvqueue[1].arrived then -- agv到达
                 table.remove(rmg.agvqueue, 1) -- 移除等待的agv
                 rmg:deltask()
@@ -226,7 +215,6 @@ function RMG(cy)
         local taskname = rmg.tasksequence[1][1] -- 任务名称
         local param = rmg.tasksequence[1][2] -- 任务参数
         if taskname == "movespread" then
-            -- print("maxstep: movespread")
             if param[4] == nil then -- 没有执行记录，创建
                 for i = 1, 3 do
                     if param[i] == 0 then -- 无移动，向量设为0
@@ -236,7 +224,6 @@ function RMG(cy)
                     end
                     param[i + 6] = 0 -- 已移动距离(7~9)
                     param[i + 9] = rmg.spreaderpos[i] -- 初始位置(10~12)
-                    -- print("d[", i, "]=", d[i], " d[", i + 3, "]=", d[i + 3], "d[", i + 6, "]=", d[i + 6], " d[", i + 9, "]=", d[i + 9])
                 end
 
                 -- 计算各方向分速度
@@ -250,7 +237,6 @@ function RMG(cy)
                 end
             end
         elseif taskname == "move2" then
-            -- print("maxstep: move2")
             if param[4] == nil then
                 param[4] = rmg.pos -- 初始位置
                 param[5] = 0 -- 已经移动的距离
@@ -273,17 +259,11 @@ function RMG(cy)
 
             if not param[12] then -- bay方向没有到达目标
                 dt = math.min(dt, math.abs((param[3] - param[4] - param[5]) / param.speed[3]))
-                -- if dt == math.abs((param[3] - param[4] - param[5]) / param.speed[3]) then --debug
-                --     print("maxstep更新：(param[3] - param[4] - param[5]) / param.speed[3]=",(param[3] - param[4] - param[5]) / param.speed[3])
-                -- end
             end
             if not param[13] then -- 列方向没有到达目标
                 for i = 1, 2 do
                     if param[i + 5] ~= 0 then -- 只要分方向移动，就计算最大步进
                         dt = math.min(dt, (param[i] - param[i + 7]) / param.speed[i]) -- 根据move2判断条件
-                        -- if dt<0 then --debug
-                        --     print("maxstep更新：(param[i] - param[i + 7]) / param.speed[i]=",(param[i] - param[i + 7]) / param.speed[i])
-                        -- end
                     end
                 end
             end
@@ -294,12 +274,10 @@ function RMG(cy)
     -- 添加任务
     function rmg:addtask(obj)
         table.insert(rmg.tasksequence, obj)
-        -- print("rmg:addtask(): ", rmg.tasksequence[#rmg.tasksequence][1], ", task count:", #rmg.tasksequence)
     end
 
     -- 删除任务
     function rmg:deltask()
-        -- print("rmg:deltask(): ", rmg.tasksequence[1][1], ", task count:", #rmg.tasksequence)
         table.remove(rmg.tasksequence, 1)
 
         if (rmg.tasksequence[1] ~= nil and rmg.tasksequence[1][1] == "detach") then
@@ -322,10 +300,8 @@ function RMG(cy)
         end
         ry = ry + rmg.level[level] -- 加上层高
         local y = ry - rmg.origin[2]
-        -- print("rmg.origin[1]=",rmg.origin[1]," rmg.iox=",rmg.iox," x=",x)
         local z = cy.pos[bay][1][1][3] - cy.origin[3] -- 通过车移动解决z
 
-        -- print("go (", bay, ",", level, ",", col, ")->(x", x, ",y", y, ",z", z, ")")
         return {x, y, z}
     end
 
@@ -335,19 +311,16 @@ function RMG(cy)
         local dy = dlevel * rmg.level[1]
         local dz = 0 -- 通过车移动解决z
 
-        -- print("原版爪移动delta：dx=", dx, " ,dy=", dy)
         return {dx, dy, dz}
     end
 
     -- 获取车移动坐标（z）
     function rmg:getlen(bay)
-        -- print("原版车移动：", cy.pos[bay][1][2] - cy.origin[3])
         return {cy.pos[bay][1][1][3] - cy.origin[3]}
     end
 
     -- 添加任务，抓取指定位置的集装箱
     function rmg:attachcontainer(bay, col, level)
-        -- todo: 考虑翻箱
         rmg:addtask({"move2", rmg:getcontainercoord(bay, col, rmg.toplevel)}) -- 移动爪子到指定位置
         rmg:addtask({"move2", rmg:getcontainercoord(bay, col, level)}) -- 移动爪子到指定位置
         rmg:addtask({"attach", {bay, col, level}}) -- 抓取指定箱
@@ -382,7 +355,6 @@ function AGV(targetcy, targetcontainer) -- 目标堆场，目标集装箱{bay, c
     function agv:move(dx, dz)
         local x, _, z = agv:getpos()
         x, z = x + dx, z + dz
-        -- agv:setpos(x, 0, z)
         agv:move2(x, 0, z)
     end
 
@@ -396,33 +368,19 @@ function AGV(targetcy, targetcontainer) -- 目标堆场，目标集装箱{bay, c
     function agv:movenexttask(currentoccupy) -- 添加下一个任务准备移动，无返回值。只有当当前车位的任务完成后才应调用
         local nextoccupy = currentoccupy + 1
 
-        -- -- debug 
-        -- agv.datamodel:getstate()
-        -- print("waitagv param.occpy=", currentoccupy, "currentoccupy+2=", currentoccupy + 2,
-        --     " #agv.datamodel.parkingspace=", #agv.datamodel.parkingspace)
-
         -- 判断下一个位置
-        -- print("agv:movenexttask\t(occupy: ", currentoccupy, ")=============================")
-        -- print("nextoccupy:", nextoccupy, "\t#agv.datamodel.parkingspace:", #agv.datamodel.parkingspace,"\t#agv.operator.agvqueue = ",#agv.operator.agvqueue)
         if nextoccupy > #agv.datamodel.parkingspace then -- 下一个位置是exit
             -- print("[agv] 下一个位置是exit")
             agv:addtask({"move2", {
                 occupy = currentoccupy
             }}) -- 不需要设置occupy，直接设置目标位置
-            -- if agv.operator.nextstep == nil then --如果没有下一个站点，直接移动到exit
-            --     agv:addtask({"move2",{agv.datamodel.exit[1],agv.datamodel.exit[3]}})
-            --     print("agv直接移动到exit, #agv.operator.agvqueue = ", #agv.operator.agvqueue)
-            -- else
             if agv.operator.nextstep ~= nil then -- 如果没有下一个站点，直接移动到exit
-                -- print("onboard toward: ", agv.operator.nextstep)
                 agv:addtask({"onboard", {agv.operator.nextstep}})
             end
-            -- print("#agv.tasksequence=",#agv.tasksequence) --debug
 
             return -- 不需要判断，直接返回流程
         end
 
-        -- print("添加waitagv和move2(occupy: ", currentoccupy, ")")
         -- 等待下一个占用释放并移动
         agv:addtask({"waitagv", {
             occupy = currentoccupy
@@ -433,7 +391,6 @@ function AGV(targetcy, targetcontainer) -- 目标堆场，目标集装箱{bay, c
 
         -- 判断下一个是否到达目标
         if agv.datamodel.parkingspace[nextoccupy].bay == agv.targetbay then -- 到达目标
-            -- print("下一个occupy为agv目标，添加waitrmg和attach(occupy: ", nextoccupy, ")")
             agv.arrived = true -- 设置agv到达目标标识
             if agv.worktype == "rmg" then -- 为rmg工作
                 agv:addtask({"waitrmg", {
@@ -448,8 +405,6 @@ function AGV(targetcy, targetcontainer) -- 目标堆场，目标集装箱{bay, c
                 }})
             end
         end
-
-        -- print("#agv.tasksequence=",#agv.tasksequence) --debug
     end
 
     function agv:attach()
@@ -464,7 +419,6 @@ function AGV(targetcy, targetcontainer) -- 目标堆场，目标集装箱{bay, c
 
         local task = agv.tasksequence[1]
         local taskname, param = task[1], task[2]
-        -- print("[agv] executeTask: ",taskname)
         if taskname == "move2" then -- {"move2",x,z,[occupy=1]} 移动到指定位置 {x,z, 向量距离*2(3,4), moved*2(5,6), 初始位置*2(7,8)},occupy:当前占用道路位置
             if param.speed == nil then
                 agv:maxstep()
@@ -488,12 +442,8 @@ function AGV(targetcy, targetcontainer) -- 目标堆场，目标集装箱{bay, c
                         if param.occupy < #agv.datamodel.parkingspace then
                             agv:movenexttask(param.occupy + 1)
                         end
-
-                        -- print("occupy: ", param.occupy, "\tistargetbay():", agv:istargetbay(param.occupy),
-                        --     "\toccupybay:", agv.datamodel.parkingspace[param.occupy].bay, "\ttargetbay:", agv.targetbay)
-                        -- print("occupy is target bay: ", agv.targetbay)
-
                     end
+
                     return
                 end
             end
@@ -517,11 +467,6 @@ function AGV(targetcy, targetcontainer) -- 目标堆场，目标集装箱{bay, c
                     agv.datamodel.parkingspace[param.occupy + span].occupied =
                         agv.datamodel.parkingspace[param.occupy + span].occupied + 1 -- 占用下一个车位
                 end
-
-                -- -- debug 
-                -- agv.datamodel:getstate()
-                -- print("waitagv param.occpy=", param.occupy, "param.occupy+2=", param.occupy + 2,
-                --     " #agv.datamodel.parkingspace=", #agv.datamodel.parkingspace)
             end
         elseif taskname == "waitrmg" then -- {"waitrmg",{occupy}} 等待rmg移动 occupy:当前占用道路位置
             -- 检测rmg.stash是否为空，如果为空则等待；否则进行所有权转移，并设置move2
@@ -533,8 +478,6 @@ function AGV(targetcy, targetcontainer) -- 目标堆场，目标集装箱{bay, c
                 agv:deltask()
             end
         elseif taskname == "onboard" then
-            -- table.remove(agv.operator.agvqueue,1)
-            -- print("agv:onboard")
             param[1]:registeragv(agv)
             agv:deltask()
         end
@@ -551,12 +494,10 @@ function AGV(targetcy, targetcontainer) -- 目标堆场，目标集装箱{bay, c
     -- 添加任务
     function agv:addtask(obj)
         table.insert(agv.tasksequence, obj)
-        -- print("agv:addtask(): ", agv.tasksequence[#agv.tasksequence][1], ", task count:", #agv.tasksequence)
     end
 
     -- 删除任务
     function agv:deltask()
-        -- print("agv:deltask(): ", agv.tasksequence[1][1], ", task count:", #agv.tasksequence)
         table.remove(agv.tasksequence, 1)
 
         if (agv.tasksequence[1] ~= nil and agv.tasksequence[1][1] == "attach") then
@@ -576,21 +517,15 @@ function AGV(targetcy, targetcontainer) -- 目标堆场，目标集装箱{bay, c
         if taskname == "move2" then -- {"move2",x,z,[occupy=,]} 移动到指定位置 {x,z, 向量距离*2(3,4), moved*2(5,6), 初始位置*2(7,8)},occupy:当前占用道路位置
             -- 初始判断
             if param[3] == nil then
-                -- print("agv初始化, x,z=",param[1],",",param[2])
                 if param.occupy ~= nil then -- 占用车位要求判断
-                    -- print("agv初始化，occupy=",param.occupy)
                     -- 设置目标位置
                     if param.occupy == #agv.datamodel.parkingspace then -- 判断当前占用是否为最后一个
                         param[1], param[2] = agv.datamodel.exit[1], agv.datamodel.exit[3] -- 直接设置为出口
-                        -- print("agv：当前占用为最后一个，目标设为exit:(",param[1],",",param[2],"), param.occupy=",param.occupy,", #agv.datamodel.parkingspace=",#agv.datamodel.parkingspace)
                     else
-                        -- print("agv move2: param.occupy=",param.occupy)
                         param[1], param[2] = agv.datamodel.parkingspace[param.occupy + 1].pos[1],
                             agv.datamodel.parkingspace[param.occupy + 1].pos[3] -- 设置目标xz坐标
                     end
-                    -- print("agv移动目标", " currentoccupy=", param.occupy, " x,z=", param[1], param[2])
                 end
-                -- print("agv初始化最终结果, x,z=",param[1],",",param[2])
 
                 local x, _, z = agv:getpos() -- 获取当前位置
                 param[3] = param[1] - x -- x方向需要移动的距离
@@ -618,8 +553,6 @@ function AGV(targetcy, targetcontainer) -- 目标堆场，目标集装箱{bay, c
     end
 
     -- 初始化agv
-
-    -- initialize
     agv:setpos(table.unpack(agv.datamodel.summon))
     agv:addtask({"waitagv", {
         occupy = 1
@@ -648,30 +581,15 @@ function CY(p1, p2, level)
         containerUrls = {'/res/ct/container.glb','/res/ct/container_brown.glb','/res/ct/container_blue.glb','/res/ct/container_yellow.glb'}
     }
 
-    -- 显示堆场锚点
-    local p1obj = scene.addobj("points", {
-        vertices = {p1[1], 0, p1[2]},
-        color = "blue",
-        size = 10
-    })
-    local p2obj = scene.addobj("points", {
-        vertices = {p2[1], 0, p2[2]},
-        color = "red",
-        size = 10
-    })
-
-    -- print("#p2=",#p2," #p1=",#p1)
     local pdx = (p2[1] - p1[1]) / math.abs(p1[1] - p2[1])
     local pdy = (p2[2] - p1[2]) / math.abs(p1[2] - p2[2])
 
     -- 计算属性
     cy.dir = {pdx, pdy} -- 方向
     cy.width, cy.length = math.abs(p1[1] - p2[1]), math.abs(p1[2] - p2[2])
-    -- print("cy.length = ",cy.length," cy.width = ",cy.width, "cwidth, clength = ",cy.cwidth,",",cy.clength)
     cy.col = math.floor((cy.width + cy.cspan) / (cy.cwidth + cy.cspan)) -- 列数
     cy.row = math.floor((cy.length + cy.cspan) / (cy.clength + cy.cspan)) -- 行数
     cy.marginx = (cy.width + cy.cspan - (cy.cwidth + cy.cspan) * cy.col) / 2 -- 横向外边距
-    -- print("cy row,col = ",cy.row, ",",cy.col," xmargin = ",cy.marginx, " cspan = ",cy.cspan)
 
     -- 集装箱层数
     cy.levels = {} -- 层数y坐标集合
@@ -693,8 +611,6 @@ function CY(p1, p2, level)
                 local url = cy.containerUrls[math.random(1,#cy.containerUrls)] -- 随机选择集装箱颜色
                 cy.containers[i][j][k] = scene.addobj(url) -- 添加集装箱
                 cy.containers[i][j][k]:setpos(cy.pos[i][j][k][1], cy.pos[i][j][k][2], cy.pos[i][j][k][3])
-
-                -- print("container[",i,",",j,"]=(",cy.pos[i][j][1],",",cy.pos[i][j][2],")")
             end
         end
     end
@@ -707,13 +623,8 @@ function CY(p1, p2, level)
         for i = 1, cy.row do
             cy.parkingspace[i] = {} -- 初始化
             cy.parkingspace[i].occupied = 0 -- 0:空闲，1:临时占用，2:作业占用
-            -- print("cy.origin=",cy.origin[1],",",cy.origin[2])
             cy.parkingspace[i].pos = {cy.origin[1] + iox, 0, cy.origin[3] + cy.pos[cy.row - i + 1][1][1][3]} -- x,y,z
             cy.parkingspace[i].bay = cy.row - i + 1
-
-            -- 停车位点
-            -- local sign = scene.addobj("box")
-            -- sign:setpos(table.unpack(cy.parkingspace[i].pos))
         end
 
         local lastbaypos = cy.parkingspace[1].pos -- 记录最后一个添加的位置
@@ -725,11 +636,6 @@ function CY(p1, p2, level)
                 occupied = 0,
                 pos = pos
             }) -- 无对应bay
-            -- print("队列位置=", cy.queuelen - i + 1, " pos={", pos[1], ",", pos[2], ",", pos[3], "}")
-
-            -- 停车位点
-            -- local sign = scene.addobj("box")
-            -- sign:setpos(table.unpack(cy.parkingspace[1].pos))
         end
 
         cy.summon = {cy.parkingspace[1].pos[1], 0, cy.parkingspace[1].pos[3]}
@@ -782,9 +688,6 @@ function RMGQC()
     rmgqc.toplevel = #rmgqc.level
 
     rmgqc.spreaderpos = {0, 0, 0}
-    -- wirerope:setpos(0,1.1,0)
-    -- wirerope:setscale(1,26.54+0.34,1)
-
     -- 初始化位置
     rmgqc.wirerope:setpos(rmgqc.origin[1] + 0, rmgqc.origin[2] + 1.1, rmgqc.origin[3])
     rmgqc.wirerope:setscale(1, (26.54 + 1.32 - 1.1) - (rmgqc.origin[2]), 1)
@@ -794,7 +697,6 @@ function RMGQC()
     print("初始化：spreader z = ", rmgqc.origin[3])
 
     function rmgqc:registeragv(agv)
-        -- print("rmgqc:registeragv")
         -- 初始化agv
         agv.arrived = false -- 设置到达标识
         agv.targetcontainer = rmgqc.ship:getidlepos() -- 设置目标集装箱位置（船上空余位置）
@@ -803,11 +705,9 @@ function RMGQC()
         agv.worktype = "rmgqc"
         agv.operator = rmgqc
         agv.datamodel = rmgqc.ship
-        -- print("agv初始化完毕")
 
         -- 为agv添加任务
         agv:addtask({"move2", {agv.datamodel.summon[1], agv.datamodel.summon[3]}})
-        -- print("rmgqc summon at: (",agv.datamodel.summon[1],",",agv.datamodel.summon[2],",",agv.datamodel.summon[3],")")
         agv:addtask({"move2", {
             occupy = 1
         }}) -- 移动到第一个车位
@@ -816,11 +716,8 @@ function RMGQC()
         rmgqc:lift2agv(agv.targetcontainer[1]) -- 将抓住的集装箱移动到agv上
         rmgqc:addtask({"waitagv"}) -- 等待agv到达
         rmgqc:attachcontainer(table.unpack(agv.targetcontainer)) -- 将集装箱移动到指定位置
-        -- print("岸桥添加任务完毕")
 
         table.insert(rmgqc.agvqueue, agv) -- 加入agv队列
-        -- print("agv插入队列，#agvqueue=",#rmgqc.agvqueue)
-        -- print("agvdatamodel.agvspan=",agv.datamodel.agvspan)
         for i = 1, agv.datamodel.agvspan do
             agv.datamodel.parkingspace[i].occupied = agv.datamodel.parkingspace[i].occupied + 1 -- 停车位占用数+1
         end
@@ -838,9 +735,7 @@ function RMGQC()
 
     -- 抓箱子
     function rmgqc:attach()
-        -- print("#rmgqc.agvqueue=",#rmgqc.agvqueue)
         rmgqc.attached = rmgqc.agvqueue[1].container
-        -- print("rmgqc.attached=",rmgqc.attached)
         rmgqc.agvqueue[1].container = nil
         table.remove(rmgqc.agvqueue, 1)
     end
@@ -903,14 +798,12 @@ function RMGQC()
             -- 计算移动值
             for i = 1, 2 do
                 ds[i] = param.speed[i] * dt -- dt移动
-                -- print("ds[",i,"]=",ds[i])
                 param[i + 7] = param[i + 7] + ds[i] -- 累计移动
             end
             ds[3] = param.speed[3] * dt -- rmg向量速度*时间
 
             if not param[12] then -- bay方向没有到达目标                
                 if (param[5] + ds[3]) / (param[3] - param[4]) > 1 then -- 首次到达目标
-                    -- rmgqc:deltask()
                     rmgqc:move(param[3] - param[4] - param[5])
                     param[12] = true
                 else
@@ -922,29 +815,23 @@ function RMGQC()
             if not param[13] then -- 列方向没有到达目标
                 for i = 1, 2 do
                     if param[i + 5] ~= 0 and (param[i] - param[i + 7]) * param[i + 5] <= 0 then -- 分方向到达目标
-                        -- rmgqc:deltask()
                         rmgqc:spreadermove2(param[1], param[2], 0)
-                        -- return
                         param[13] = true
                         break
                     end
                 end
                 rmgqc:spreadermove2(param[8], param[9], 0) -- 设置到累计移动值
-                -- print("rmgqc:spreadermove2(",param[8],",",param[9],")")
             end
 
             if param[12] and param[13] then
-                -- print("param 12 and 13:", param[12], ",", param[13])
                 rmgqc:spreadermove2(param[1], param[2], 0)
                 rmgqc:deltask()
             end
         elseif taskname == "waitagv" then -- {"waitagv", nil}
             if rmgqc.agvqueue[1] == nil then
-                -- rmgqc:deltask()
                 print("rmgqc: rmgqc.agvqueue[1]=nil")
             end
             if rmgqc.agvqueue[1] ~= nil and rmgqc.agvqueue[1].arrived then -- agv到达
-                -- table.remove(rmgqc.agvqueue, 1) -- 移除等待的agv
                 rmgqc:deltask()
             end
         elseif taskname == "attach" then -- {"attach", {ship.row,ship.col,ship.level}}
@@ -966,7 +853,6 @@ function RMGQC()
         local taskname = rmgqc.tasksequence[1][1] -- 任务名称
         local param = rmgqc.tasksequence[1][2] -- 任务参数
         if taskname == "move2" then
-            -- print("maxstep: move2")
             if param[4] == nil then
                 param[4] = rmgqc.pos -- 初始位置
                 param[5] = 0 -- 已经移动的距离
@@ -989,17 +875,11 @@ function RMGQC()
 
             if not param[12] then -- bay方向没有到达目标
                 dt = math.min(dt, math.abs((param[3] - param[4] - param[5]) / param.speed[3]))
-                -- if dt == math.abs((param[3] - param[4] - param[5]) / param.speed[3]) then --debug
-                --     print("maxstep更新：(param[3] - param[4] - param[5]) / param.speed[3]=",(param[3] - param[4] - param[5]) / param.speed[3])
-                -- end
             end
             if not param[13] then -- 列方向没有到达目标
                 for i = 1, 2 do
                     if param[i + 5] ~= 0 then -- 只要分方向移动，就计算最大步进
                         dt = math.min(dt, (param[i] - param[i + 7]) / param.speed[i]) -- 根据move2判断条件
-                        -- if dt<0 then --debug
-                        --     print("maxstep更新：(param[i] - param[i + 7]) / param.speed[i]=",(param[i] - param[i + 7]) / param.speed[i])
-                        -- end
                     end
                 end
             end
@@ -1010,12 +890,10 @@ function RMGQC()
     -- 添加任务
     function rmgqc:addtask(obj)
         table.insert(rmgqc.tasksequence, obj)
-        -- print("rmgqc:addtask(): ", rmgqc.tasksequence[#rmgqc.tasksequence][1], ", task count:", #rmgqc.tasksequence)
     end
 
     -- 删除任务
     function rmgqc:deltask()
-        -- print("rmgqc:deltask(): ", rmgqc.tasksequence[1][1], ", task count:", #rmgqc.tasksequence)
         table.remove(rmgqc.tasksequence, 1)
 
         if (rmgqc.tasksequence[1] ~= nil and rmgqc.tasksequence[1][1] == "attach") then
@@ -1039,10 +917,8 @@ function RMGQC()
             ry = ry + rmgqc.level[level] -- 加上层高
         end
         local y = ry - rmgqc.origin[2]
-        -- print("rmgqc.origin[1]=",rmgqc.origin[1]," rmgqc.iox=",rmgqc.iox," x=",x)
         local z = rmgqc.posbay[bay] -- 通过车移动解决z
 
-        -- print("go (", bay, ",", level, ",", col, ")->(x", x, ",y", y, ",z", z, ")")
         return {x, y, z}
     end
 
@@ -1090,14 +966,10 @@ function SHIP(rmgqc)
             ship.pos[bay][col] = {}
             ship.containers[bay][col] = {}
             for level = 1, ship.level do
-                -- print("bay,col,level=",bay,",",col,",",level)
-                -- print("container[bay]=",ship.containers[bay],",container[bay][col]=",ship.containers[bay][col],",container[bay][col][level]=")
-                -- local container = scene.addobj('/res/ct/container.glb')
                 ship.containers[bay][col][level] = nil
                 ship.pos[bay][col][level] = {ship.origin[1] + 2.44 * (5 - col),
                                              ship.origin[2] + 11.29 + (level - 1) * 2.42,
                                              rmgqc.origin[3] + rmgqc.posbay[bay]}
-                -- container:setpos(table.unpack(ship.pos[bay][col][level]))
             end
         end
     end
@@ -1111,13 +983,8 @@ function SHIP(rmgqc)
         for i = 1, ship.bays do
             ship.parkingspace[i] = {} -- 初始化
             ship.parkingspace[i].occupied = 0 -- 0:空闲，1:临时占用，2:作业占用
-            print("ship.origin=", ship.origin[1], ",", ship.origin[2], ",", ship.origin[3])
             ship.parkingspace[i].pos = {rmgqc.origin[1], 0, ship.pos[ship.bays - i + 1][1][1][3]} -- x,y,z
             ship.parkingspace[i].bay = ship.bays - i + 1
-
-            -- 停车位点
-            -- local sign = scene.addobj("box")
-            -- sign:setpos(table.unpack(ship.parkingspace[i].pos))
         end
 
         local lastbaypos = ship.parkingspace[1].pos -- 记录最后一个添加的位置
@@ -1129,11 +996,6 @@ function SHIP(rmgqc)
                 occupied = 0,
                 pos = pos
             }) -- 无对应bay
-            -- print("队列位置=", ship.queuelen - i + 1, " pos={", pos[1], ",", pos[2], ",", pos[3], "}")
-
-            -- 停车位点
-            -- local sign = scene.addobj("box")
-            -- sign:setpos(table.unpack(ship.parkingspace[1].pos))
         end
 
         ship.summon = {ship.parkingspace[1].pos[1], 0, ship.parkingspace[1].pos[3]}
@@ -1165,11 +1027,9 @@ end
 
 -- 创建堆场
 local cy = CY({19.66 / 2, 51.49 / 2}, {-19.66 / 2, -51.49 / 2}, 3)
--- local cy2 = CY({19.66 / 2, 150 / 2}, {-19.66 / 2, 65 / 2}, 3)
 
 -- 分配堆场给场桥
 local rmg = RMG(cy)
--- local rmg2 = RMG(cy2)
 table.insert(actionobj, rmg)
 
 local rmgqc = RMGQC() -- 获取岸桥
@@ -1188,40 +1048,6 @@ local pt = scene.addobj("points", {
     color = "red",
     size = 5
 })
-
--- print("cy.origin = ", cy.origin[1], ",", cy.origin[2])
--- print("rmg.origin = ", rmg.origin[1], ",", rmg.origin[2])
-
--- 添加任务 rmg1
--- rmg:addtask({"move2", rmg:getcontainercoord(2, 3, 4)}) -- 移动爪子到指定位置
--- -- rmg:addtask({"movespread", rmg:getcontainerdelta(0, -1)}) -- 移动爪子到指定高度
--- rmg:addtask({"move2", rmg:getcontainercoord(2, 3, 3)}) -- 移动爪子到指定位置
--- rmg:addtask({"attach", {2, 3, 3}}) -- 抓取指定箱
--- -- rmg:addtask({"movespread", rmg:getcontainerdelta(0, 2)}) -- 移动爪子到指定高度
--- rmg:addtask({"move2", rmg:getcontainercoord(2, 3, 5)}) -- 移动爪子到指定位置
--- rmg:addtask({"move2", rmg:getcontainercoord(2, -1, 5)}) -- 移动爪子到指定位置
--- rmg:addtask({"move2", rmg:getcontainercoord(2, -1, 1)}) -- 放下箱子
--- -- rmg:addtask({"movespread", rmg:getcontainerdelta(0, -2)}) -- 移动爪子到指定高度
--- rmg:addtask({"detach"}) -- 放下指定箱
-
--- -- new task
--- rmg:attachcontainer(2, 3, 3)
--- rmg:addtask({"waitagv"})
--- rmg:lift2agv(2, 3)
-
--- local agv = AGV(cy, {1, 3, 3})
--- local agv2 = AGV(cy, {2, 4, 3})
--- local agv3 = AGV(cy, {1, 4, 3})
--- local agv4 = AGV(cy, {3, 4, 3})
-
--- agv:addtask({"move2", {0, 10}})
--- agv:addtask({"move2", {10, 10}})
--- agv:addtask({"move2", {10, 0}})
--- agv:addtask({"move2", {0, 0}})
-
--- 存在任务序列的对象列表
--- local actionobj = {rmg, rmg2, agv}
--- local actionobj = {rmg}
 
 -- 生成具有任务的agv（取货）
 function generateagv()
@@ -1304,7 +1130,6 @@ function update()
         local obj = actionobj[i]
 
         if obj.type == "agv" and #obj.tasksequence == 0 then
-            -- print("recycle() triggered")
             recycle(obj)
             table.remove(actionobj, i)
             break -- 假设每次同时只能到达一个，因此可以中止
@@ -1316,7 +1141,6 @@ function update()
 
     -- 刷新时间间隔
     dt = (os.clock() - t) * simv
-    -- print("dt = ", dt, " maxstep = ", maxstep)
     dt = math.min(dt, maxstep)
     t = os.clock()
 end
