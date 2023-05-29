@@ -136,29 +136,7 @@ function RMG(cy)
 
         local task = rmg.tasksequence[1]
         local taskname, param = task[1], task[2]
-        if taskname == "movespread" then -- {"movespread",{x,y,z}} 各方向移动多少
-            local d = param -- 导入距离
-
-            -- 计算移动值
-            local ds = {}
-            for i = 1, 3 do
-                ds[i] = param.speed[i] * dt -- speed已经包括方向
-                d[i + 6] = d[i + 6] + ds[i]
-                -- print("d[", i + 6, "]=", d[i + 6])
-            end
-
-            -- 判断是否到达目标
-            for i = 1, 3 do
-                -- print("d[", i, "]=", d[i], "d[",i+6,"]=",d[i+6]," d[", i + 6, "]/d[", i, "]=", d[i + 6] / d[i])
-                if d[i] ~= 0 and d[i + 6] / d[i] >= 1 then -- 分方向到达目标
-                    rmg:deltask()
-                    rmg:spreadermove2(d[1] + d[10], d[2] + d[11], d[3] + d[12]) -- 直接设定到目标位置
-                    return
-                end
-            end
-
-            rmg:spreadermove(ds[1], ds[2], ds[3]) -- 移动差量
-        elseif taskname == "move2" then -- 1:col(x), 2:height(y), 3:bay(z), [4:初始bay, 5:已移动bay距离,向量*2(6,7),当前位置*2(8,9),初始位置*2(10,11),到达(12,13)*2]
+        if taskname == "move2" then -- 1:col(x), 2:height(y), 3:bay(z), [4:初始bay, 5:已移动bay距离,向量*2(6,7),当前位置*2(8,9),初始位置*2(10,11),到达(12,13)*2]
             local ds = {}
             -- 计算移动值
             for i = 1, 2 do
@@ -225,31 +203,7 @@ function RMG(cy)
 
         local taskname = rmg.tasksequence[1][1] -- 任务名称
         local param = rmg.tasksequence[1][2] -- 任务参数
-        if taskname == "movespread" then
-            -- print("maxstep: movespread")
-            if param[4] == nil then -- 没有执行记录，创建
-                for i = 1, 3 do
-                    if param[i] == 0 then -- 无移动，向量设为0
-                        param[i + 3] = 0
-                    else
-                        param[i + 3] = param[i] / math.abs(param[i]) -- 计算向量(4~6)
-                    end
-                    param[i + 6] = 0 -- 已移动距离(7~9)
-                    param[i + 9] = rmg.spreaderpos[i] -- 初始位置(10~12)
-                    -- print("d[", i, "]=", d[i], " d[", i + 3, "]=", d[i + 3], "d[", i + 6, "]=", d[i + 6], " d[", i + 9, "]=", d[i + 9])
-                end
-
-                -- 计算各方向分速度
-                local l = math.sqrt(param[4] ^ 2 + param[5] ^ 2 + param[6] ^ 2)
-                param.speed = {param[4] / l * rmg.speed, param[5] / l * rmg.speed, param[6] / l * rmg.speed} -- 向量*速度
-            end
-
-            for i = 1, 3 do
-                if param[i] ~= 0 then -- 只要分方向移动，就计算最大步进
-                    dt = math.min(dt, math.abs((param[i] - param[i + 6]) / param.speed[i])) -- 根据movespread判断条件
-                end
-            end
-        elseif taskname == "move2" then
+        if taskname == "move2" then
             -- print("maxstep: move2")
             if param[4] == nil then
                 param[4] = rmg.pos -- 初始位置
@@ -378,13 +332,6 @@ function AGV(targetcy, targetcontainer) -- 目标堆场，目标集装箱{bay, c
     agv.height = 2.10 -- agv平台高度
     agv.arrived = false -- 是否到达目标
     agv.operator:registeragv(agv)
-
-    function agv:move(dx, dz)
-        local x, _, z = agv:getpos()
-        x, z = x + dx, z + dz
-        -- agv:setpos(x, 0, z)
-        agv:move2(x, 0, z)
-    end
 
     function agv:move2(x, y, z)
         agv:setpos(x, y, z)
