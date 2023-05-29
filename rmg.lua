@@ -7,9 +7,9 @@ scene.setenv({
 local runcommand = true
 
 -- 参数设置
-local simv = 10 -- 仿真速度
+local simv = 5 -- 仿真速度
 local actionobj = {} -- 动作队列声明
-local agvSummonSpan = 45 -- agv生成间隔
+local agvSummonSpan = 46 -- agv生成间隔
 
 function RMG(cy)
     -- 初始化对象
@@ -641,7 +641,8 @@ function CY(p1, p2, level)
         queuelen = 6, -- 服务队列长度（额外）
         summon = {}, -- 车生成点
         exit = {}, -- 车出口
-        agvspan = 2 -- agv间距
+        agvspan = 2, -- agv间距
+        containerUrls = {'/res/ct/container.glb','/res/ct/container_brown.glb','/res/ct/container_blue.glb','/res/ct/container_yellow.glb'}
     }
 
     -- 显示堆场锚点
@@ -686,7 +687,8 @@ function CY(p1, p2, level)
                 cy.pos[i][j][k] = {p1[1] + pdx * (cy.marginx + (j - 1) * (cy.cwidth + cy.cspan) + cy.cwidth / 2),
                                    cy.origin[2] + cy.levels[k],
                                    p1[2] + pdy * ((i - 1) * (cy.clength + cy.cspan) + cy.clength / 2)}
-                cy.containers[i][j][k] = scene.addobj('/res/ct/container.glb')
+                local url = cy.containerUrls[math.random(1,#cy.containerUrls)] -- 随机选择集装箱颜色
+                cy.containers[i][j][k] = scene.addobj(url) -- 添加集装箱
                 cy.containers[i][j][k]:setpos(cy.pos[i][j][k][1], cy.pos[i][j][k][2], cy.pos[i][j][k][3])
 
                 -- print("container[",i,",",j,"]=(",cy.pos[i][j][1],",",cy.pos[i][j][2],")")
@@ -705,8 +707,10 @@ function CY(p1, p2, level)
             -- print("cy.origin=",cy.origin[1],",",cy.origin[2])
             cy.parkingspace[i].pos = {cy.origin[1] + iox, 0, cy.origin[3] + cy.pos[cy.row - i + 1][1][1][3]} -- x,y,z
             cy.parkingspace[i].bay = cy.row - i + 1
-            local sign = scene.addobj("box")
-            sign:setpos(table.unpack(cy.parkingspace[i].pos))
+
+            -- 停车位点
+            -- local sign = scene.addobj("box")
+            -- sign:setpos(table.unpack(cy.parkingspace[i].pos))
         end
 
         local lastbaypos = cy.parkingspace[1].pos -- 记录最后一个添加的位置
@@ -719,8 +723,10 @@ function CY(p1, p2, level)
                 pos = pos
             }) -- 无对应bay
             -- print("队列位置=", cy.queuelen - i + 1, " pos={", pos[1], ",", pos[2], ",", pos[3], "}")
-            local sign = scene.addobj("box")
-            sign:setpos(table.unpack(cy.parkingspace[1].pos))
+
+            -- 停车位点
+            -- local sign = scene.addobj("box")
+            -- sign:setpos(table.unpack(cy.parkingspace[1].pos))
         end
 
         cy.summon = {cy.parkingspace[1].pos[1], 0, cy.parkingspace[1].pos[3]}
@@ -744,7 +750,7 @@ function RMGQC()
     rmgqc.wirerope = scene.addobj('/res/ct/wirerope.glb')
     rmgqc.spreader = scene.addobj('/res/ct/spreader.glb')
 
-    rmgqc.origin = {-16, 0, 100} -- rmgqc初始位置
+    rmgqc.origin = {-16, 0, 130} -- rmgqc初始位置
     rmgqc.pos = 0
     rmgqc.level = {}
     rmgqc.level.agv = 2.1 + 2.42
@@ -756,12 +762,11 @@ function RMGQC()
     rmgqc.attached = nil -- 抓取的集装箱
     rmgqc.stash = nil -- io物品暂存
     rmgqc.agvqueue = {} -- agv服务队列
-    rmgqc.queuelen = 6 -- 服务队列长度（额外）
+    rmgqc.queuelen = 11 -- 服务队列长度（额外）
     rmgqc.summon = {} -- 车生成点
     rmgqc.exit = {} -- 车出口
-
+    
     rmgqc.posbay = {} -- 船对应的bay位
-
     for i = 1, 8 do -- 初始化船bay位
         rmgqc.posbay[i] = (5 - i) * 6.06
     end
@@ -1105,8 +1110,10 @@ function SHIP(rmgqc)
             print("ship.origin=", ship.origin[1], ",", ship.origin[2], ",", ship.origin[3])
             ship.parkingspace[i].pos = {rmgqc.origin[1], 0, ship.pos[ship.bays - i + 1][1][1][3]} -- x,y,z
             ship.parkingspace[i].bay = ship.bays - i + 1
-            local sign = scene.addobj("box")
-            sign:setpos(table.unpack(ship.parkingspace[i].pos))
+
+            -- 停车位点
+            -- local sign = scene.addobj("box")
+            -- sign:setpos(table.unpack(ship.parkingspace[i].pos))
         end
 
         local lastbaypos = ship.parkingspace[1].pos -- 记录最后一个添加的位置
@@ -1119,8 +1126,10 @@ function SHIP(rmgqc)
                 pos = pos
             }) -- 无对应bay
             -- print("队列位置=", ship.queuelen - i + 1, " pos={", pos[1], ",", pos[2], ",", pos[3], "}")
-            local sign = scene.addobj("box")
-            sign:setpos(table.unpack(ship.parkingspace[1].pos))
+
+            -- 停车位点
+            -- local sign = scene.addobj("box")
+            -- sign:setpos(table.unpack(ship.parkingspace[1].pos))
         end
 
         ship.summon = {ship.parkingspace[1].pos[1], 0, ship.parkingspace[1].pos[3]}
@@ -1165,6 +1174,16 @@ table.insert(actionobj, rmgqc)
 
 local ship = SHIP(rmgqc)
 ship:initqueue()
+
+local line = scene.addobj("polyline", {
+    vertices = {cy.summon[1], cy.summon[2], cy.summon[3], ship.exit[1], ship.exit[2], ship.exit[3]},
+    color = "black"
+})
+local pt = scene.addobj("points", {
+    vertices = {cy.summon[1], cy.summon[2], cy.summon[3], ship.exit[1], ship.exit[2], ship.exit[3]},
+    color = "red",
+    size = 5
+})
 
 -- print("cy.origin = ", cy.origin[1], ",", cy.origin[2])
 -- print("rmg.origin = ", rmg.origin[1], ",", rmg.origin[2])
