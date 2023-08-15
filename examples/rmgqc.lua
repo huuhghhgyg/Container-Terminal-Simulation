@@ -61,7 +61,7 @@ function RMGQC()
         agv.targetbay = agv.targetcontainer[1]
 
         -- 为agv添加任务
-        agv:setpos({"move2",rmgqc.summon})
+        agv:setpos(table.unpack(rmgqc.summon))
         agv:addtask({"waitagv", {
             occupy = 1
         }}) -- 等待第一个车位
