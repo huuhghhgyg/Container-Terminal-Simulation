@@ -12,7 +12,7 @@ function AGV(targetcy, targetcontainer) -- 目标堆场，目标集装箱{bay, c
     agv.arrived = false -- 是否到达目标
     agv.operator:registeragv(agv)
 
-    function agv:move2(x, y, z)
+    function agv:move2(x, y, z) -- 直接移动到指定坐标
         agv:setpos(x, y, z)
         if agv.container ~= nil then
             agv.container:setpos(x, y + agv.height, z)
@@ -24,10 +24,10 @@ function AGV(targetcy, targetcontainer) -- 目标堆场，目标集装箱{bay, c
 
         -- 判断下一个位置
         if nextoccupy > #agv.datamodel.parkingspace then -- 下一个位置是exit
-            -- print("[agv] 下一个位置是exit")
             agv:addtask({"move2", {
                 occupy = currentoccupy
             }}) -- 不需要设置occupy，直接设置目标位置
+            
             if agv.operator.nextstep ~= nil then -- 如果没有下一个站点，直接移动到exit
                 agv:addtask({"onboard", {agv.operator.nextstep}})
             end
@@ -73,17 +73,24 @@ function AGV(targetcy, targetcontainer) -- 目标堆场，目标集装箱{bay, c
 
         local task = agv.tasksequence[1]
         local taskname, param = task[1], task[2]
+
         if taskname == "move2" then -- {"move2",x,z,[occupy=1]} 移动到指定位置 {x,z, 向量距离*2(3,4), moved*2(5,6), 初始位置*2(7,8)},occupy:当前占用道路位置
+            -- todo: param参数规划
+            -- param[1],param[2] 目标位置
+            -- param.vectorDistanceXZ xz方向向量距离
+            -- param.movedXZ xz方向已经移动的距离
+            -- param.originXZ xz方向初始位置
+            
             if param.speed == nil then
-                agv:maxstep()
+                agv:maxstep() -- 计算最大步进
             end
 
             local ds = {param.speed[1] * dt, param.speed[2] * dt} -- xz方向移动距离
-            param[5], param[6] = param[5] + ds[1], param[6] + ds[2] -- xz方向已经移动的距离
+            param.movedXZ[1], param.movedXZ[2] = param.movedXZ[1] + ds[1], param.movedXZ[2] + ds[2] -- xz方向已经移动的距离
 
             -- 判断是否到达
             for i = 1, 2 do
-                if param[i + 2] ~= 0 and (param[i] - param[i + 6] - param[i + 4]) * param[i + 2] <= 0 then -- 如果分方向到达则视为到达
+                if param.vectorDistanceXZ[i] ~= 0 and (param[i] - param.originXZ[i] - param.movedXZ[i]) * param.vectorDistanceXZ[i] <= 0 then -- 如果分方向到达则视为到达
                     agv:move2(param[1], 0, param[2])
                     agv:deltask()
 
@@ -103,7 +110,7 @@ function AGV(targetcy, targetcontainer) -- 目标堆场，目标集装箱{bay, c
             end
 
             -- 设置步进移动
-            agv:move2(param[7] + param[5], 0, param[8] + param[6])
+            agv:move2(param.originXZ[1] + param.movedXZ[1], 0, param.originXZ[2] + param.movedXZ[2])
         elseif taskname == "attach" then
             if agv.operator.stash ~= nil and agv.targetbay == agv.operator.bay or agv.targetbay == nil then
                 agv:attach()
@@ -170,7 +177,7 @@ function AGV(targetcy, targetcontainer) -- 目标堆场，目标集装箱{bay, c
 
         if taskname == "move2" then -- {"move2",x,z,[occupy=,]} 移动到指定位置 {x,z, 向量距离*2(3,4), moved*2(5,6), 初始位置*2(7,8)},occupy:当前占用道路位置
             -- 初始判断
-            if param[3] == nil then
+            if param.vectorDistanceXZ == nil then -- 没有计算出向量距离，说明没有初始化
                 if param.occupy ~= nil then -- 占用车位要求判断
                     -- 设置目标位置
                     if param.occupy == #agv.datamodel.parkingspace then -- 判断当前占用是否为最后一个
@@ -182,24 +189,24 @@ function AGV(targetcy, targetcontainer) -- 目标堆场，目标集装箱{bay, c
                 end
 
                 local x, _, z = agv:getpos() -- 获取当前位置
-                param[3] = param[1] - x -- x方向需要移动的距离
-                param[4] = param[2] - z -- z方向需要移动的距离
-                if param[3] == 0 and param[4] == 0 then
-                    print("agv不需要移动", " currentoccupy=", param.occupy)
+
+                param.vectorDistanceXZ = {param[1] - x, param[2] - z} --xz方向需要移动的距离
+                if param.vectorDistanceXZ[1] == 0 and param.vectorDistanceXZ[2] == 0 then
+                    print("Exception: agv不需要移动", " currentoccupy=", param.occupy)
                     agv:deltask()
                     return
                 end
 
-                param[5], param[6] = 0, 0 -- xz方向已经移动的距离
-                param[7], param[8] = x, z -- xz方向初始位置
+                param.movedXZ = {0, 0} -- xz方向已经移动的距离
+                param.originXZ = {x, z} -- xz方向初始位置
 
-                local l = math.sqrt(param[3] ^ 2 + param[4] ^ 2)
-                param.speed = {param[3] / l * agv.speed, param[4] / l * agv.speed} -- xz向量速度分量
+                local l = math.sqrt(param.vectorDistanceXZ[1] ^ 2 + param.vectorDistanceXZ[2] ^ 2)
+                param.speed = {param.vectorDistanceXZ[1] / l * agv.speed, param.vectorDistanceXZ[2] / l * agv.speed} -- xz向量速度分量
             end
 
             for i = 1, 2 do
-                if param[i + 2] ~= 0 then -- 只要分方向移动，就计算最大步进
-                    dt = math.min(dt, math.abs((param[i] - param[i + 6] - param[i + 4]) / param.speed[i]))
+                if param.vectorDistanceXZ[i] ~= 0 then -- 只要分方向移动，就计算最大步进
+                    dt = math.min(dt, math.abs((param[i] - param.originXZ[i] - param.movedXZ[i]) / param.speed[i]))
                 end
             end
         end
