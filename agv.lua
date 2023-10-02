@@ -1,11 +1,14 @@
-function AGV(targetcy, targetcontainer) -- 目标堆场，目标集装箱{bay, col, level}
+--- 创建一个新的AGV对象
+---@param targetCY 目标堆场
+---@param targetContainer 目标集装箱{bay, col, level}
+function AGV(targetCY, targetContainer)
     local agv = scene.addobj("/res/ct/agv.glb")
-    agv.type = "agv"
+    agv.type = "agv" -- 记录对象类型
     agv.speed = 10
-    agv.datamodel = targetcy -- 目标堆场(数据模型)
-    agv.operator = targetcy.rmg -- 目标场桥(操作器)
-    agv.targetcontainer = targetcontainer -- 目标集装箱{bay, col, level}
-    agv.targetbay = targetcontainer[1] -- 目标bay
+    agv.datamodel = targetCY -- 目标堆场(数据模型)
+    agv.operator = targetCY.rmg -- 目标场桥(操作器)
+    agv.targetcontainer = targetContainer -- 目标集装箱{bay, col, level}
+    agv.targetbay = targetContainer[1] -- 目标bay
     agv.tasksequence = {} -- 初始化任务队列
     agv.container = nil -- 初始化集装箱
     agv.height = 2.10 -- agv平台高度
@@ -168,7 +171,7 @@ function AGV(targetcy, targetcontainer) -- 目标堆场，目标集装箱{bay, c
 
     function agv:maxstep() -- 初始化和计算最大允许步进时间
         local dt = math.huge -- 初始化步进
-        if agv.tasksequence[1] == nil then -- 对象无任务，直接返回0
+        if agv.tasksequence[1] == nil then -- 对象无任务，直接返回最大值
             return dt
         end
 
@@ -181,7 +184,7 @@ function AGV(targetcy, targetcontainer) -- 目标堆场，目标集装箱{bay, c
                 if param.occupy ~= nil then -- 占用车位要求判断
                     -- 设置目标位置
                     if param.occupy == #agv.datamodel.parkingspace then -- 判断当前占用是否为最后一个
-                        param[1], param[2] = agv.datamodel.exit[1], agv.datamodel.exit[3] -- 直接设置为出口
+                        param[1], param[2] = agv.datamodel.exit[1], agv.datamodel.exit[3] -- 直接设置为出口(x,z坐标)
                     else
                         param[1], param[2] = agv.datamodel.parkingspace[param.occupy + 1].pos[1],
                             agv.datamodel.parkingspace[param.occupy + 1].pos[3] -- 设置目标xz坐标
@@ -204,17 +207,22 @@ function AGV(targetcy, targetcontainer) -- 目标堆场，目标集装箱{bay, c
                 param.speed = {param.vectorDistanceXZ[1] / l * agv.speed, param.vectorDistanceXZ[2] / l * agv.speed} -- xz向量速度分量
             end
 
+            local cache = dt --debug 步进
             for i = 1, 2 do
                 if param.vectorDistanceXZ[i] ~= 0 then -- 只要分方向移动，就计算最大步进
                     dt = math.min(dt, math.abs((param[i] - param.originXZ[i] - param.movedXZ[i]) / param.speed[i]))
+                end
+
+                if cache ~= dt and dt ~= math.huge then
+                    print("agv.maxstep缩短为", dt)
                 end
             end
         end
         return dt
     end
 
-    -- 初始化agv
-    agv:setpos(table.unpack(agv.datamodel.summon))
+    -- 使用元胞数据模型初始化agv
+    agv:setpos(table.unpack(agv.datamodel.summon)) --设置到生成点
     agv:addtask({"waitagv", {
         occupy = 1
     }}) -- 等待第一个车位
