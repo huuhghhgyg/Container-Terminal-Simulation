@@ -25,7 +25,7 @@ local rmg = RMG(cy, actionobj)
 table.insert(actionobj, rmg)
 
 local rmgqc = RMGQC() -- 获取岸桥
-rmg.nextstep = rmgqc -- 设置岸桥
+rmg.nextstep = rmgqc -- 设置岸桥(仅在main中发现这样的作法)
 table.insert(actionobj, rmgqc)
 
 local ship = SHIP(rmgqc)
@@ -69,7 +69,8 @@ function generateagv()
     -- 随机抽取一个位置，生成agv
     local pos = availablepos[math.random(#availablepos)]
     cy.containers[pos[1]][pos[2]][pos[3]].reserved = true -- 标记为已经被预定
-    local agv = AGV(cy, pos)
+    local agv = AGV()
+    agv:bindCrane(cy, pos)
     print("[agv] summoned at: ", coroutine.qtime())
 
     local tArriveSpan = math.random(agvSummonSpan) + 1 -- 平均到达间隔120s

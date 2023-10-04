@@ -20,4 +20,19 @@
 - `param.vectorDistanceXZ` xz方向向量距离（原函数 3，4）
 - `param.movedXZ` xz方向已经移动的距离（原函数 5，6）
 - `param.originXZ` xz方向初始位置（原函数 7，8）
-- `param.initialized` 是否已经初始化
+- `param.speed` 各个方向的分速度，也用于判断是否已经初始化
+
+# Road
+- agvs: 用于道路控制的、包含agv对象和道路相关信息的列表
+  - agv: agv对象
+  - id: 道路为此agv分配的id
+  - distance: agv在道路上已移动的距离（可以作为初始位置设置）
+  - targetDistance: agv在道路上移动的目标距离
+- agvId: 已为agv分配的id，同`agvs.id`
+- agvLeaveNum: 已离开此道路（删除）的agv数量
+- road.vec: 道路方向向量(x,y,z)
+- road.length: 道路长度
+- road.vecE: 道路单位向量(x,y,z)
+
+## 其他
+当需要根据`agvId`访问`road.agv`中的指定项时，应减去`agvLeaveNum`，以获得列表中的正确索引，如`roadAgvId-agvLeaveNum`

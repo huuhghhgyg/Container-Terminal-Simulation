@@ -1,19 +1,36 @@
 --- 创建一个新的AGV对象
 ---@param targetCY 目标堆场
 ---@param targetContainer 目标集装箱{bay, col, level}
-function AGV(targetCY, targetContainer)
+function AGV()
     local agv = scene.addobj("/res/ct/agv.glb")
     agv.type = "agv" -- 记录对象类型
     agv.speed = 10
-    agv.datamodel = targetCY -- 目标堆场(数据模型)
-    agv.operator = targetCY.rmg -- 目标场桥(操作器)
-    agv.targetcontainer = targetContainer -- 目标集装箱{bay, col, level}
-    agv.targetbay = targetContainer[1] -- 目标bay
     agv.tasksequence = {} -- 初始化任务队列
     agv.container = nil -- 初始化集装箱
     agv.height = 2.10 -- agv平台高度
-    agv.arrived = false -- 是否到达目标
-    agv.operator:registeragv(agv)
+
+    -- 新增（by road)
+    -- agv.safetyDistance = 5 -- 安全距离
+    agv.safetyDistance = 20 -- 安全距离
+
+    -- 绑定起重机（RMG/RMGQC）
+    function agv:bindCrane(targetCY, targetContainer)
+        agv.datamodel = targetCY -- 目标堆场(数据模型)
+        agv.operator = targetCY.rmg -- 目标场桥(操作器)
+        agv.targetcontainer = targetContainer -- 目标集装箱{bay, col, level}
+        agv.targetbay = targetContainer[1] -- 目标bay
+        agv.arrived = false -- 是否到达目标
+        agv.operator:registeragv(agv)
+
+        -- 使用元胞数据模型初始化agv
+        agv:setpos(table.unpack(agv.datamodel.summon)) -- 设置到生成点
+        agv:addtask({"waitagv", {
+            occupy = 1
+        }}) -- 等待第一个车位
+        agv:addtask({"move2", {
+            occupy = 1
+        }}) -- 移动到第一个车位
+    end
 
     function agv:move2(x, y, z) -- 直接移动到指定坐标
         agv:setpos(x, y, z)
@@ -30,7 +47,7 @@ function AGV(targetCY, targetContainer)
             agv:addtask({"move2", {
                 occupy = currentoccupy
             }}) -- 不需要设置occupy，直接设置目标位置
-            
+
             if agv.operator.nextstep ~= nil then -- 如果没有下一个站点，直接移动到exit
                 agv:addtask({"onboard", {agv.operator.nextstep}})
             end
@@ -77,13 +94,28 @@ function AGV(targetCY, targetContainer)
         local task = agv.tasksequence[1]
         local taskname, param = task[1], task[2]
 
+        -- 判断子任务序列
+        if taskname == "queue" then -- {"queue", subtask={...}}
+            print("判定为子任务序列(queue)") -- debug
+            if #param.subtask == 0 then -- 子任务序列为空，删除queue任务
+                agv:deltask()
+                return agv:maxstep() -- 重新计算
+            end
+
+            -- 执行子任务
+            taskname = param.subtask[1][1]
+            param = param.subtask[1][2]
+        end
+
+        -- print("正在执行任务", taskname)
+
         if taskname == "move2" then -- {"move2",x,z,[occupy=1]} 移动到指定位置 {x,z, 向量距离*2(3,4), moved*2(5,6), 初始位置*2(7,8)},occupy:当前占用道路位置
             -- todo: param参数规划
             -- param[1],param[2] 目标位置
             -- param.vectorDistanceXZ xz方向向量距离
             -- param.movedXZ xz方向已经移动的距离
             -- param.originXZ xz方向初始位置
-            
+
             if param.speed == nil then
                 agv:maxstep() -- 计算最大步进
             end
@@ -93,7 +125,8 @@ function AGV(targetCY, targetContainer)
 
             -- 判断是否到达
             for i = 1, 2 do
-                if param.vectorDistanceXZ[i] ~= 0 and (param[i] - param.originXZ[i] - param.movedXZ[i]) * param.vectorDistanceXZ[i] <= 0 then -- 如果分方向到达则视为到达
+                if param.vectorDistanceXZ[i] ~= 0 and (param[i] - param.originXZ[i] - param.movedXZ[i]) *
+                    param.vectorDistanceXZ[i] <= 0 then -- 如果分方向到达则视为到达
                     agv:move2(param[1], 0, param[2])
                     agv:deltask()
 
@@ -144,6 +177,28 @@ function AGV(targetCY, targetContainer)
         elseif taskname == "onboard" then
             param[1]:registeragv(agv)
             agv:deltask()
+        elseif taskname == "moveon" then
+            local road = agv.road
+            local roadAgvItem = road.agvs[agv.roadAgvId-road.agvLeaveNum]
+
+            -- 判断前方是否被堵塞
+            local agvAhead = road:getAgvAhead(agv.roadAgvId)
+            if agvAhead ~= nil then
+                local ax, _, az = agvAhead:getpos()
+                local x, _, z = agv:getpos()
+                local d = math.sqrt((ax - x) ^ 2 + (az - z) ^ 2)
+
+                if d < agv.safetyDistance then -- 前方被堵塞
+                    return -- 直接返回
+                end
+            end
+
+            -- 步进
+            road:setAgvPos(dt, agv.roadAgvId)
+            if roadAgvItem.distance >= roadAgvItem.targetDistance then -- 判断是否到达目标
+                road:removeAgv(agv.roadAgvId) -- 从道路中移除agv
+                agv:deltask()
+            end
         end
     end
 
@@ -162,6 +217,12 @@ function AGV(targetCY, targetContainer)
 
     -- 删除任务
     function agv:deltask()
+        -- 判断是否具有子任务序列
+        if agv.tasksequence[1].subtask ~= nil and #agv.tasksequence[1].subtask > 0 then -- 子任务序列不为空，删除子任务中的任务
+            table.remove(agv.tasksequence[1].subtask, 1)
+            return
+        end
+
         table.remove(agv.tasksequence, 1)
 
         if (agv.tasksequence[1] ~= nil and agv.tasksequence[1][1] == "attach") then
@@ -178,10 +239,22 @@ function AGV(targetCY, targetContainer)
         local taskname = agv.tasksequence[1][1] -- 任务名称
         local param = agv.tasksequence[1][2] -- 任务参数
 
+        -- 判断子任务序列
+        if taskname == "queue" then -- {"queue", subtask={...}}
+            if #param.subtask == 0 then -- 子任务序列为空，删除queue任务
+                agv:deltask()
+                return agv:maxstep() -- 重新计算
+            end
+
+            -- 执行子任务
+            taskname = param.subtask[1][1]
+            param = param.subtask[1][2]
+        end
+
         if taskname == "move2" then -- {"move2",x,z,[occupy=,]} 移动到指定位置 {x,z, 向量距离*2(3,4), moved*2(5,6), 初始位置*2(7,8)},occupy:当前占用道路位置
             -- 初始判断
             if param.vectorDistanceXZ == nil then -- 没有计算出向量距离，说明没有初始化
-                if param.occupy ~= nil then -- 占用车位要求判断
+                if param.occupy ~= nil then -- 占用车位要求判断(old:元胞自动机版本)
                     -- 设置目标位置
                     if param.occupy == #agv.datamodel.parkingspace then -- 判断当前占用是否为最后一个
                         param[1], param[2] = agv.datamodel.exit[1], agv.datamodel.exit[3] -- 直接设置为出口(x,z坐标)
@@ -193,11 +266,12 @@ function AGV(targetCY, targetContainer)
 
                 local x, _, z = agv:getpos() -- 获取当前位置
 
-                param.vectorDistanceXZ = {param[1] - x, param[2] - z} --xz方向需要移动的距离
+                param.vectorDistanceXZ = {param[1] - x, param[2] - z} -- xz方向需要移动的距离
                 if param.vectorDistanceXZ[1] == 0 and param.vectorDistanceXZ[2] == 0 then
                     print("Exception: agv不需要移动", " currentoccupy=", param.occupy)
                     agv:deltask()
-                    return
+                    -- return
+                    return agv:maxstep() -- 重新计算
                 end
 
                 param.movedXZ = {0, 0} -- xz方向已经移动的距离
@@ -207,28 +281,25 @@ function AGV(targetCY, targetContainer)
                 param.speed = {param.vectorDistanceXZ[1] / l * agv.speed, param.vectorDistanceXZ[2] / l * agv.speed} -- xz向量速度分量
             end
 
-            local cache = dt --debug 步进
             for i = 1, 2 do
                 if param.vectorDistanceXZ[i] ~= 0 then -- 只要分方向移动，就计算最大步进
                     dt = math.min(dt, math.abs((param[i] - param.originXZ[i] - param.movedXZ[i]) / param.speed[i]))
                 end
-
-                if cache ~= dt and dt ~= math.huge then
-                    print("agv.maxstep缩短为", dt)
-                end
             end
+        elseif taskname == "moveon" then -- {"moveon"} 沿着当前道路行驶(需要先在road中register)
+            local road = agv.road
+            local roadAgvItem = road.agvs[agv.roadAgvId-road.agvLeaveNum]
+            -- print("agv.roadAgvId",agv.roadAgvId) --debug
+            -- 判断是否到达目标
+            if roadAgvItem.distance >= roadAgvItem.targetDistance then
+                road:removeAgv(agv.roadAgvId) -- 从道路中移除agv
+                agv:deltask() -- 已到达目标，删除任务
+                return agv:maxstep() -- 重新计算
+            end
+            dt = math.min(dt, road:maxstep(agv.roadAgvId)) -- 使用road中的方法计算最大步进
         end
         return dt
     end
-
-    -- 使用元胞数据模型初始化agv
-    agv:setpos(table.unpack(agv.datamodel.summon)) --设置到生成点
-    agv:addtask({"waitagv", {
-        occupy = 1
-    }}) -- 等待第一个车位
-    agv:addtask({"move2", {
-        occupy = 1
-    }}) -- 移动到第一个车位
 
     return agv
 end
