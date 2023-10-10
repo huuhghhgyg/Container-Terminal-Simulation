@@ -65,7 +65,7 @@ function RMGQC()
             agv.datamodel.parkingspace[i].occupied = agv.datamodel.parkingspace[i].occupied + 1 -- 停车位占用数+1
         end
         if not transfered then
-            table.insert(actionobj, agv) -- 加入动作队列
+            table.insert(controller.actionObjs, agv) -- 加入动作队列
             print("agv已加入动作队列")
         end
     end
