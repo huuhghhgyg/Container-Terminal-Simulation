@@ -1,11 +1,10 @@
-
 function CY(p1, p2, level)
     local cy = {
         clength = 6.06,
         cwidth = 2.44,
         cheight = 2.42,
         cspan = 0.6,
-        pos = {}, -- 初始化
+        containerPositions = {}, -- 堆场各集装箱位置坐标列表
         containers = {}, -- 集装箱对象(相对坐标)
         parkingspace = {}, -- 停车位对象(相对坐标)
         origin = {(p1[1] + p2[1]) / 2, 0, (p1[2] + p2[2]) / 2}, -- 参照点
@@ -23,9 +22,9 @@ function CY(p1, p2, level)
     -- 计算属性
     cy.dir = {pdx, pdy} -- 方向
     cy.width, cy.length = math.abs(p1[1] - p2[1]), math.abs(p1[2] - p2[2])
-    cy.col = math.floor((cy.width + cy.cspan) / (cy.cwidth + cy.cspan)) -- 列数
-    cy.row = math.floor((cy.length + cy.cspan) / (cy.clength + cy.cspan)) -- 行数
-    cy.marginx = (cy.width + cy.cspan - (cy.cwidth + cy.cspan) * cy.col) / 2 -- 横向外边距
+    cy.row = math.floor((cy.width + cy.cspan) / (cy.cwidth + cy.cspan)) -- 行数
+    cy.col = math.floor((cy.length + cy.cspan) / (cy.clength + cy.cspan)) -- 列数
+    cy.marginx = (cy.width + cy.cspan - (cy.cwidth + cy.cspan) * cy.row) / 2 -- 横向外边距
 
     -- 集装箱层数
     cy.levels = {} -- 层数y坐标集合
@@ -34,23 +33,26 @@ function CY(p1, p2, level)
         cy.levels[i] = cy.cheight * (i - 1)
     end
 
-    for i = 1, cy.row do
-        cy.pos[i] = {} -- 初始化
+    for i = 1, cy.col do
+        cy.containerPositions[i] = {} -- 初始化
         cy.containers[i] = {}
-        for j = 1, cy.col do
-            cy.pos[i][j] = {}
+        for j = 1, cy.row do
+            cy.containerPositions[i][j] = {}
             cy.containers[i][j] = {}
             for k = 1, cy.level do
-                cy.pos[i][j][k] = {p1[1] + pdx * (cy.marginx + (j - 1) * (cy.cwidth + cy.cspan) + cy.cwidth / 2),
-                                   cy.origin[2] + cy.levels[k],
-                                   p1[2] + pdy * ((i - 1) * (cy.clength + cy.cspan) + cy.clength / 2)}
+                cy.containerPositions[i][j][k] = {p1[1] + pdx *
+                    (cy.marginx + (j - 1) * (cy.cwidth + cy.cspan) + cy.cwidth / 2), cy.origin[2] + cy.levels[k],
+                                                  p1[2] + pdy * ((i - 1) * (cy.clength + cy.cspan) + cy.clength / 2)}
                 local url = cy.containerUrls[math.random(1, #cy.containerUrls)] -- 随机选择集装箱颜色
                 cy.containers[i][j][k] = scene.addobj(url) -- 添加集装箱
-                cy.containers[i][j][k]:setpos(cy.pos[i][j][k][1], cy.pos[i][j][k][2], cy.pos[i][j][k][3])
+                cy.containers[i][j][k]:setpos(cy.containerPositions[i][j][k][1], cy.containerPositions[i][j][k][2],
+                    cy.containerPositions[i][j][k][3])
             end
         end
     end
 
+    -- 旧版初始化队列(old)
+    -- 新版初始化队列将bay投影到道路上，然后在道路上生成停车位。parkingspaces记录道路上的相对信息。
     function cy:initqueue(iox) -- 初始化队列(cy.parkingspace) iox出入位置x相对坐标
         -- 停车队列(iox)
         cy.parkingspace = {} -- 属性：occupied:停车位占用情况，pos:停车位坐标，bay:对应堆场bay位
@@ -59,7 +61,8 @@ function CY(p1, p2, level)
         for i = 1, cy.row do
             cy.parkingspace[i] = {} -- 初始化
             cy.parkingspace[i].occupied = 0 -- 0:空闲，1:临时占用，2:作业占用
-            cy.parkingspace[i].pos = {cy.origin[1] + iox, 0, cy.origin[3] + cy.pos[cy.row - i + 1][1][1][3]} -- x,y,z
+            cy.parkingspace[i].pos = {cy.origin[1] + iox, 0,
+                                      cy.origin[3] + cy.containerPositions[cy.row - i + 1][1][1][3]} -- x,y,z
             cy.parkingspace[i].bay = cy.row - i + 1
         end
 
@@ -76,6 +79,33 @@ function CY(p1, p2, level)
 
         cy.summon = {cy.parkingspace[1].pos[1], 0, cy.parkingspace[1].pos[3]}
         cy.exit = {cy.parkingspace[1].pos[1], 0, cy.parkingspace[#cy.parkingspace].pos[3] + 20} -- 设置离开位置
+    end
+
+    -- 新版初始化队列
+    function cy:bindRoad(road)
+        -- 遍历bay坐标，进行投影
+        local bayPos = {} -- bay的第一行坐标{x,z}
+        for i = 1, cy.col do
+            bayPos[i] = {cy.containerPositions[i][1][1][1], cy.containerPositions[i][1][1][3]}
+        end
+
+        -- 投影
+        cy.parkingSpaces = {}
+        for i = 1, #bayPos do
+            cy.parkingSpaces[i] = road:getRelativeDist(bayPos[i][1], bayPos[i][2])
+            print('cy debug: parking space', i, ' relative distance = ', cy.parkingSpaces[i])
+        end
+
+        -- 生成停车位
+        for k, v in ipairs(cy.parkingSpaces) do
+            local x,y,z = road:getRelativePosition(v)
+            scene.addobj('points', {
+                vertices = {x, y, z},
+                color = 'red',
+                size = 5
+            })
+            print('cy debug: set parking space at (', x, ',', y, ',', z, ')')
+        end
     end
 
     return cy
