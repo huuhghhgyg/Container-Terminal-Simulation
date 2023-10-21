@@ -8,6 +8,7 @@ function CY(p1, p2, level)
         containers = {}, -- 集装箱对象(相对坐标)
         parkingspace = {}, -- 停车位对象(相对坐标)
         origin = {(p1[1] + p2[1]) / 2, 0, (p1[2] + p2[2]) / 2}, -- 参照点
+        anchorPoint = {p1[1], 0, p1[2]}, -- 锚点
         queuelen = 16, -- 服务队列长度（额外）
         summon = {}, -- 车生成点
         exit = {}, -- 车出口
@@ -110,14 +111,14 @@ function CY(p1, p2, level)
                 color = 'red',
                 size = 5
             })
-            local pointLabel = scene.addobj('label',{
-                text='no.'..k
+            local pointLabel = scene.addobj('label', {
+                text = 'no.' .. k
             })
             pointLabel:setpos(x, y, z)
             -- print('cy debug: set parking space at (', x, ',', y, ',', z, ')')
 
             -- 计算iox
-            cy.parkingSpaces[k].iox = math.sqrt((x-bayPos[k][1])^2+(z-bayPos[k][2])^2)
+            cy.parkingSpaces[k].iox = math.sqrt((x - bayPos[k][1]) ^ 2 + (z - bayPos[k][2]) ^ 2)
             print('cy debug: parking space', k, ' iox = ', cy.parkingSpaces[k].iox)
         end
     end
