@@ -4,7 +4,7 @@ function CY(p1, p2, level)
         cwidth = 2.44,
         cheight = 2.42,
         cspan = 0.6,
-        containerPositions = {}, -- 堆场各集装箱位置坐标列表
+        containerPositions = {}, -- 堆场各集装箱位置坐标列表(bay,row,level)
         containers = {}, -- 集装箱对象(相对坐标)
         parkingSpaces = {}, -- 停车位对象(相对坐标)
         origin = {(p1[1] + p2[1]) / 2, 0, (p1[2] + p2[2]) / 2}, -- 参照点
@@ -90,7 +90,7 @@ function CY(p1, p2, level)
         -- 遍历bay坐标，进行投影
         local bayPos = {} -- bay的第一行坐标{x,z}
         for i = 1, cy.col do
-            bayPos[i] = {cy.containerPositions[i][1][1][1], cy.containerPositions[i][1][1][3]}
+            bayPos[i] = {cy.containerPositions[i][cy.row][1][1], cy.containerPositions[i][cy.row][1][3]}
         end
 
         -- 投影
@@ -107,7 +107,7 @@ function CY(p1, p2, level)
             local x, y, z = road:getRelativePosition(v.relativeDist)
 
             -- 计算iox
-            cy.parkingSpaces[k].iox = math.sqrt((x - bayPos[k][1]) ^ 2 + (z - bayPos[k][2]) ^ 2)
+            cy.parkingSpaces[k].iox = -1*math.sqrt((x - bayPos[k][1]) ^ 2 + (z - bayPos[k][2]) ^ 2)
             -- print('cy debug: parking space', k, ' iox = ', cy.parkingSpaces[k].iox)
         end
 

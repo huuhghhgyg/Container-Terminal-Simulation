@@ -316,16 +316,17 @@ function RMG(cy, actionObjs)
     end
 
     -- 获取集装箱坐标{x,y,z}
-    function rmg:getContainerCoord(bay, col, level)
+    function rmg:getContainerCoord(bay, row, level)
         local x
-        if col == -1 then
-            x = rmg.iox
+        if row == -1 then
+            -- x = rmg.iox
+            x = cy.parkingSpaces[bay].iox+cy.containerPositions[1][cy.row][1][1] --加一个cy.origin.x，减一个rmg.origin.x，就没了
         else
-            x = cy.containerPositions[1][col][1][1] - rmg.origin[1]
+            x = cy.containerPositions[1][row][1][1] - rmg.origin[1]
         end
 
         local ry = 0 -- 相对高度
-        if col == -1 and level == 1 then -- 如果是要放下，则设置到移动到agv上
+        if row == -1 and level == 1 then -- 如果是要放下，则设置到移动到agv上
             ry = ry + rmg.level.agv -- 加上agv高度
         end
         ry = ry + rmg.level[level] -- 加上层高
@@ -384,7 +385,11 @@ local rmg1 = RMG(cy1, actionObjs) -- 创建rmg
 scene.render()
 
 -- 仿真任务
+rmg1:addtask({'move2', rmg1:getContainerCoord(3, 2, 5)}) 
+rmg1:addtask({'move2', rmg1:getContainerCoord(3, 2, 3)})
+rmg1:addtask({'attach', {3, 2, 3}})
 rmg1:addtask({'move2', rmg1:getContainerCoord(3, 2, 5)})
+rmg1:addtask({'move2', rmg1:getContainerCoord(2, -1, 1)})
 
 -- 开始仿真
 update()

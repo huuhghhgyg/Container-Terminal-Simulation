@@ -16,3 +16,7 @@ cy:bindRoad(road)
 cy:showBindingPoint()
 
 scene.render()
+
+for k,v in ipairs(cy.parkingSpaces) do
+    print('bay',k,' iox=',v.iox)
+end
