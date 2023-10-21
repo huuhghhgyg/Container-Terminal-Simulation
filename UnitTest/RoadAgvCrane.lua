@@ -1,6 +1,82 @@
--- cy 堆场对象
--- actionobj 动作队列
-function RMG(cy, actionobj)
+require('agv')
+
+-- 控制器
+scene.setenv({
+    grid = 'plane'
+})
+
+-- 参数设置
+local simv = 1 -- 仿真速度
+local actionObjs = {} -- 动作队列声明
+local roadList = {} -- 道路列表
+
+-- 程序控制
+local runcommand = true
+
+-- 初始时间
+local t = os.clock()
+local dt = 0
+
+function update()
+    if runcommand then
+        coroutine.queue(dt, update)
+    end
+
+    -- 计算最大更新时间
+    local maxstep = math.huge
+    for i = 1, #actionObjs do
+        if #actionObjs[i].tasksequence > 0 then
+            maxstep = math.min(maxstep, actionObjs[i]:maxstep())
+        end
+    end
+
+    -- 执行更新
+    for i = 1, #actionObjs do
+        actionObjs[i]:executeTask(dt)
+    end
+
+    -- 回收
+    for i = 1, #actionObjs do
+        local obj = actionObjs[i]
+
+        if obj.type == "agv" and #obj.tasksequence == 0 then
+            recycle(obj)
+            table.remove(actionObjs, i)
+            break -- 假设每次同时只能到达一个，因此可以中止
+        end
+    end
+
+    -- 绘图
+    runcommand = scene.render()
+
+    -- 刷新时间间隔
+    dt = (os.clock() - t) * simv
+    dt = math.min(dt, maxstep)
+    t = os.clock()
+end
+
+function recycle(obj)
+    if obj.type == "agv" then
+        if obj.container ~= nil then
+            obj.container:delete()
+        end
+        obj:delete()
+    end
+end
+
+require('road')
+require('cy')
+
+--- 起重机对象
+---@param cy any 堆场对象
+---@param actionObjs table 动作队列，用于向队列中插入对象(DI)
+function RMG(cy, actionObjs)
+    -- 依赖检查
+    if #cy.parkingSpaces == 0 then
+        print("RMG错误：RMG注入的堆场对象没有绑定道路。请先绑定道路")
+        return
+    end
+
     -- 初始化对象
     local rmg = scene.addobj('/res/ct/rmg.glb')
     local trolley = scene.addobj('/res/ct/trolley.glb')
@@ -10,7 +86,7 @@ function RMG(cy, actionobj)
     -- 参数设置
     rmg.type = "rmg" -- 对象种类标识(interface)
     rmg.cy = cy -- 初始化对应堆场
-    rmg.cy.rmg = rmg -- 堆场对应rmg
+    rmg.cy.rmg = rmg -- 堆场对应rmg(控制反转)
     rmg.level = {}
     for i = 1, #cy.levels do
         rmg.level[i] = cy.levels[i] + cy.cheight
@@ -28,7 +104,9 @@ function RMG(cy, actionobj)
     rmg.agvqueue = {} -- agv服务队列
     rmg.bay = nil
 
-    cy:initqueue(rmg.iox) -- 初始化停车队列
+    rmg.outerActionObjs = actionObjs -- 注入的外部动作队列
+
+    -- cy:initqueue(rmg.iox) -- 初始化停车队列
 
     -- 初始化位置
     rmg.origin = cy.origin -- 原点
@@ -45,18 +123,18 @@ function RMG(cy, actionobj)
 
     -- 函数
     -- 注册agv
-    function rmg:registeragv(agv)
+    function rmg:registerAgv(agv)
         local targetcontainer = agv.targetcontainer -- 获取目标集装箱
         agv.worktype = "rmg" -- 正在为rmg工作
         table.insert(rmg.agvqueue, agv) -- 加入agv队列
         for i = 1, rmg.cy.agvspan do
             rmg.cy.parkingspace[i].occupied = rmg.cy.parkingspace[i].occupied + 1 -- 停车位占用数+1
         end
-        table.insert(actionobj, agv) -- 加入动作队列
+        table.insert(rmg.outerActionObjs, agv) -- 加入动作队列
 
-        rmg:attachcontainer(table.unpack(targetcontainer)) -- 抓取集装箱
+        rmg:attachContainer(table.unpack(targetcontainer)) -- 抓取集装箱
         rmg:addtask({"waitagv"}) -- 等待agv到达
-        rmg:lift2agv(targetcontainer[1], targetcontainer[2]) -- 将抓住的集装箱移动到agv上
+        rmg:lift2Agv(targetcontainer[1], targetcontainer[2]) -- 将抓住的集装箱移动到agv上
     end
 
     -- 抓箱子
@@ -73,7 +151,7 @@ function RMG(cy, actionobj)
 
     -- 爪子移动
     -- x移动：横向；y移动：上下；z移动(负方向)：纵向(微调,不常用)
-    function rmg:spreadermove(dx, dy, dz)
+    function rmg:spreaderMove(dx, dy, dz)
         rmg.spreaderpos = {rmg.spreaderpos[1] + dx, rmg.spreaderpos[2] + dy, rmg.spreaderpos[3] + dz}
         local wx, wy, wz = rmg.wirerope:getpos()
         local sx, sy, sz = rmg.spreader:getpos()
@@ -92,8 +170,8 @@ function RMG(cy, actionobj)
     end
 
     -- 移动到指定位置
-    function rmg:spreadermove2(x, y, z)
-        rmg:spreadermove(x - rmg.spreaderpos[1], y - rmg.spreaderpos[2], z - rmg.spreaderpos[3])
+    function rmg:spreaderMove2(x, y, z)
+        rmg:spreaderMove(x - rmg.spreaderpos[1], y - rmg.spreaderpos[2], z - rmg.spreaderpos[3])
     end
 
     -- 车移动(-z方向)
@@ -129,32 +207,32 @@ function RMG(cy, actionobj)
             -- 计算移动值
             for i = 1, 2 do
                 ds[i] = param.speed[i] * dt -- dt移动
-                param[i + 7] = param[i + 7] + ds[i] -- 累计移动
+                param.currentXY[i] = param.currentXY[i] + ds[i] -- 累计移动
             end
             ds[3] = param.speed[3] * dt -- rmg向量速度*时间
 
-            if not param[12] then -- bay方向没有到达目标                
-                if (param[5] + ds[3]) / (param[3] - param[4]) > 1 then -- 首次到达目标
-                    rmg:move(param[3] - param[4] - param[5])
-                    param[12] = true
+            if not param.arrivedZ then -- bay方向没有到达目标                
+                if (param.movedZ + ds[3]) / (param[3] - param.initalZ) > 1 then -- 首次到达目标
+                    rmg:move(param[3] - param.initalZ - param.movedZ)
+                    param.arrivedZ = true
                 else
-                    param[5] = param[5] + ds[3] -- 已移动bay
+                    param.movedZ = param.movedZ + ds[3] -- 已移动bay
                     rmg:move(ds[3])
                 end
             end
 
-            if not param[13] then -- 列方向没有到达目标
+            if not param.arrivedX then -- 列方向没有到达目标
                 for i = 1, 2 do
-                    if param[i + 5] ~= 0 and (param[i] - param[i + 7]) * param[i + 5] <= 0 then -- 分方向到达目标
-                        rmg:spreadermove2(param[1], param[2], 0)
-                        param[13] = true
+                    if param.vectorXY[i] ~= 0 and (param[i] - param.currentXY[i]) * param.vectorXY[i] <= 0 then -- 分方向到达目标
+                        rmg:spreaderMove2(param[1], param[2], 0)
+                        param.arrivedX = true
                         break
                     end
                 end
-                rmg:spreadermove2(param[8], param[9], 0) -- 设置到累计移动值
+                rmg:spreaderMove2(param.currentXY[1], param.currentXY[2], 0) -- 设置到累计移动值
             end
 
-            if param[12] and param[13] then
+            if param.arrivedZ and param.arrivedX then
                 rmg:deltask()
             end
         elseif taskname == "waitagv" then -- {"waitagv", nil}
@@ -185,33 +263,37 @@ function RMG(cy, actionobj)
         local taskname = rmg.tasksequence[1][1] -- 任务名称
         local param = rmg.tasksequence[1][2] -- 任务参数
         if taskname == "move2" then
-            if param[4] == nil then
-                param[4] = rmg.pos -- 初始位置
-                param[5] = 0 -- 已经移动的距离
+            if param.initalZ == nil then
+                param.initalZ = rmg.pos -- 初始位置
+                param.movedZ = 0 -- 已经移动的距离
+
+                param.vectorXY = {} -- 初始化向量(6,7)
+                param.currentXY = {} -- 初始化当前位置(8,9)
+                param.initalXY = {} -- 初始化初始位置(10,11)
                 for i = 1, 2 do
-                    param[i + 7] = rmg.spreaderpos[i] -- 当前位置(8,9)
-                    param[i + 9] = rmg.spreaderpos[i] -- 初始位置(10,11)
-                    if param[i] - param[i + 9] == 0 then -- 目标距离差为0，向量设为0
-                        param[i + 5] = 0
+                    param.currentXY[i] = rmg.spreaderpos[i] -- 当前位置(8,9)
+                    param.initalXY[i] = rmg.spreaderpos[i] -- 初始位置(10,11)
+                    if param[i] - param.initalXY[i] == 0 then -- 目标距离差为0，向量设为0
+                        param.vectorXY[i] = 0
                     else
-                        param[i + 5] = param[i] - param[i + 9] -- 计算初始向量
+                        param.vectorXY[i] = param[i] - param.initalXY[i] -- 计算初始向量
                     end
                 end
-                param[12], param[13] = param[3] == param[4], false
+                param.arrivedZ, param.arrivedX = param[3] == param.initalZ, false
 
                 -- 计算各方向分速度
-                local l = math.sqrt(param[6] ^ 2 + param[7] ^ 2)
-                param.speed = {param[6] / l * rmg.speed, param[7] / l * rmg.speed,
+                local l = math.sqrt(param.vectorXY[1] ^ 2 + param.vectorXY[2] ^ 2)
+                param.speed = {param.vectorXY[1] / l * rmg.speed, param.vectorXY[2] / l * rmg.speed,
                                rmg.zspeed * ((param[3] - rmg.pos) / math.abs(param[3] - rmg.pos))} -- speed[3]:速度乘方向
             end
 
-            if not param[12] then -- bay方向没有到达目标
-                dt = math.min(dt, math.abs((param[3] - param[4] - param[5]) / param.speed[3]))
+            if not param.arrivedZ then -- bay方向没有到达目标
+                dt = math.min(dt, math.abs((param[3] - param.initalZ - param.movedZ) / param.speed[3]))
             end
-            if not param[13] then -- 列方向没有到达目标
+            if not param.arrivedX then -- 列方向没有到达目标
                 for i = 1, 2 do
-                    if param[i + 5] ~= 0 then -- 只要分方向移动，就计算最大步进
-                        dt = math.min(dt, (param[i] - param[i + 7]) / param.speed[i]) -- 根据move2判断条件
+                    if param.vectorXY[i] ~= 0 then -- 只要分方向移动，就计算最大步进
+                        dt = math.min(dt, (param[i] - param.currentXY[i]) / param.speed[i]) -- 根据move2判断条件
                     end
                 end
             end
@@ -233,8 +315,8 @@ function RMG(cy, actionobj)
         end
     end
 
-    -- 获取爪子移动坐标（x,y)
-    function rmg:getcontainercoord(bay, col, level)
+    -- 获取集装箱坐标{x,y,z}
+    function rmg:getContainerCoord(bay, col, level)
         local x
         if col == -1 then
             x = rmg.iox
@@ -253,8 +335,8 @@ function RMG(cy, actionobj)
         return {x, y, z}
     end
 
-    -- 获取爪子移动坐标长度（x,y)
-    function rmg:getcontainerdelta(dcol, dlevel)
+    -- 获取爪子移动坐标长度{dx,dy,dz}
+    function rmg:getContainerDelta(dcol, dlevel)
         local dx = dcol * (cy.cwidth + cy.cspan)
         local dy = dlevel * rmg.level[1]
         local dz = 0 -- 通过车移动解决z
@@ -268,20 +350,41 @@ function RMG(cy, actionobj)
     end
 
     -- 添加任务，抓取指定位置的集装箱
-    function rmg:attachcontainer(bay, col, level)
-        rmg:addtask({"move2", rmg:getcontainercoord(bay, col, rmg.toplevel)}) -- 移动爪子到指定位置
-        rmg:addtask({"move2", rmg:getcontainercoord(bay, col, level)}) -- 移动爪子到指定位置
+    function rmg:attachContainer(bay, col, level)
+        rmg:addtask({"move2", rmg:getContainerCoord(bay, col, rmg.toplevel)}) -- 移动爪子到指定位置
+        rmg:addtask({"move2", rmg:getContainerCoord(bay, col, level)}) -- 移动爪子到指定位置
         rmg:addtask({"attach", {bay, col, level}}) -- 抓取指定箱
     end
 
     -- 添加任务，将attached的集装箱放到agv上
-    function rmg:lift2agv(bay, col)
-        rmg:addtask({"move2", rmg:getcontainercoord(bay, col, rmg.toplevel)}) -- 将集装箱从目标向上提升
-        rmg:addtask({"move2", rmg:getcontainercoord(bay, -1, rmg.toplevel)}) -- 移动集装箱到agv对应列
-        rmg:addtask({"move2", rmg:getcontainercoord(bay, -1, 1)}) -- 放下箱子到agv上
+    function rmg:lift2Agv(bay, col)
+        rmg:addtask({"move2", rmg:getContainerCoord(bay, col, rmg.toplevel)}) -- 将集装箱从目标向上提升
+        rmg:addtask({"move2", rmg:getContainerCoord(bay, -1, rmg.toplevel)}) -- 移动集装箱到agv对应列
+        rmg:addtask({"move2", rmg:getContainerCoord(bay, -1, 1)}) -- 放下箱子到agv上
         rmg:addtask({"detach"}) -- 放下指定箱
-        rmg:addtask({"move2", rmg:getcontainercoord(bay, -1, rmg.toplevel)}) -- 吊具提升到移动层
+        rmg:addtask({"move2", rmg:getContainerCoord(bay, -1, rmg.toplevel)}) -- 吊具提升到移动层
     end
+
+    -- 注册到动作队列
+    table.insert(actionObjs, rmg) -- 注意！如果以后要管理多个堆场，这行需要修改！
 
     return rmg
 end
+
+-- 创建对象
+local cy1 = CY({19.66 / 2, 51.49 / 2}, {-19.66 / 2, -51.49 / 2}, 3) -- 创建堆场
+local road1 = Road({-15, 0, -50}, {-15, 0, 50}, roadList) -- 创建道路
+
+-- 绑定道路
+cy1:bindRoad(road1)
+cy1:showBindingPoint()
+
+local rmg1 = RMG(cy1, actionObjs) -- 创建rmg
+
+scene.render()
+
+-- 仿真任务
+rmg1:addtask({'move2', rmg1:getContainerCoord(3, 2, 5)})
+
+-- 开始仿真
+update()

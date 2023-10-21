@@ -52,13 +52,6 @@ Road对象会向agv注入`road`和`roadAgvId`两个属性，分别为道路对�
 ## 其他
 当需要根据`agvId`访问`road.agv`中的指定项时，应减去`agvLeaveNum`，以获得列表中的正确索引，如`roadAgvId-agvLeaveNum`
 
-# RMG
-## 字段
-
-> 新增的字段在前面
-
-- outerActionObjs: 外部动作对象列表。也就是控制器中的`actionObjs`，这样就可以使rmg访问到外部动作对象了。（**问题:**现在Agv都在道路上，都可以通过道路访问到，是否还需要这个？如果使用`actionObjs`，如何区别其中不同类型的对象）
-
 # Controller
 主要负责仿真的推进，对各个动作对象进行管理。主要功能是遍历动作对象，执行各个对象的任务。
 
