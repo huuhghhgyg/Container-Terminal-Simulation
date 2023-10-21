@@ -109,10 +109,26 @@ function Road(originPt, destPt, roadList)
     end
     road.id = road:register() -- 注册道路并获取道路id
 
-    --- 获取点在道路上投影的距离
+    --- 获取点在道路方向上投影的距离
     function road:getRelativeDist(x, z)
         return ((destPt[1] - originPt[1]) * (x - originPt[1]) + (destPt[3] - originPt[3]) *
                                     (z - originPt[3])) / road.length -- 投影距离
+    end
+
+    --- 根据向量，获取点在道路对向量上投影的距离
+    ---@param x number 点的x坐标
+    ---@param z number 点的z坐标
+    ---@param vaX number 向量的a的x值
+    ---@param vaZ number 向量的a的z值
+    function road:getVectorRelativeDist(x, z, vaX, vaZ)
+        local x1, z1 = originPt[1], originPt[3]
+        local x2, z2 = x, z
+        local vbX, vbZ = road.vecE[1], road.vecE[3]
+
+        local m = ((x2 - x1) * vaX + (z2 - z1 * vaZ)) / (vaX * vbX + vaZ * vbZ) -- 计算参数
+        local xm, ym = x1 + m * vbX, z1 + m * vbZ -- 计算投影点
+
+        return math.sqrt((x1 - xm) ^ 2 + (z1 - ym) ^ 2) -- 计算距离
     end
 
     --- 获取道路上指定距离的点

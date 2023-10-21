@@ -13,11 +13,12 @@ function CY(p1, p2, level)
         exit = {}, -- 车出口
         agvspan = 2, -- agv间距
         containerUrls = {'/res/ct/container.glb', '/res/ct/container_brown.glb', '/res/ct/container_blue.glb',
-                         '/res/ct/container_yellow.glb'}
+                         '/res/ct/container_yellow.glb'},
+        rotdeg = 0 -- 旋转角度
     }
 
-    local pdx = (p2[1] - p1[1]) / math.abs(p1[1] - p2[1])
-    local pdy = (p2[2] - p1[2]) / math.abs(p1[2] - p2[2])
+    local pdx = (p2[1] - p1[1]) / math.abs(p1[1] - p2[1]) -- x方向向量
+    local pdy = (p2[2] - p1[2]) / math.abs(p1[2] - p2[2]) -- y方向向量
 
     -- 计算属性
     cy.dir = {pdx, pdy} -- 方向
@@ -25,6 +26,7 @@ function CY(p1, p2, level)
     cy.row = math.floor((cy.width + cy.cspan) / (cy.cwidth + cy.cspan)) -- 行数
     cy.col = math.floor((cy.length + cy.cspan) / (cy.clength + cy.cspan)) -- 列数
     cy.marginx = (cy.width + cy.cspan - (cy.cwidth + cy.cspan) * cy.row) / 2 -- 横向外边距
+    cy.rotradian = cy.rotdeg * math.pi / 180 -- 旋转弧度
 
     -- 集装箱层数
     cy.levels = {} -- 层数y坐标集合
@@ -92,19 +94,31 @@ function CY(p1, p2, level)
         -- 投影
         cy.parkingSpaces = {}
         for i = 1, #bayPos do
-            cy.parkingSpaces[i] = road:getRelativeDist(bayPos[i][1], bayPos[i][2])
-            print('cy debug: parking space', i, ' relative distance = ', cy.parkingSpaces[i])
+            cy.parkingSpaces[i] = {}
+            cy.parkingSpaces[i].relativeDist = road:getVectorRelativeDist(bayPos[i][1], bayPos[i][2],
+                math.cos(cy.rotradian - math.pi / 2), math.sin(cy.rotradian - math.pi / 2) * -1)
+            -- print('cy debug: parking space', i, ' relative distance = ', cy.parkingSpaces[i].relativeDist)
         end
 
-        -- 生成停车位
+        -- 生成停车位并计算iox
         for k, v in ipairs(cy.parkingSpaces) do
-            local x,y,z = road:getRelativePosition(v)
+            local x, y, z = road:getRelativePosition(v.relativeDist)
+
+            -- 显示位置
             scene.addobj('points', {
                 vertices = {x, y, z},
                 color = 'red',
                 size = 5
             })
-            print('cy debug: set parking space at (', x, ',', y, ',', z, ')')
+            local pointLabel = scene.addobj('label',{
+                text='no.'..k
+            })
+            pointLabel:setpos(x, y, z)
+            -- print('cy debug: set parking space at (', x, ',', y, ',', z, ')')
+
+            -- 计算iox
+            cy.parkingSpaces[k].iox = math.sqrt((x-bayPos[k][1])^2+(z-bayPos[k][2])^2)
+            print('cy debug: parking space', k, ' iox = ', cy.parkingSpaces[k].iox)
         end
     end
 
