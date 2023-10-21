@@ -6,7 +6,7 @@ function CY(p1, p2, level)
         cspan = 0.6,
         containerPositions = {}, -- 堆场各集装箱位置坐标列表
         containers = {}, -- 集装箱对象(相对坐标)
-        parkingspace = {}, -- 停车位对象(相对坐标)
+        parkingSpaces = {}, -- 停车位对象(相对坐标)
         origin = {(p1[1] + p2[1]) / 2, 0, (p1[2] + p2[2]) / 2}, -- 参照点
         anchorPoint = {p1[1], 0, p1[2]}, -- 锚点
         queuelen = 16, -- 服务队列长度（额外）
@@ -55,33 +55,33 @@ function CY(p1, p2, level)
     end
 
     -- 旧版初始化队列(old)
-    -- 新版初始化队列将bay投影到道路上，然后在道路上生成停车位。parkingspaces记录道路上的相对信息。
-    function cy:initqueue(iox) -- 初始化队列(cy.parkingspace) iox出入位置x相对坐标
+    -- 新版初始化队列将bay投影到道路上，然后在道路上生成停车位。parkingSpacess记录道路上的相对信息。
+    function cy:initqueue(iox) -- 初始化队列(cy.parkingSpaces) iox出入位置x相对坐标
         -- 停车队列(iox)
-        cy.parkingspace = {} -- 属性：occupied:停车位占用情况，pos:停车位坐标，bay:对应堆场bay位
+        cy.parkingSpaces = {} -- 属性：occupied:停车位占用情况，pos:停车位坐标，bay:对应堆场bay位
 
         -- 停车位
         for i = 1, cy.row do
-            cy.parkingspace[i] = {} -- 初始化
-            cy.parkingspace[i].occupied = 0 -- 0:空闲，1:临时占用，2:作业占用
-            cy.parkingspace[i].pos = {cy.origin[1] + iox, 0,
+            cy.parkingSpaces[i] = {} -- 初始化
+            cy.parkingSpaces[i].occupied = 0 -- 0:空闲，1:临时占用，2:作业占用
+            cy.parkingSpaces[i].pos = {cy.origin[1] + iox, 0,
                                       cy.origin[3] + cy.containerPositions[cy.row - i + 1][1][1][3]} -- x,y,z
-            cy.parkingspace[i].bay = cy.row - i + 1
+            cy.parkingSpaces[i].bay = cy.row - i + 1
         end
 
-        local lastbaypos = cy.parkingspace[1].pos -- 记录最后一个添加的位置
+        local lastbaypos = cy.parkingSpaces[1].pos -- 记录最后一个添加的位置
 
         -- 队列停车位
         for i = 1, cy.queuelen do
             local pos = {lastbaypos[1], 0, lastbaypos[3] - i * (cy.clength + cy.cspan)}
-            table.insert(cy.parkingspace, 1, {
+            table.insert(cy.parkingSpaces, 1, {
                 occupied = 0,
                 pos = pos
             }) -- 无对应bay
         end
 
-        cy.summon = {cy.parkingspace[1].pos[1], 0, cy.parkingspace[1].pos[3]}
-        cy.exit = {cy.parkingspace[1].pos[1], 0, cy.parkingspace[#cy.parkingspace].pos[3] + 20} -- 设置离开位置
+        cy.summon = {cy.parkingSpaces[1].pos[1], 0, cy.parkingSpaces[1].pos[3]}
+        cy.exit = {cy.parkingSpaces[1].pos[1], 0, cy.parkingSpaces[#cy.parkingSpaces].pos[3] + 20} -- 设置离开位置
     end
 
     -- 新版初始化队列
@@ -105,21 +105,21 @@ function CY(p1, p2, level)
         for k, v in ipairs(cy.parkingSpaces) do
             local x, y, z = road:getRelativePosition(v.relativeDist)
 
-            -- 显示位置
-            scene.addobj('points', {
-                vertices = {x, y, z},
-                color = 'red',
-                size = 5
-            })
-            local pointLabel = scene.addobj('label', {
-                text = 'no.' .. k
-            })
-            pointLabel:setpos(x, y, z)
-            -- print('cy debug: set parking space at (', x, ',', y, ',', z, ')')
+            -- -- 显示位置
+            -- scene.addobj('points', {
+            --     vertices = {x, y, z},
+            --     color = 'red',
+            --     size = 5
+            -- })
+            -- local pointLabel = scene.addobj('label', {
+            --     text = 'no.' .. k
+            -- })
+            -- pointLabel:setpos(x, y, z)
+            -- -- print('cy debug: set parking space at (', x, ',', y, ',', z, ')')
 
             -- 计算iox
             cy.parkingSpaces[k].iox = math.sqrt((x - bayPos[k][1]) ^ 2 + (z - bayPos[k][2]) ^ 2)
-            print('cy debug: parking space', k, ' iox = ', cy.parkingSpaces[k].iox)
+            -- print('cy debug: parking space', k, ' iox = ', cy.parkingSpaces[k].iox)
         end
     end
 
