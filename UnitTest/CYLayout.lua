@@ -2,7 +2,7 @@ scene.setenv({
     grid = 'plane'
 })
 
-requie('cy')
+require('cy')
 
 local cy = CY({19.66 / 2, 51.49 / 2}, {-19.66 / 2, -51.49 / 2}, 3)
 

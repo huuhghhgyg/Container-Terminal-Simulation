@@ -15,7 +15,8 @@ function CY(p1, p2, level)
         agvspan = 2, -- agv间距
         containerUrls = {'/res/ct/container.glb', '/res/ct/container_brown.glb', '/res/ct/container_blue.glb',
                          '/res/ct/container_yellow.glb'},
-        rotdeg = 0 -- 旋转角度
+        rotdeg = 0, -- 旋转角度
+        bindingRoad = nil -- 绑定的道路
     }
 
     local pdx = (p2[1] - p1[1]) / math.abs(p1[1] - p2[1]) -- x方向向量
@@ -65,7 +66,7 @@ function CY(p1, p2, level)
             cy.parkingSpaces[i] = {} -- 初始化
             cy.parkingSpaces[i].occupied = 0 -- 0:空闲，1:临时占用，2:作业占用
             cy.parkingSpaces[i].pos = {cy.origin[1] + iox, 0,
-                                      cy.origin[3] + cy.containerPositions[cy.row - i + 1][1][1][3]} -- x,y,z
+                                       cy.origin[3] + cy.containerPositions[cy.row - i + 1][1][1][3]} -- x,y,z
             cy.parkingSpaces[i].bay = cy.row - i + 1
         end
 
@@ -105,20 +106,31 @@ function CY(p1, p2, level)
         for k, v in ipairs(cy.parkingSpaces) do
             local x, y, z = road:getRelativePosition(v.relativeDist)
 
-            -- -- 显示位置
-            -- scene.addobj('points', {
-            --     vertices = {x, y, z},
-            --     color = 'red',
-            --     size = 5
-            -- })
-            -- local pointLabel = scene.addobj('label', {
-            --     text = 'no.' .. k
-            -- })
-            -- pointLabel:setpos(x, y, z)
-            -- -- print('cy debug: set parking space at (', x, ',', y, ',', z, ')')
-
             -- 计算iox
             cy.parkingSpaces[k].iox = math.sqrt((x - bayPos[k][1]) ^ 2 + (z - bayPos[k][2]) ^ 2)
+            -- print('cy debug: parking space', k, ' iox = ', cy.parkingSpaces[k].iox)
+        end
+
+        cy.bindingRoad = road
+    end
+
+    --- 显示绑定道路对应的停车位点（debug用）
+    function cy:showBindingPoint()
+        -- 显示cy.parkingSpaces的位置
+        for k, v in ipairs(cy.parkingSpaces) do
+            local x, y, z = cy.bindingRoad:getRelativePosition(v.relativeDist)
+
+            -- 显示位置
+            scene.addobj('points', {
+                vertices = {x, y, z},
+                color = 'red',
+                size = 5
+            })
+            local pointLabel = scene.addobj('label', {
+                text = 'no.' .. k
+            })
+            pointLabel:setpos(x, y, z)
+
             -- print('cy debug: parking space', k, ' iox = ', cy.parkingSpaces[k].iox)
         end
     end
