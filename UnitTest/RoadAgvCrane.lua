@@ -97,7 +97,7 @@ function RMG(cy, actionObjs)
     rmg.pos = 0 -- 初始位置(x,y,z)
     rmg.tasksequence = {} -- 初始化任务队列
     rmg.iox = -16 -- 进出口x坐标
-    rmg.speed = 4 -- 移动速度
+    rmg.speed = {4, 4} -- x,y方向的移动速度
     rmg.zspeed = 2 -- 车移动速度
     rmg.attached = nil -- 抓取的集装箱
     rmg.stash = nil -- io物品暂存
@@ -202,12 +202,12 @@ function RMG(cy, actionObjs)
 
         local task = rmg.tasksequence[1]
         local taskname, param = task[1], task[2]
+
         if taskname == "move2" then -- 1:col(x), 2:height(y), 3:bay(z), [4:初始bay, 5:已移动bay距离,向量*2(6,7),当前位置*2(8,9),初始位置*2(10,11),到达(12,13)*2]
             local ds = {}
             -- 计算移动值
             for i = 1, 2 do
                 ds[i] = param.speed[i] * dt -- dt移动
-                param.currentXY[i] = param.currentXY[i] + ds[i] -- 累计移动
             end
             ds[3] = param.speed[3] * dt -- rmg向量速度*时间
 
@@ -221,18 +221,27 @@ function RMG(cy, actionObjs)
                 end
             end
 
-            if not param.arrivedX then -- 列方向没有到达目标
-                for i = 1, 2 do
-                    if param.vectorXY[i] ~= 0 and (param[i] - param.currentXY[i]) * param.vectorXY[i] <= 0 then -- 分方向到达目标
-                        rmg:spreaderMove2(param[1], param[2], 0)
-                        param.arrivedX = true
-                        break
+            for i = 1, 2 do
+                if not param.arrivedXY[i] then -- 判断X/Y方向是否到达目标
+                    if param.vectorXY[i] == 0 or (param[i] - param.currentXY[i]) * param.vectorXY[i] <= 0 then
+                        -- 分方向到达目标
+                        param.currentXY[i] = param[i] -- 设置到累计移动值
+                        param.arrivedXY[i] = true -- 设置到达标志，禁止进入判断
+
+                        -- -- debug
+                        -- print("rmg: arrivedXY[", i, "]=", param.arrivedXY[i], ", param.currentXY=", param.currentXY[1],
+                        --     ",", param.currentXY[2])
+                        -- print('rmg.spreaderpos:', rmg.spreaderpos[1], ',', rmg.spreaderpos[2])
+                    else
+                        -- 分方向没有到达目标
+                        param.currentXY[i] = param.currentXY[i] + ds[i] -- 累计移动
                     end
                 end
+
                 rmg:spreaderMove2(param.currentXY[1], param.currentXY[2], 0) -- 设置到累计移动值
             end
 
-            if param.arrivedZ and param.arrivedX then
+            if param.arrivedZ and param.arrivedXY[1] and param.arrivedXY[2] then
                 rmg:deltask()
             end
         elseif taskname == "waitagv" then -- {"waitagv", nil}
@@ -279,25 +288,27 @@ function RMG(cy, actionObjs)
                         param.vectorXY[i] = param[i] - param.initalXY[i] -- 计算初始向量
                     end
                 end
-                param.arrivedZ, param.arrivedX = param[3] == param.initalZ, false
+                param.arrivedZ, param.arrivedXY = (param[3] == param.initalZ), {false, false}
 
                 -- 计算各方向分速度
-                local l = math.sqrt(param.vectorXY[1] ^ 2 + param.vectorXY[2] ^ 2)
-                param.speed = {param.vectorXY[1] / l * rmg.speed, param.vectorXY[2] / l * rmg.speed,
+                param.speed = {param.vectorXY[1] / math.abs(param.vectorXY[1]) * rmg.speed[1],
+                               param.vectorXY[2] / math.abs(param.vectorXY[2]) * rmg.speed[2],
                                rmg.zspeed * ((param[3] - rmg.pos) / math.abs(param[3] - rmg.pos))} -- speed[3]:速度乘方向
             end
 
             if not param.arrivedZ then -- bay方向没有到达目标
                 dt = math.min(dt, math.abs((param[3] - param.initalZ - param.movedZ) / param.speed[3]))
             end
-            if not param.arrivedX then -- 列方向没有到达目标
-                for i = 1, 2 do
-                    if param.vectorXY[i] ~= 0 then -- 只要分方向移动，就计算最大步进
-                        dt = math.min(dt, (param[i] - param.currentXY[i]) / param.speed[i]) -- 根据move2判断条件
+
+            for i = 1, 2 do -- 判断X/Y(col/level)方向有没有到达目标
+                if not param.arrivedXY[i] then -- 如果没有达到目标
+                    if param.vectorXY[i] ~= 0 then
+                        dt = math.min(dt, math.abs((param[i] - param.currentXY[i]) / param.speed[i])) -- 可能导致部分方向越界(需要检查)
                     end
                 end
             end
         end
+
         return dt
     end
 
@@ -320,7 +331,7 @@ function RMG(cy, actionObjs)
         local x
         if row == -1 then
             -- x = rmg.iox
-            x = cy.parkingSpaces[bay].iox+cy.containerPositions[1][cy.row][1][1] --加一个cy.origin.x，减一个rmg.origin.x，就没了
+            x = cy.parkingSpaces[bay].iox + cy.containerPositions[1][cy.row][1][1] -- 加一个cy.origin.x，减一个rmg.origin.x，就没了
         else
             x = cy.containerPositions[1][row][1][1] - rmg.origin[1]
         end
@@ -351,15 +362,15 @@ function RMG(cy, actionObjs)
     end
 
     -- 添加任务，抓取指定位置的集装箱
-    function rmg:attachContainer(bay, col, level)
-        rmg:addtask({"move2", rmg:getContainerCoord(bay, col, rmg.toplevel)}) -- 移动爪子到指定位置
-        rmg:addtask({"move2", rmg:getContainerCoord(bay, col, level)}) -- 移动爪子到指定位置
-        rmg:addtask({"attach", {bay, col, level}}) -- 抓取指定箱
+    function rmg:attachContainer(bay, row, level)
+        rmg:addtask({"move2", rmg:getContainerCoord(bay, row, rmg.toplevel)}) -- 移动爪子到指定位置
+        rmg:addtask({"move2", rmg:getContainerCoord(bay, row, level)}) -- 移动爪子到指定位置
+        rmg:addtask({"attach", {bay, row, level}}) -- 抓取指定箱
     end
 
     -- 添加任务，将attached的集装箱放到agv上
-    function rmg:lift2Agv(bay, col)
-        rmg:addtask({"move2", rmg:getContainerCoord(bay, col, rmg.toplevel)}) -- 将集装箱从目标向上提升
+    function rmg:lift2Agv(bay, row)
+        rmg:addtask({"move2", rmg:getContainerCoord(bay, row, rmg.toplevel)}) -- 将集装箱从目标向上提升
         rmg:addtask({"move2", rmg:getContainerCoord(bay, -1, rmg.toplevel)}) -- 移动集装箱到agv对应列
         rmg:addtask({"move2", rmg:getContainerCoord(bay, -1, 1)}) -- 放下箱子到agv上
         rmg:addtask({"detach"}) -- 放下指定箱
@@ -385,11 +396,15 @@ local rmg1 = RMG(cy1, actionObjs) -- 创建rmg
 scene.render()
 
 -- 仿真任务
-rmg1:addtask({'move2', rmg1:getContainerCoord(3, 2, 5)}) 
-rmg1:addtask({'move2', rmg1:getContainerCoord(3, 2, 3)})
-rmg1:addtask({'attach', {3, 2, 3}})
+-- rmg1:addtask({'move2', rmg1:getContainerCoord(3, 2, 5)}) 
+-- rmg1:addtask({'move2', rmg1:getContainerCoord(3, 2, 3)})
+-- rmg1:addtask({'attach', {3, 2, 3}})
+-- rmg1:addtask({'move2', rmg1:getContainerCoord(3, 2, 5)})
+-- rmg1:addtask({'move2', rmg1:getContainerCoord(2, -1, 1)})
+
 rmg1:addtask({'move2', rmg1:getContainerCoord(3, 2, 5)})
-rmg1:addtask({'move2', rmg1:getContainerCoord(2, -1, 1)})
+rmg1:attachContainer(3, 2, 3)
+rmg1:lift2Agv(3, 2)
 
 -- 开始仿真
 update()
