@@ -5,8 +5,8 @@ function CY(p1, p2, level)
         cheight = 2.42,
         cspan = 0.6,
         containerPositions = {}, -- 堆场各集装箱位置坐标列表(bay,row,level)
-        containers = {}, -- 集装箱对象(相对坐标)
-        parkingSpaces = {}, -- 停车位对象(相对坐标)
+        containers = {}, -- 集装箱对象列表(使用相对坐标索引)
+        parkingSpaces = {}, -- 停车位对象(使用bay位置索引)
         origin = {(p1[1] + p2[1]) / 2, 0, (p1[2] + p2[2]) / 2}, -- 参照点
         anchorPoint = {p1[1], 0, p1[2]}, -- 锚点
         queuelen = 16, -- 服务队列长度（额外）
@@ -37,6 +37,7 @@ function CY(p1, p2, level)
         cy.levels[i] = cy.cheight * (i - 1)
     end
 
+    -- 初始化集装箱对象表
     for i = 1, cy.col do
         cy.containerPositions[i] = {} -- 初始化
         cy.containers[i] = {}
@@ -44,48 +45,23 @@ function CY(p1, p2, level)
             cy.containerPositions[i][j] = {}
             cy.containers[i][j] = {}
             for k = 1, cy.level do
+                -- 初始化集装箱位置
                 cy.containerPositions[i][j][k] = {p1[1] + pdx *
                     (cy.marginx + (j - 1) * (cy.cwidth + cy.cspan) + cy.cwidth / 2), cy.origin[2] + cy.levels[k],
                                                   p1[2] + pdy * ((i - 1) * (cy.clength + cy.cspan) + cy.clength / 2)}
-                local url = cy.containerUrls[math.random(1, #cy.containerUrls)] -- 随机选择集装箱颜色
-                cy.containers[i][j][k] = scene.addobj(url) -- 添加集装箱
-                cy.containers[i][j][k]:setpos(cy.containerPositions[i][j][k][1], cy.containerPositions[i][j][k][2],
-                    cy.containerPositions[i][j][k][3])
+                -- 初始化集装箱对象列表
+                cy.containers[i][j][k] = nil
             end
         end
     end
 
-    -- 旧版初始化队列(old)
-    -- 新版初始化队列将bay投影到道路上，然后在道路上生成停车位。parkingSpacess记录道路上的相对信息。
-    function cy:initqueue(iox) -- 初始化队列(cy.parkingSpaces) iox出入位置x相对坐标
-        -- 停车队列(iox)
-        cy.parkingSpaces = {} -- 属性：occupied:停车位占用情况，pos:停车位坐标，bay:对应堆场bay位
+    -- 绘制cy范围
+    scene.addobj('polyline', {
+        vertices = {p1[1], 0, p1[2], p2[1], 0, p1[2], p2[1], 0, p2[2], p1[1], 0, p2[2], p1[1], 0, p1[2]},
+        color = 'green'
+    })
 
-        -- 停车位
-        for i = 1, cy.row do
-            cy.parkingSpaces[i] = {} -- 初始化
-            cy.parkingSpaces[i].occupied = 0 -- 0:空闲，1:临时占用，2:作业占用
-            cy.parkingSpaces[i].pos = {cy.origin[1] + iox, 0,
-                                       cy.origin[3] + cy.containerPositions[cy.row - i + 1][1][1][3]} -- x,y,z
-            cy.parkingSpaces[i].bay = cy.row - i + 1
-        end
-
-        local lastbaypos = cy.parkingSpaces[1].pos -- 记录最后一个添加的位置
-
-        -- 队列停车位
-        for i = 1, cy.queuelen do
-            local pos = {lastbaypos[1], 0, lastbaypos[3] - i * (cy.clength + cy.cspan)}
-            table.insert(cy.parkingSpaces, 1, {
-                occupied = 0,
-                pos = pos
-            }) -- 无对应bay
-        end
-
-        cy.summon = {cy.parkingSpaces[1].pos[1], 0, cy.parkingSpaces[1].pos[3]}
-        cy.exit = {cy.parkingSpaces[1].pos[1], 0, cy.parkingSpaces[#cy.parkingSpaces].pos[3] + 20} -- 设置离开位置
-    end
-
-    -- 新版初始化队列
+    -- 绑定道路，并初始化队列
     function cy:bindRoad(road)
         -- 遍历bay坐标，进行投影
         local bayPos = {} -- bay的第一行坐标{x,z}
@@ -107,7 +83,7 @@ function CY(p1, p2, level)
             local x, y, z = road:getRelativePosition(v.relativeDist)
 
             -- 计算iox
-            cy.parkingSpaces[k].iox = -1*math.sqrt((x - bayPos[k][1]) ^ 2 + (z - bayPos[k][2]) ^ 2)
+            cy.parkingSpaces[k].iox = -1 * math.sqrt((x - bayPos[k][1]) ^ 2 + (z - bayPos[k][2]) ^ 2)
             -- print('cy debug: parking space', k, ' iox = ', cy.parkingSpaces[k].iox)
         end
 
@@ -133,6 +109,58 @@ function CY(p1, p2, level)
 
             -- print('cy debug: parking space', k, ' iox = ', cy.parkingSpaces[k].iox)
         end
+    end
+
+    -- 将堆场所有可用位置填充集装箱
+    function cy:fillAllContainerPositions()
+        for i = 1, cy.col do
+            for j = 1, cy.row do
+                for k = 1, cy.level do
+                    cy:fillWithContainer(i, j, k)
+                end
+            end
+        end
+    end
+
+    --- 根据sum随机生成每个(cy.bay,cy.row)位置的集装箱数量
+    ---@param sum number 生成的集装箱总数
+    function cy:fillRandomContainerPositions(sum)
+        -- 初始化
+        local containerNum = {}
+        for i = 1, cy.col do
+            containerNum[i] = {}
+            for j = 1, cy.row do
+                containerNum[i][j] = 0
+            end
+        end
+
+        -- 随机生成
+        for n = 1, sum do
+            local bay = math.random(cy.col)
+            local row = math.random(cy.row)
+            containerNum[bay][row] = containerNum[bay][row] + 1
+        end
+
+        -- 填充
+        for i = 1, cy.col do
+            for j = 1, cy.row do
+                for k = 1, cy.level do
+                    -- 如果层数小于当前(bay,row)生成的层数，则放置集装箱，否则不放置
+                    if k <= containerNum[i][j] then
+                        cy:fillWithContainer(i, j, k)
+                    end
+                end
+            end
+        end
+    end
+
+    -- 在指定的(bay, row, level)位置生成集装箱
+    function cy:fillWithContainer(bay, row, level)
+        local url = cy.containerUrls[math.random(1, #cy.containerUrls)] -- 随机选择集装箱颜色
+        local containerPos = cy.containerPositions[bay][row][level] -- 获取集装箱位置
+
+        cy.containers[bay][row][level] = scene.addobj(url) -- 添加集装箱
+        cy.containers[bay][row][level]:setpos(table.unpack(containerPos))
     end
 
     return cy

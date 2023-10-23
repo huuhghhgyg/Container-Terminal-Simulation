@@ -15,4 +15,7 @@ scene.addobj('points', {
 local anchorPointLabel = scene.addobj('label',{text='Anchor Point'})
 anchorPointLabel:setpos(cy.anchorPoint[1], cy.anchorPoint[2], cy.anchorPoint[3])
 
+-- cy:fillContainerPositions()
+cy:fillRandomContainerPositions(60)
+
 scene.render()

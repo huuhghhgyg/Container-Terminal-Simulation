@@ -401,6 +401,8 @@ local road1 = Road({-15, 0, -50}, {-15, 0, 50}, roadList) -- 创建道路
 cy1:bindRoad(road1)
 cy1:showBindingPoint()
 
+cy1:fillAllContainerPositions()
+
 local rmg1 = RMG(cy1, actionObjs) -- 创建rmg
 
 scene.render()

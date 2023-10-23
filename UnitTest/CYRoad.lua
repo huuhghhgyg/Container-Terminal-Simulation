@@ -15,6 +15,8 @@ print('road vecE=(', road.vecE[1], ',', road.vecE[2], ',', road.vecE[3], ')')
 cy:bindRoad(road)
 cy:showBindingPoint()
 
+cy:fillAllContainerPositions()
+
 scene.render()
 
 for k,v in ipairs(cy.parkingSpaces) do
