@@ -1,4 +1,5 @@
 --- 道路对象（测试）
+---@class Road
 ---@param originPt table 出发点{x,y,z}
 ---@param destPt table 到达点{x,y,z}
 ---@param roadList table 仿真控制器中的道路列表
@@ -20,7 +21,7 @@ function Road(originPt, destPt, roadList)
     })
     scene.addobj("points", {
         vertices = destPt,
-        color = 'red',
+        color = 'red', --到这个点检查注意是否需要停下来，所以是红色
         size = 5
     })
 
