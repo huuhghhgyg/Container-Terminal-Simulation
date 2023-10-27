@@ -2,11 +2,11 @@ scene.setenv({
     grid = 'plane'
 })
 
--- local vec={10,-10} -- 135
--- local vec={10,10} -- 45
-local vec = {-10, 10} -- -45
+-- local vec={10,-10} -- -135
+-- local vec={10,10} -- -45
+local vec = {-10, 10} -- 45
 
-local radian = math.atan(table.unpack(vec)) - math.atan(0, 1)
+local radian = math.atan(0, 1) - math.atan(table.unpack(vec))
 
 -- z轴
 scene.addobj('points', {
@@ -30,5 +30,6 @@ scene.addobj('polyline', {
 
 scene.render()
 
-print("弧度=", radian)
-print("角度=", radian * 180 / math.pi)
+print("弧度差=", radian, "\t补偿弧度=", -radian)
+print("角度差=", radian * 180 / math.pi, "\t补偿角度=", -radian * 180 / math.pi)
+
