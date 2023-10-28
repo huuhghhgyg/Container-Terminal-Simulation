@@ -2,11 +2,11 @@ scene.setenv({
     grid = 'plane'
 })
 
--- local vec={10,-10} -- -135
--- local vec={10,10} -- -45
-local vec = {-10, 10} -- 45
+-- local vec={10,-10} -- 135
+-- local vec={10,10} -- 45
+local vec = {-10, 10} -- -45
 
-local radian = math.atan(0, 1) - math.atan(table.unpack(vec))
+local radian = math.atan(table.unpack(vec)) - math.atan(0, 1)
 
 -- z轴
 scene.addobj('points', {
