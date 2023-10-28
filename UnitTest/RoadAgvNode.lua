@@ -72,7 +72,7 @@ local NodeList = {} -- 节点列表
 
 -- 创建节点
 local node1 = Node({0, 0, 0}, NodeList)
-local node2 = Node({0, 0, 50}, NodeList)
+local node2 = Node({0, 0, 50}, NodeList, {radius = 10})
 -- local node3 = Node({50, 0, 50}, NodeList)
 local node3 = Node({50, 0, 100}, NodeList)
 local node4 = Node({100,0,150}, NodeList)

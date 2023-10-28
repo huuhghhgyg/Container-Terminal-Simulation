@@ -11,7 +11,7 @@ function Node(point, nodeList, params)
 
     local node = {
         center = point, -- 中心点
-        radius = 5, -- 半径
+        radius = params.radius or 5, -- 半径
         connectedRoads = {}, -- 连接的道路{roadId=.., rotY=..}，访问节点的时候可以通过roadId转到道路
         occupied = false, -- 是否被占用
         vec0 = {0, 0, 1} -- 正方向向量（agv的默认方向）
