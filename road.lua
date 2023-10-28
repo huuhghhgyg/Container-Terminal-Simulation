@@ -10,8 +10,10 @@ function Road(originPt, destPt, roadList)
         color = 'blue'
     })
 
+    -- 起始点信息
     road.originPt = originPt -- 出发点
     road.destPt = destPt -- 到达点
+    road.node = nil -- 连接到的Node对象等待注册
 
     -- 绘制路线始终点
     scene.addobj("points", {
@@ -21,7 +23,7 @@ function Road(originPt, destPt, roadList)
     })
     scene.addobj("points", {
         vertices = destPt,
-        color = 'red', --到这个点检查注意是否需要停下来，所以是红色
+        color = 'red', -- 到这个点检查注意是否需要停下来，所以是红色
         size = 5
     })
 
@@ -54,9 +56,15 @@ function Road(originPt, destPt, roadList)
             distance = params.distance or 0, -- agv在道路上移动的距离，初始为0
             targetDistance = params.targetDistance or road.length -- agv在道路上移动的目标距离，初始为道路长度（走完道路）
         })
+        print('road', road.id, '注册agv{distance=', road.agvs[#road.agvs].distance, ',targetDistance=',
+            road.agvs[#road.agvs].targetDistance, '}')
+
+        -- 设置agv朝向和道路相同
+        agv.roty = math.atan(road.vecE[1], road.vecE[3]) - math.atan(0, 1)
+        agv:setrot(0, agv.roty, 0)
 
         -- 向agv对象中注入道路对象和信息
-        agv.road = road
+        agv.road = road -- 注入道路对象
         agv.roadAgvId = road.agvId
 
         return road.agvId -- 返回id
@@ -67,7 +75,7 @@ function Road(originPt, destPt, roadList)
     function road:removeAgv(agvId)
         table.remove(road.agvs, agvId - road.agvLeaveNum)
         road.agvLeaveNum = road.agvLeaveNum + 1
-        print("删除agv，id为", agvId) -- debug
+        print("road",road.id,"删除agv，id为", agvId) -- debug
     end
 
     --- 获取指定id的agv前方的agv
@@ -112,8 +120,8 @@ function Road(originPt, destPt, roadList)
 
     --- 获取点在道路方向上投影的距离
     function road:getRelativeDist(x, z)
-        return ((destPt[1] - originPt[1]) * (x - originPt[1]) + (destPt[3] - originPt[3]) *
-                                    (z - originPt[3])) / road.length -- 投影距离
+        return ((destPt[1] - originPt[1]) * (x - originPt[1]) + (destPt[3] - originPt[3]) * (z - originPt[3])) /
+                   road.length -- 投影距离
     end
 
     --- 根据向量，获取点在道路对向量上投影的距离

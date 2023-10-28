@@ -1,5 +1,3 @@
-require('agv')
-
 -- 控制器
 scene.setenv({
     grid = 'plane'
@@ -64,9 +62,9 @@ function recycle(obj)
     end
 end
 
--- 道路（测试）
+-- 引用库
+require('agv')
 require('road')
-
 
 local rd1 = Road({0, 0, 10}, {0, 0, 50}, roadList)
 local vec = rd1.vecE

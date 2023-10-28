@@ -4,7 +4,7 @@ scene.setenv({
 })
 
 -- 参数设置
-local simv = 1 -- 仿真速度
+local simv = 2 -- 仿真速度
 local actionobj = {} -- 动作队列声明
 
 -- 程序控制
@@ -70,23 +70,28 @@ require('node')
 local RoadList = {} -- 道路列表
 local NodeList = {} -- 节点列表
 
-local node1 = Node({0, 0, 10}, NodeList)
+-- 创建节点
+local node1 = Node({0, 0, 0}, NodeList)
 local node2 = Node({0, 0, 50}, NodeList)
-local node3 = Node({30, 0, 50}, NodeList)
+-- local node3 = Node({50, 0, 50}, NodeList)
+local node3 = Node({50, 0, 100}, NodeList)
+local node4 = Node({100,0,150}, NodeList)
 
--- 手动绘制道路并连接
--- local road1 = Road({0, 0, 10}, {0, 0, 30}, RoadList)
--- node3:connectRoad(road1.id)
--- local road2 = Road({10, 0, 40}, {30, 0, 40}, RoadList)
-
+-- 创建道路
 local roadAuto1 = node1:createRoad(node2, RoadList)
 local roadAuto2 = node2:createRoad(node3, RoadList)
+local roadAuto3 = node3:createRoad(node4, RoadList)
 print('autogen road:', roadAuto1, ', roadId=', roadAuto1.id)
 print('autogen road:', roadAuto2, ', roadId=', roadAuto2.id)
 
--- 显示节点连接道路的状态
-print('node1 connectedRoad:', #node1.connectedRoads)
-print('node2 connectedRoad:', #node2.connectedRoads)
-print('node3 connectedRoad:', #node3.connectedRoads)
+-- 运行时（根据任务）注册道路
+local agv3 = AGV()
+-- agv3:addtask({"move2", {roadAuto1.originPt[1], roadAuto1.originPt[3]}})
+agv3:addtask({"moveon",{road=roadAuto1, distance=10}})
+agv3:addtask({"onnode",{node2,roadAuto1,roadAuto2}})
+agv3:addtask({"moveon",{road=roadAuto2}})
+agv3:addtask({"onnode",{node3,roadAuto2,roadAuto3}})
+agv3:addtask({"moveon",{road=roadAuto3}})
+table.insert(actionobj, agv3)
 
-scene.render()
+update()
