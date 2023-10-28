@@ -286,7 +286,7 @@ function AGV()
                     dt = math.min(dt, math.abs((param[i] - param.originXZ[i] - param.movedXZ[i]) / param.speed[i]))
                 end
             end
-        elseif taskname == "moveon" then -- {"moveon"} 沿着当前道路行驶(需要先在road中register)
+        elseif taskname == "moveon" then -- {"moveon",{road=,distance=}} 沿着当前道路行驶(需要先在road中register)
             local road = agv.road
             local roadAgvItem = road.agvs[agv.roadAgvId-road.agvLeaveNum]
             -- print("agv.roadAgvId",agv.roadAgvId) --debug
