@@ -28,3 +28,6 @@ node:createRoad(destNode, roadList)
 ```
 - `destNode`：终点节点
 - `roadList`：外部道路列表，将新建的道路添加进道路列表中
+
+## 其他说明
+线路一定要以Node结束，否则会造成空占用无法解除。

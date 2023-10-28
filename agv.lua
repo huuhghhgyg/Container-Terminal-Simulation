@@ -90,7 +90,7 @@ function AGV()
     end
 
     function agv:executeTask(dt) -- 执行任务 task: {任务名称,{参数}}
-        if agv.tasksequence[1] == nil then
+        if agv.tasksequence[1] == nil or #agv.tasksequence == 0 then
             return
         end
 
@@ -113,7 +113,7 @@ function AGV()
         -- print("正在执行任务", taskname)
 
         if taskname == "move2" then -- {"move2",x,z,[occupy=1]} 移动到指定位置 {x,z, 向量距离*2(3,4), moved*2(5,6), 初始位置*2(7,8)},occupy:当前占用道路位置
-            -- todo: param参数规划
+            -- todo: param参数规划，occupy=1系列参数删除（为元胞自动机模型）
             -- param[1],param[2] 目标位置
             -- param.vectorDistanceXZ xz方向向量距离
             -- param.movedXZ xz方向已经移动的距离
@@ -156,7 +156,7 @@ function AGV()
                 print("[agv] attached container at ", coroutine.qtime())
                 agv:deltask()
             end
-        elseif taskname == "waitagv" then -- {"waitagv",{occupy}} 等待前方agv移动 occupy:当前占用道路位置
+        elseif taskname == "waitagv" then -- todo：旧版任务 {"waitagv",{occupy}} 等待前方agv移动 occupy:当前占用道路位置
             -- 如果前面是exit则不适用于使用此任务
             -- 检测前方占用，如果占用则等待；否则删除任务，根据条件添加move2
             local span = agv.datamodel.agvspan -- agv元胞间隔
@@ -200,40 +200,44 @@ function AGV()
             -- 步进
             road:setAgvPos(dt, agv.roadAgvId)
             if roadAgvItem.distance >= roadAgvItem.targetDistance then -- 判断是否到达目标
+                -- 到达目标
                 -- 判断是否连接节点，节点是否可用
                 -- 如果节点可用，则删除本任务，否则阻塞
-                if road.node ~= nil and not road.node.occupied then
-                    road.node.occupied = true -- 设置节点占用
-                    road:removeAgv(agv.roadAgvId) -- 从道路中移除agv
-                    agv:deltask()
+                if road.toNode ~= nil then
+                    if road.toNode.occupied then
+                        -- 节点被占用，本轮等待
+                        agv.state = "wait" -- 设置agv状态为等待
+                        print('agv', agv.id, '前方节点(', road.toNode.id, ')被堵塞，正在等待') -- debug
+                        return
+                    end
+
+                    -- 节点没有被占用
+                    road.toNode.occupied = true -- 设置节点占用
                 end
 
-                -- road:removeAgv(agv.roadAgvId) -- 从道路中移除agv
-                -- agv:deltask()
+                -- 结束任务
+                agv.state = nil -- 设置agv状态为空(正常)
+                road:removeAgv(agv.roadAgvId) -- 从道路中移除agv
+                agv:deltask()
             end
         elseif taskname == "onnode" then -- {"onnode", node, fromRoad, toRoad} 输入通过节点到达的道路id
             -- 默认已经占用了节点
 
             local function tryExitNode()
-                print('onnode到达目标') -- debug
                 local x, y, z = table.unpack(param[3].originPt)
-                print('onnode设置位置', x, y, z) -- debug
                 agv:setpos(x, y, z) -- 到达目标
-                print('onnode设置旋转') -- debug
                 local radian = math.atan(param[3].vecE[1], param[3].vecE[3]) - math.atan(0, 1)
                 agv:setrot(0, radian, 0)
 
-                print('onnode判断出口是否可用')
                 -- 判断出口是否占用，如果占用则在Node中等待，阻止其他agv进入Node
                 if #param[3].agvs > 0 then -- 目标道路是否有agv
-                    if agv:InSafetyDistance(param[3].agvs[#param[3].agvs]) then
+                    if agv:InSafetyDistance(param[3].agvs[#param[3].agvs].agv) then
                         agv.state = "wait" -- 设置agv状态为等待
                         return false -- 本轮等待
                     end
                 end
 
-                print('onnode删除任务')
-                -- 删除本任务
+                -- 满足退出条件，删除本任务
                 agv.state = nil -- 设置agv状态为空(正常)
                 param[1].occupied = false -- 解除节点占用
                 agv:deltask() -- 删除任务
@@ -253,12 +257,10 @@ function AGV()
                         local toRoad = param[3]
                         -- 显示轨迹
                         scene.addobj('polyline', {
-                            vertices = {
-                                fromRoad.destPt[1], fromRoad.destPt[2], fromRoad.destPt[3],
-                                toRoad.originPt[1], toRoad.originPt[2], toRoad.originPt[3]
-                            }
+                            vertices = {fromRoad.destPt[1], fromRoad.destPt[2], fromRoad.destPt[3], toRoad.originPt[1],
+                                        toRoad.originPt[2], toRoad.originPt[3]}
                         })
-                        
+
                         return
                     end
                 end
@@ -270,7 +272,7 @@ function AGV()
             else
                 -- 转弯
                 -- 计算步进
-                local dRadian = param.angularSpeed * dt
+                local dRadian = param.angularSpeed * dt * param.direction
                 param.walked = param.walked + dRadian
 
                 -- 判断是否到达目标
@@ -284,8 +286,7 @@ function AGV()
                     end
                 end
 
-                -- 设置步进
-                -- 设置位置
+                -- 计算步进并设置位置
                 local _, y, _ = agv:getpos()
                 local x, z = param.radius * math.sin(param.walked + param.turnOriginRadian) + param.center[1],
                     param.radius * math.cos(param.walked + param.turnOriginRadian) + param.center[3]
@@ -388,7 +389,7 @@ function AGV()
                     dt = math.min(dt, math.abs((param[i] - param.originXZ[i] - param.movedXZ[i]) / param.speed[i]))
                 end
             end
-        elseif taskname == "moveon" then -- {"moveon",{road=,distance=}} 沿着当前道路行驶(需要先在road中register)
+        elseif taskname == "moveon" then -- {"moveon",{road=,distance=,targetDistance=}} 沿着当前道路行驶
             -- 未注册道路
             if agv.road == nil then
                 if param.road == nil then -- 未注册道路
@@ -405,30 +406,36 @@ function AGV()
                 })
             end
 
-            local road = agv.road -- 获取道路
-            local roadAgvItem = road.agvs[agv.roadAgvId - road.agvLeaveNum] -- 获取道路内部打包的agv对象
-
-            -- 判断是否到达目标
-            if roadAgvItem.distance >= roadAgvItem.targetDistance then
-                road:removeAgv(agv.roadAgvId) -- 从道路中移除agv
-                agv:deltask() -- 已到达目标，删除任务
-                return agv:maxstep() -- 重新计算
+            -- 判断agv状态
+            if agv.state == "wait" then -- agv状态为等待
+                return dt -- 不做计算
             end
+
+            local road = agv.road -- 获取道路
             dt = math.min(dt, road:maxstep(agv.roadAgvId)) -- 使用road中的方法计算最大步进
         elseif taskname == "onnode" then -- {"onnode", node, fromRoad, toRoad} 输入通过节点到达的道路id
             agv.road = nil -- 清空agv道路信息
             -- 默认已经占用了节点
             local node = param[1]
-            
-            -- 验证toRoad是否为node的出入口
-            -- todo
 
             -- 判断是否初始化
             if param.deltaRadian == nil then
-                print("agv", agv.id, " 'onnode' ", param[1].id) -- debug
+                -- 判断是否在本节点终止
+                if param[3] == nil then
+                    -- 在本节点终止
+                    node.occupied = false -- 解除节点占用
+
+                    agv:deltask()
+                    return agv:maxstep() -- 重新计算
+                end
+
+                -- print("agv", agv.id, " 'onnode' ", param[1].id) -- debug
                 -- 获取道路信息
                 local fromRoad = param[2]
                 local toRoad = param[3]
+
+                -- 验证toRoad是否为node的出入口
+                -- todo
 
                 -- 获取fromRoad的终点坐标。由于已知角度，toRoad的起点坐标就不需要了
                 local fromRoadEndPoint = fromRoad.destPt -- {x,y,z}
@@ -442,12 +449,15 @@ function AGV()
 
                 -- 判断是否需要转弯（可能存在直线通过的情况）
                 if param.deltaRadian % math.pi ~= 0 then
-                    param.radius = node.radius / math.tan(param.deltaRadian / 2) -- 转弯半径
-                    print('node radius:', node.radius, 'param deltaRadian:', param.deltaRadian)
-                    print('radius:', param.radius)
+                    param.radius = node.radius / math.tan(math.abs(param.deltaRadian) / 2) -- 转弯半径
+                    -- debug
+                    -- print('node radius:', node.radius, 'param deltaRadian:', param.deltaRadian)
+                    -- print('radius:', param.radius)
 
                     -- 计算圆心
                     -- 判断左转/右转，左转deltaRadian > 0，右转deltaRadian < 0
+                    param.direction = param.deltaRadian / math.abs(param.deltaRadian) -- 用于设置步进方向
+
                     -- 向左旋转90度坐标为(z,-x)，向右旋转90度坐标为(-z,x)
                     if param.deltaRadian > 0 then
                         -- 左转
@@ -462,6 +472,9 @@ function AGV()
                                         fromRoadEndPoint[3] + param.radius * fromRoad.vecE[1]}
                         param.turnOriginRadian = math.atan(fromRoad.vecE[3], -fromRoad.vecE[1]) -- 转弯圆的起始位置弧度(左转)
                     end
+
+                    -- print('agv', agv.id, '在node', node.id, (param.deltaRadian > 0 and '左' or '右'),
+                    --     '转 (deltaRadian=', param.deltaRadian, ')') -- debug
 
                     -- 显示转弯圆心
                     scene.addobj('points', {
@@ -483,7 +496,7 @@ function AGV()
                     local l2 = math.sqrt((toRoad.originPt[1] - param.center[1]) ^ 2 +
                                              (toRoad.originPt[2] - param.center[2]) ^ 2 +
                                              (toRoad.originPt[3] - param.center[3]) ^ 2)
-                    print('Rfrom:', l1, '\tRto:', l2)
+                    -- print('Rfrom:', l1, '\tRto:', l2) --debug
                     -- 初始化轨迹
                     param.trail = {fromRoadEndPoint[1], fromRoadEndPoint[2], fromRoadEndPoint[3]}
 

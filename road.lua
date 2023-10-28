@@ -13,7 +13,9 @@ function Road(originPt, destPt, roadList)
     -- 起始点信息
     road.originPt = originPt -- 出发点
     road.destPt = destPt -- 到达点
-    road.node = nil -- 连接到的Node对象等待注册
+    -- road.node = nil -- 连接到的Node对象等待注册
+    road.fromNode = nil
+    road.toNode = nil
 
     -- 绘制路线始终点
     scene.addobj("points", {
@@ -56,8 +58,8 @@ function Road(originPt, destPt, roadList)
             distance = params.distance or 0, -- agv在道路上移动的距离，初始为0
             targetDistance = params.targetDistance or road.length -- agv在道路上移动的目标距离，初始为道路长度（走完道路）
         })
-        print('road', road.id, '注册agv{distance=', road.agvs[#road.agvs].distance, ',targetDistance=',
-            road.agvs[#road.agvs].targetDistance, '}')
+        -- print('road', road.id, '注册agv',agv.id,' {distance=', road.agvs[#road.agvs].distance, ',targetDistance=',
+        --     road.agvs[#road.agvs].targetDistance, '}') --debug
 
         -- 设置agv朝向和道路相同
         agv.roty = math.atan(road.vecE[1], road.vecE[3]) - math.atan(0, 1)
@@ -96,10 +98,14 @@ function Road(originPt, destPt, roadList)
     function road:setAgvPos(dt, agvId)
         -- 更新agv在道路上的位置
         local roadAgv = road.agvs[agvId - road.agvLeaveNum] -- 获取道路agv对象
-        roadAgv.distance = roadAgv.distance + dt * roadAgv.agv.speed
 
-        roadAgv.agv:setpos(originPt[1] + roadAgv.distance * road.vecE[1], originPt[2] + roadAgv.distance * road.vecE[2],
-            originPt[3] + roadAgv.distance * road.vecE[3])
+        -- 没有到达
+        if roadAgv.distance <= roadAgv.targetDistance then
+            roadAgv.distance = roadAgv.distance + dt * roadAgv.agv.speed -- 更新距离
+            roadAgv.agv:setpos(originPt[1] + roadAgv.distance * road.vecE[1], originPt[2] + roadAgv.distance * road.vecE[2],
+                originPt[3] + roadAgv.distance * road.vecE[3])
+        end
+        -- 如果到达，由于存在maxstep，所以不会出现超出的情况，因此不需要处理
     end
 
     --- 获取指定id的agv的最大推进时间

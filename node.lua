@@ -22,8 +22,9 @@ function Node(point, nodeList, params)
     node.id = #nodeList
 
     --- 将指定id的道路连接到本节点，本节点作为其起点
-    --- @param roadId number 道路id
-    function node:connectRoad(road)
+    --- @class Road road 道路对象
+    --- @class Node destNode 终点节点
+    function node:connectRoad(road, destNode)
         -- 计算旋转角度
         local deltaRadian = math.atan(table.unpack(road.vec)) - math.atan(table.unpack(self.vec0))
 
@@ -32,7 +33,8 @@ function Node(point, nodeList, params)
             roadId = road.id,
             roty = deltaRadian
         })
-        road.node = self -- 将本节点作为道路的终点
+        road.fromNode = self -- 将本节点作为道路的终点
+        road.toNode = destNode-- 将终点节点作为道路的终点
     end
 
     --- 根据本节点和输入的终点节点创建一条道路
@@ -50,7 +52,7 @@ function Node(point, nodeList, params)
         local road = Road(p1, p2, roadList) -- 根据Road.lua，id已经在road.id里面
 
         -- 加入Node的connectedRoad里面
-        destNode:connectRoad(road)
+        destNode:connectRoad(road, destNode)
 
         return road
     end

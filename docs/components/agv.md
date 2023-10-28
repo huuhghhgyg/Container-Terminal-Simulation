@@ -26,10 +26,18 @@
 - `param.originXZ` xz方向初始位置（原函数 7，8）
 - `param.speed` 各个方向的分速度，也用于判断是否已经初始化
 
+### moveon
+```lua
+{"moveon",{road=,distance=,targetDistance=}}
+```
+沿着当前道路行驶。要么先在road中register，或者通过设置`road`和`distance`参数在任务运行时register
+
 ### onnode
 ```lua
 {"onnode", node, fromRoad, toRoad}
 ```
+
+如果`toRoad`为`nil`，则表示在`node`上停止。
 
 可能存在deltaRadians为0的情况，此时不需要转弯，因此不存在转弯半径
 
