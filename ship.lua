@@ -1,35 +1,46 @@
-function SHIP(rmgqc)
+function Ship(size, origin) -- size={bays,rows,levels}, originPt={x,y,z}
     -- 初始化船
     local ship = scene.addobj('/res/ct/ship.glb')
 
-    ship.origin = {rmgqc.origin[1] + rmgqc.shipposx, rmgqc.origin[2], rmgqc.origin[3]}
-    ship:setpos(ship.origin[1], ship.origin[2], rmgqc.origin[3])
+    -- 参数
+    ship.containerConst = {6.06, 2.44, 2.42} -- 集装箱长宽高常数
+    ship.bays = size[1] or 8
+    ship.rows = size[2] or 9
+    ship.level = size[3] or 2
+    ship.clength, ship.cbaygap = 6.06, 0.5 -- 集装箱长度，集装箱bay间距
+    ship.origin = origin
+    ship.bayPosition = {} -- bay位相对坐标，用于计算船上集装箱位置和绑定停车位
+
+    ship:setpos(ship.origin[1], ship.origin[2], ship.origin[3])
     print("ship origin:", ship.origin[1], ",", ship.origin[2], ",", ship.origin[3])
 
-    ship.bays = 8
-    ship.cols = 9
-    ship.level = 2
-    ship.clength, ship.cspan = 6.06, 0
-    ship.agvspan = 2 -- agv占用元胞数量（元胞长度）
+    -- 初始化bay坐标
+    for bay = 1, ship.bays do
+        ship.bayPosition[bay] = -28 + (bay+1/2) * ship.clength + ship.cbaygap * (bay - 1) -- 初始位置+bay位置+bay间距
+    end
 
     -- 初始化集装箱位置和集装箱
-    ship.pos = {}
+    ship.containerPositions = {} -- 集装箱位置列表{bay, col, level}
     ship.containers = {}
     for bay = 1, ship.bays do
-        ship.pos[bay] = {}
+        ship.containerPositions[bay] = {}
         ship.containers[bay] = {}
-        for col = 1, ship.cols do
-            ship.pos[bay][col] = {}
-            ship.containers[bay][col] = {}
+        for row = 1, ship.rows do
+            ship.containerPositions[bay][row] = {}
+            ship.containers[bay][row] = {}
             for level = 1, ship.level do
-                ship.containers[bay][col][level] = nil
-                ship.pos[bay][col][level] = {ship.origin[1] + 2.44 * (5 - col),
-                                             ship.origin[2] + 11.29 + (level - 1) * 2.42,
-                                             rmgqc.origin[3] + rmgqc.posbay[bay]}
+                ship.containers[bay][row][level] = nil
+                ship.containerPositions[bay][row][level] =
+                    {ship.origin[1] + 2.44 * (5 - row), -- 5为集装箱的中间行
+                    ship.origin[2] + 11.29 + (level - 1) * 2.42, ship.origin[3] + ship.bayPosition[bay]}
             end
         end
     end
-    rmgqc.ship = ship
+
+    -- 将船绑定到场桥
+    function ship:bindRMGQC(rmgqc)
+
+    end
 
     function ship:initqueue() -- 初始化队列(ship.parkingspace) iox出入位置x相对坐标
         -- 停车队列(iox)
@@ -39,7 +50,7 @@ function SHIP(rmgqc)
         for i = 1, ship.bays do
             ship.parkingspace[i] = {} -- 初始化
             ship.parkingspace[i].occupied = 0 -- 0:空闲，1:临时占用，2:作业占用
-            ship.parkingspace[i].pos = {rmgqc.origin[1], 0, ship.pos[ship.bays - i + 1][1][1][3]} -- x,y,z
+            ship.parkingspace[i].pos = {ship.origin[1], 0, ship.containerPositions[ship.bays - i + 1][1][1][3]} -- x,y,z
             ship.parkingspace[i].bay = ship.bays - i + 1
         end
 
@@ -59,10 +70,10 @@ function SHIP(rmgqc)
     end
 
     -- 返回空余位置编号
-    function ship:getidlepos()
+    function ship:getIdlePosition()
         for level = 1, ship.level do
             for bay = 1, ship.bays do
-                for col = 1, ship.cols do
+                for col = 1, ship.rows do
                     if ship.containers[bay][col][level] == nil then
                         ship.containers[bay][col][level] = {}
                         return {bay, col, level}
