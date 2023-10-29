@@ -4,28 +4,30 @@ function Ship(size, origin) -- size={bays,rows,levels}, originPt={x,y,z}
 
     -- 参数
     ship.containerConst = {6.06, 2.44, 2.42} -- 集装箱长宽高常数
-    ship.bays = size[1] or 8
-    ship.rows = size[2] or 9
+    ship.bay = size[1] or 8
+    ship.row = size[2] or 9
     ship.level = size[3] or 2
     ship.clength, ship.cbaygap = 6.06, 0.5 -- 集装箱长度，集装箱bay间距
     ship.origin = origin
     ship.bayPosition = {} -- bay位相对坐标，用于计算船上集装箱位置和绑定停车位
+    ship.containerUrls = {'/res/ct/container.glb', '/res/ct/container_brown.glb', '/res/ct/container_blue.glb',
+                          '/res/ct/container_yellow.glb'}
 
     ship:setpos(ship.origin[1], ship.origin[2], ship.origin[3])
     print("ship origin:", ship.origin[1], ",", ship.origin[2], ",", ship.origin[3])
 
     -- 初始化bay坐标
-    for bay = 1, ship.bays do
-        ship.bayPosition[bay] = -28 + (bay+1/2) * ship.clength + ship.cbaygap * (bay - 1) -- 初始位置+bay位置+bay间距
+    for bay = 1, ship.bay do
+        ship.bayPosition[bay] = -28 + (bay + 1 / 2) * ship.clength + ship.cbaygap * (bay - 1) -- 初始位置+bay位置+bay间距
     end
 
     -- 初始化集装箱位置和集装箱
     ship.containerPositions = {} -- 集装箱位置列表{bay, col, level}
     ship.containers = {}
-    for bay = 1, ship.bays do
+    for bay = 1, ship.bay do
         ship.containerPositions[bay] = {}
         ship.containers[bay] = {}
-        for row = 1, ship.rows do
+        for row = 1, ship.row do
             ship.containerPositions[bay][row] = {}
             ship.containers[bay][row] = {}
             for level = 1, ship.level do
@@ -47,11 +49,11 @@ function Ship(size, origin) -- size={bays,rows,levels}, originPt={x,y,z}
         ship.parkingspace = {} -- 属性：occupied:停车位占用情况，pos:停车位坐标，bay:对应堆场bay位
 
         -- 停车位
-        for i = 1, ship.bays do
+        for i = 1, ship.bay do
             ship.parkingspace[i] = {} -- 初始化
             ship.parkingspace[i].occupied = 0 -- 0:空闲，1:临时占用，2:作业占用
-            ship.parkingspace[i].pos = {ship.origin[1], 0, ship.containerPositions[ship.bays - i + 1][1][1][3]} -- x,y,z
-            ship.parkingspace[i].bay = ship.bays - i + 1
+            ship.parkingspace[i].pos = {ship.origin[1], 0, ship.containerPositions[ship.bay - i + 1][1][1][3]} -- x,y,z
+            ship.parkingspace[i].bay = ship.bay - i + 1
         end
 
         local lastbaypos = ship.parkingspace[1].pos -- 记录最后一个添加的位置
@@ -72,8 +74,8 @@ function Ship(size, origin) -- size={bays,rows,levels}, originPt={x,y,z}
     -- 返回空余位置编号
     function ship:getIdlePosition()
         for level = 1, ship.level do
-            for bay = 1, ship.bays do
-                for col = 1, ship.rows do
+            for bay = 1, ship.bay do
+                for col = 1, ship.row do
                     if ship.containers[bay][col][level] == nil then
                         ship.containers[bay][col][level] = {}
                         return {bay, col, level}
@@ -83,6 +85,26 @@ function Ship(size, origin) -- size={bays,rows,levels}, originPt={x,y,z}
         end
 
         return nil -- 没找到
+    end
+
+    -- 在指定的(bay, row, level)位置生成集装箱
+    function ship:fillWithContainer(bay, row, level)
+        local url = ship.containerUrls[math.random(1, #ship.containerUrls)] -- 随机选择集装箱颜色
+        local containerPos = ship.containerPositions[bay][row][level] -- 获取集装箱位置
+
+        ship.containers[bay][row][level] = scene.addobj(url) -- 添加集装箱
+        ship.containers[bay][row][level]:setpos(table.unpack(containerPos))
+    end
+
+    -- 将船上所有可用位置填充集装箱
+    function ship:fillAllContainerPositions()
+        for i = 1, ship.bay do
+            for j = 1, ship.row do
+                for k = 1, ship.level do
+                    ship:fillWithContainer(i, j, k)
+                end
+            end
+        end
     end
 
     return ship
