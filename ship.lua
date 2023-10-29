@@ -16,9 +16,10 @@ function Ship(size, origin) -- size={bays,rows,levels}, originPt={x,y,z}
     ship:setpos(ship.origin[1], ship.origin[2], ship.origin[3])
     print("ship origin:", ship.origin[1], ",", ship.origin[2], ",", ship.origin[3])
 
-    -- 初始化bay坐标
+    -- 初始化bay位置
+    local bayLength = ship.clength * ship.bay + ship.cbaygap * (ship.bay - 1)
     for bay = 1, ship.bay do
-        ship.bayPosition[bay] = -28 + (bay + 1 / 2) * ship.clength + ship.cbaygap * (bay - 1) -- 初始位置+bay位置+bay间距
+        ship.bayPosition[bay] = -28 + bayLength - (bay - 1) * (ship.clength + ship.cbaygap) -- 初始位置+bay位置+bay间距
     end
 
     -- 初始化集装箱位置和集装箱
