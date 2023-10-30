@@ -9,10 +9,6 @@ function CY(p1, p2, level)
         parkingSpaces = {}, -- 停车位对象(使用bay位置索引)
         origin = {(p1[1] + p2[1]) / 2, 0, (p1[2] + p2[2]) / 2}, -- 参照点
         anchorPoint = {p1[1], 0, p1[2]}, -- 锚点
-        queuelen = 16, -- 服务队列长度（额外）
-        summon = {}, -- 车生成点
-        exit = {}, -- 车出口
-        agvspan = 2, -- agv间距
         containerUrls = {'/res/ct/container.glb', '/res/ct/container_brown.glb', '/res/ct/container_blue.glb',
                          '/res/ct/container_yellow.glb'},
         rotdeg = 0, -- 旋转角度
