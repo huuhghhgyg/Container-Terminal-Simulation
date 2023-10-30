@@ -77,7 +77,7 @@ function RMGQC(origin) -- origin={x,y,z}
             rmgqc.attached = nil
             return
         end
-        
+
         -- 将集装箱放到船上的指定位置
         rmgqc.ship.containers[bay][row][level] = rmgqc.attached
         rmgqc.attached = nil
@@ -91,7 +91,7 @@ function RMGQC(origin) -- origin={x,y,z}
             rmgqc.stash = nil
             return
         end
-        
+
         -- 抓取船上的集装箱
         rmgqc.attached = rmgqc.ship.containers[bay][col][level]
         rmgqc.ship.containers[bay][col][level] = nil
@@ -306,16 +306,8 @@ function RMGQC(origin) -- origin={x,y,z}
         return {x, y, z}
     end
 
-    --- 添加任务，将吊具移动到当前bay对应的agv位置的移动层
-    --- @param bay integer 当前bay位置
-    ---@param row integer 当前row位置
-    function rmgqc:move2readyPos(bay, row)
-        rmgqc:addtask({"move2", rmgqc:getcontainercoord(bay, row, rmgqc.toplevel)}) -- 吊具提升到移动层等待agv
-        rmgqc:addtask({"move2", rmgqc:getcontainercoord(bay, -1, rmgqc.toplevel)}) -- 吊具提升到移动层等待agv
-    end
-
-    -- 添加任务，将集装箱移动到船上
-    function rmgqc:lift2ship(bay, row, level)
+    -- 将集装箱从agv抓取到目标位置，默认在移动层
+    function rmgqc:lift2TargetPos(bay, row, level)
         rmgqc:addtask({"move2", rmgqc:getcontainercoord(bay, -1, 1)}) -- 抓取agv上的箱子
         rmgqc:addtask({"attach", nil}) -- 抓取
         rmgqc:addtask({"move2", rmgqc:getcontainercoord(bay, -1, rmgqc.toplevel)}) -- 吊具提升到移动层
@@ -323,6 +315,27 @@ function RMGQC(origin) -- origin={x,y,z}
         rmgqc:addtask({"move2", rmgqc:getcontainercoord(bay, row, level)}) -- 移动爪子到指定位置
         rmgqc:addtask({"detach", {bay, row, level}}) -- 放下指定箱
         rmgqc:addtask({"move2", rmgqc:getcontainercoord(bay, row, rmgqc.toplevel)}) -- 爪子抬起到移动层
+    end
+
+    -- 将集装箱从目标位置移动到agv，默认在移动层
+    function rmgqc:lift2Agv(bay, row, level)
+        rmgqc:addtask({"move2", rmgqc:getcontainercoord(bay, row, level)}) -- 移动爪子到指定位置
+        rmgqc:addtask({"attach", {bay, row, level}}) -- 抓取
+        rmgqc:addtask({"move2", rmgqc:getcontainercoord(bay, row, rmgqc.toplevel)}) -- 吊具提升到移动层
+        rmgqc:addtask({"move2", rmgqc:getcontainercoord(bay, -1, rmgqc.toplevel)}) -- 移动爪子到agv上方
+        rmgqc:addtask({"move2", rmgqc:getcontainercoord(bay, -1, 1)}) -- 移动爪子到agv
+        rmgqc:addtask({"detach", nil}) -- 放下指定箱
+        rmgqc:addtask({"move2", rmgqc:getcontainercoord(bay, -1, rmgqc.toplevel)}) -- 爪子抬起到移动层
+    end
+
+    -- 移动到目标位置，默认在移动层
+    function rmgqc:move2TargetPos(bay, row)
+        rmgqc:addtask({"move2", rmgqc:getcontainercoord(bay, row, rmgqc.toplevel)})
+    end
+
+    -- 移动到agv上方，默认在移动层
+    function rmgqc:move2Agv(bay)
+        rmgqc:addtask({"move2", rmgqc:getcontainercoord(bay, -1, rmgqc.toplevel)})
     end
 
     function rmgqc:bindShip(ship)

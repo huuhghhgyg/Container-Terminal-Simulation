@@ -38,3 +38,10 @@ containerPositions: 集装箱对应的位置。对应于旧代码的`cy.pos`
 - cy.parkingSpaces
   - relativeDist: 道路的相对距离
   - iox: 该停车位对应的iox距离（锚点线到停车位的距离）
+
+# 集装箱存取函数规划
+几种可能的动作
+- 将集装箱从agv移动到datamodel。直接向下抓取agv集装箱，吊具最终在datamodel上方。`lift2TargetPos`（内置等待）
+- 将集装箱从datamodel移动到agv。直接向下抓取指定位置集装箱，吊具最终在agv上方。`lift2agv`（内置等待）
+- 将吊具从agv移动到datamodel。吊具最终在datamodel上方。`move2TargetPos`
+- 将吊具从datamodel移动到agv。吊具最终在agv上方。`move2Agv`

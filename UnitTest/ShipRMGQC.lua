@@ -7,7 +7,7 @@ scene.setenv({
 })
 
 -- 参数设置
-local simv = 5 -- 仿真速度
+local simv = 2 -- 仿真速度
 local actionObjs = {} -- 动作队列声明
 local roadList = {} -- 道路列表
 
@@ -77,20 +77,16 @@ ship:fillAllContainerPositions()
 rmgqc:bindShip(ship)
 
 -- 添加任务
-local tbay = 3
-local trow = 4
-local tlevel = 2
--- 取下
-rmgqc:addtask({"move2", rmgqc:getcontainercoord(tbay, -1, rmgqc.toplevel)})
-rmgqc:addtask({"move2", rmgqc:getcontainercoord(tbay, trow, rmgqc.toplevel)})
-rmgqc:addtask({"move2", rmgqc:getcontainercoord(tbay, trow, tlevel)})
-rmgqc:addtask({"attach", {tbay, trow, tlevel}})
-rmgqc:move2readyPos(tbay, trow)
-rmgqc:addtask({"move2", rmgqc:getcontainercoord(tbay, -1, 1)})
-rmgqc:addtask({"detach", nil})
+local target1 = {3, 4, 2}
+rmgqc:addtask({"move2", rmgqc:getcontainercoord(target1[1], -1, rmgqc.toplevel)}) -- 初始化位置
 
--- 装载
-rmgqc:lift2ship(tbay, trow, tlevel)
+-- 取下1
+rmgqc:move2TargetPos(table.unpack(target1))
+rmgqc:lift2Agv(table.unpack(target1))
+
+-- 装载1
+rmgqc:move2Agv(target1[1])
+rmgqc:lift2TargetPos(table.unpack(target1))
 
 -- 加入动作队列
 table.insert(actionObjs, rmgqc)
