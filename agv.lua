@@ -113,12 +113,6 @@ function AGV()
         -- print("正在执行任务", taskname)
 
         if taskname == "move2" then -- {"move2",x,z,[occupy=1]} 移动到指定位置 {x,z, 向量距离*2(3,4), moved*2(5,6), 初始位置*2(7,8)},occupy:当前占用道路位置
-            -- todo: param参数规划，occupy=1系列参数删除（为元胞自动机模型）
-            -- param[1],param[2] 目标位置
-            -- param.vectorDistanceXZ xz方向向量距离
-            -- param.movedXZ xz方向已经移动的距离
-            -- param.originXZ xz方向初始位置
-
             if param.speed == nil then
                 agv:maxstep() -- 计算最大步进
             end
@@ -156,24 +150,12 @@ function AGV()
                 print("[agv] attached container at ", coroutine.qtime())
                 agv:deltask()
             end
-        elseif taskname == "waitagv" then -- todo：旧版任务 {"waitagv",{occupy}} 等待前方agv移动 occupy:当前占用道路位置
-            -- 如果前面是exit则不适用于使用此任务
-            -- 检测前方占用，如果占用则等待；否则删除任务，根据条件添加move2
-            local span = agv.datamodel.agvspan -- agv元胞间隔
-            if param.occupy + span > #agv.datamodel.parkingspace or
-                agv.datamodel.parkingspace[param.occupy + span].occupied == 0 then -- 前方1格无占用或者前方是exit
-                agv:deltask()
-                if param.occupy + span <= #agv.datamodel.parkingspace then
-                    agv.datamodel.parkingspace[param.occupy + span].occupied =
-                        agv.datamodel.parkingspace[param.occupy + span].occupied + 1 -- 占用下一个车位
-                end
-            end
-        elseif taskname == "waitrmg" then -- {"waitrmg",{occupy}} 等待rmg移动 occupy:当前占用道路位置
+        elseif taskname == "waitrmg" then -- {"waitrmg"} 等待rmg移动
             -- 检测rmg.stash是否为空，如果为空则等待；否则进行所有权转移，并设置move2
             if agv.operator.stash ~= nil then
                 agv:deltask()
             end
-        elseif taskname == "waitrmgqc" then -- {"waitrmgqc",{occupy}} 等待rmg移动 occupy:当前占用道路位置
+        elseif taskname == "waitrmgqc" then -- {"waitrmgqc"} 等待rmg移动
             if agv.container == nil then
                 agv:deltask()
             end
@@ -357,16 +339,6 @@ function AGV()
         if taskname == "move2" then -- {"move2",x,z,[occupy=,]} 移动到指定位置 {x,z, 向量距离*2(3,4), moved*2(5,6), 初始位置*2(7,8)},occupy:当前占用道路位置
             -- 初始判断
             if param.vectorDistanceXZ == nil then -- 没有计算出向量距离，说明没有初始化
-                -- if param.occupy ~= nil then -- 占用车位要求判断(old:元胞自动机版本)
-                --     -- 设置目标位置
-                --     if param.occupy == #agv.datamodel.parkingspace then -- 判断当前占用是否为最后一个
-                --         param[1], param[2] = agv.datamodel.exit[1], agv.datamodel.exit[3] -- 直接设置为出口(x,z坐标)
-                --     else
-                --         param[1], param[2] = agv.datamodel.parkingspace[param.occupy + 1].pos[1],
-                --             agv.datamodel.parkingspace[param.occupy + 1].pos[3] -- 设置目标xz坐标
-                --     end
-                -- end
-
                 local x, _, z = agv:getpos() -- 获取当前位置
 
                 param.vectorDistanceXZ = {param[1] - x, param[2] - z} -- xz方向需要移动的距离
@@ -433,9 +405,6 @@ function AGV()
                 -- 获取道路信息
                 local fromRoad = param[2]
                 local toRoad = param[3]
-
-                -- 验证toRoad是否为node的出入口
-                -- todo
 
                 -- 获取fromRoad的终点坐标。由于已知角度，toRoad的起点坐标就不需要了
                 local fromRoadEndPoint = fromRoad.destPt -- {x,y,z}
