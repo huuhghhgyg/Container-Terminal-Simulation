@@ -23,64 +23,14 @@ function AGV()
         agv.targetcontainer = targetContainer -- 目标集装箱{bay, col, level}
         agv.targetbay = targetContainer[1] -- 目标bay
         agv.arrived = false -- 是否到达目标
-        agv.operator:registeragv(agv)
 
-        -- 使用元胞数据模型初始化agv
-        agv:setpos(table.unpack(agv.datamodel.summon)) -- 设置到生成点
-        agv:addtask({"waitagv", {
-            occupy = 1
-        }}) -- 等待第一个车位
-        agv:addtask({"move2", {
-            occupy = 1
-        }}) -- 移动到第一个车位
+        agv.operator:registeragv(agv) -- 向operator注册agv
     end
 
     function agv:move2(x, y, z) -- 直接移动到指定坐标
         agv:setpos(x, y, z)
         if agv.container ~= nil then
             agv.container:setpos(x, y + agv.height, z)
-        end
-    end
-
-    function agv:movenexttask(currentoccupy) -- 添加下一个任务准备移动，无返回值。只有当当前车位的任务完成后才应调用
-        local nextoccupy = currentoccupy + 1
-
-        -- 判断下一个位置
-        if nextoccupy > #agv.datamodel.parkingspace then -- 下一个位置是exit
-            agv:addtask({"move2", {
-                occupy = currentoccupy
-            }}) -- 不需要设置occupy，直接设置目标位置
-
-            if agv.operator.nextstep ~= nil then -- 如果没有下一个站点，直接移动到exit
-                agv:addtask({"onboard", {agv.operator.nextstep}})
-            end
-
-            return -- 不需要判断，直接返回流程
-        end
-
-        -- 等待下一个占用释放并移动
-        agv:addtask({"waitagv", {
-            occupy = currentoccupy
-        }}) -- 等待占用释放
-        agv:addtask({"move2", {
-            occupy = currentoccupy
-        }}) -- 设置移动
-
-        -- 判断下一个是否到达目标
-        if agv.datamodel.parkingspace[nextoccupy].bay == agv.targetbay then -- 到达目标
-            agv.arrived = true -- 设置agv到达目标标识
-            if agv.worktype == "rmg" then -- 为rmg工作
-                agv:addtask({"waitrmg", {
-                    occupy = nextoccupy
-                }})
-                agv:addtask({"attach", {
-                    occupy = nextoccupy
-                }})
-            else -- 为rmgqc工作
-                agv:addtask({"waitrmgqc", {
-                    occupy = nextoccupy
-                }})
-            end
         end
     end
 
@@ -112,7 +62,7 @@ function AGV()
 
         -- print("正在执行任务", taskname)
 
-        if taskname == "move2" then -- {"move2",x,z,[occupy=1]} 移动到指定位置 {x,z, 向量距离*2(3,4), moved*2(5,6), 初始位置*2(7,8)},occupy:当前占用道路位置
+        if taskname == "move2" then -- {"move2",x,z} 移动到指定位置 {x,z, 向量距离*2(3,4), moved*2(5,6), 初始位置*2(7,8)},occupy:当前占用道路位置
             if param.speed == nil then
                 agv:maxstep() -- 计算最大步进
             end
@@ -126,18 +76,6 @@ function AGV()
                     param.vectorDistanceXZ[i] <= 0 then -- 如果分方向到达则视为到达
                     agv:move2(param[1], 0, param[2])
                     agv:deltask()
-
-                    -- 如果有占用道路位置，则设置下一个占用
-                    if param.occupy ~= nil then
-                        -- 解除占用
-                        agv.datamodel.parkingspace[param.occupy].occupied =
-                            agv.datamodel.parkingspace[param.occupy].occupied - 1 -- 解除占用当前车位                            
-
-                        if param.occupy < #agv.datamodel.parkingspace then
-                            agv:movenexttask(param.occupy + 1)
-                        end
-                    end
-
                     return
                 end
             end
@@ -285,14 +223,6 @@ function AGV()
                 agv:setrot(0, agv.roty, 0)
             end
         end
-    end
-
-    -- 判断是否目标bay
-    function agv:istargetbay(occupy)
-        if agv.datamodel.parkingspace[occupy] == nil then
-            return false
-        end
-        return agv.datamodel.parkingspace[occupy].bay == agv.targetbay
     end
 
     -- 添加任务
