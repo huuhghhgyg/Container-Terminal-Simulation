@@ -67,14 +67,30 @@ function RMG(cy, actionObjs)
     end
 
     -- 抓箱子
-    function rmg:attach(row, col, level)
-        rmg.attached = rmg.cy.containers[row][col][level]
-        rmg.cy.containers[row][col][level] = nil
+    function rmg:attach(bay, row, level)
+        if bay == nil then -- 如果没有指定位置，则为抓取agv上的集装箱
+            -- 从暂存中取出集装箱
+            rmg.attached = rmg.stash
+            rmg.stash = nil
+            return
+        end
+
+        -- 抓取堆场中的集装箱
+        rmg.attached = rmg.cy.containers[bay][row][level]
+        rmg.cy.containers[bay][row][level] = nil
     end
 
     -- 放箱子
-    function rmg:detach()
-        rmg.stash = rmg.attached
+    function rmg:detach(bay, row, level)
+        if bay == nil then
+            -- 如果没有指定位置，则将集装箱放置到对应bay位置的agv位置上
+            rmg.stash = rmg.attached
+            rmg.attached = nil
+            return
+        end
+
+        -- 将集装箱放到船上的指定位置
+        rmg.cy.containers[bay][row][level] = rmg.attached
         rmg.attached = nil
     end
 
@@ -181,12 +197,17 @@ function RMG(cy, actionObjs)
                 table.remove(rmg.agvqueue, 1) -- 移除等待的agv
                 rmg:deltask()
             end
-        elseif taskname == "attach" then -- {"attach", {cy.row,cy.col,cy.level}}
+        elseif taskname == "attach" then -- {"attach", {row, col, level}}
+            if param == nil then
+                param = {nil, nil, nil}
+            end
             rmg:attach(param[1], param[2], param[3])
-            rmg.bay = param[1]
             rmg:deltask()
-        elseif taskname == "detach" then -- {"detach", nil}
-            rmg:detach()
+        elseif taskname == "detach" then -- {"detach", {row, col, level}}
+            if param == nil then
+                param = {nil, nil, nil}
+            end
+            rmg:detach(param[1], param[2], param[3])
             rmg:deltask()
         end
     end
@@ -237,7 +258,7 @@ function RMG(cy, actionObjs)
                     if param.vectorXY[i] ~= 0 then
                         local taskRemainTime = (param[i] - param.currentXY[i]) / param.speed[i] -- 计算本方向任务的剩余时间
                         if taskRemainTime < 0 then
-                            print('[警告!] rmg:maxstep(): XY方向[', i, ']的剩余时间小于0,已调整为0') --如果print了这行，估计是出问题了
+                            print('[警告!] rmg:maxstep(): XY方向[', i, ']的剩余时间小于0,已调整为0') -- 如果print了这行，估计是出问题了
                             taskRemainTime = 0
                         end
 
@@ -299,21 +320,39 @@ function RMG(cy, actionObjs)
         return {cy.containerPositions[bay][1][1][3] - cy.origin[3]}
     end
 
-    -- 添加任务，抓取指定位置的集装箱
-    function rmg:attachContainer(bay, row, level)
+    -- 将集装箱从agv抓取到目标位置，默认在移动层
+    function rmg:lift2TargetPos(bay, row, level)
+        rmg:addtask({"move2", rmg:getContainerCoord(bay, -1, 1)}) -- 抓取agv上的箱子
+        rmg:addtask({"attach", nil}) -- 抓取
+        rmg:addtask({"move2", rmg:getContainerCoord(bay, -1, rmg.toplevel)}) -- 吊具提升到移动层
         rmg:addtask({"move2", rmg:getContainerCoord(bay, row, rmg.toplevel)}) -- 移动爪子到指定位置
         rmg:addtask({"move2", rmg:getContainerCoord(bay, row, level)}) -- 移动爪子到指定位置
-        rmg:addtask({"attach", {bay, row, level}}) -- 抓取指定箱
+        rmg:addtask({"detach", {bay, row, level}}) -- 放下指定箱
+        rmg:addtask({"move2", rmg:getContainerCoord(bay, row, rmg.toplevel)}) -- 爪子抬起到移动层
     end
 
-    -- 添加任务，将attached的集装箱放到agv上
-    function rmg:lift2Agv(bay, row)
-        rmg:addtask({"move2", rmg:getContainerCoord(bay, row, rmg.toplevel)}) -- 将集装箱从目标向上提升
-        rmg:addtask({"move2", rmg:getContainerCoord(bay, -1, rmg.toplevel)}) -- 移动集装箱到agv对应列
-        rmg:addtask({"move2", rmg:getContainerCoord(bay, -1, 1)}) -- 放下箱子到agv上
-        rmg:addtask({"detach"}) -- 放下指定箱
-        rmg:addtask({"move2", rmg:getContainerCoord(bay, -1, rmg.toplevel)}) -- 吊具提升到移动层
+    -- 将集装箱从目标位置移动到agv，默认在移动层
+    function rmg:lift2Agv(bay, row, level)
+        rmg:addtask({"move2", rmg:getContainerCoord(bay, row, level)}) -- 移动爪子到指定位置
+        rmg:addtask({"attach", {bay, row, level}}) -- 抓取
+        rmg:addtask({"move2", rmg:getContainerCoord(bay, row, rmg.toplevel)}) -- 吊具提升到移动层
+        rmg:addtask({"move2", rmg:getContainerCoord(bay, -1, rmg.toplevel)}) -- 移动爪子到agv上方
+        rmg:addtask({"move2", rmg:getContainerCoord(bay, -1, 1)}) -- 移动爪子到agv
+        rmg:addtask({"detach", nil}) -- 放下指定箱
+        rmg:addtask({"move2", rmg:getContainerCoord(bay, -1, rmg.toplevel)}) -- 爪子抬起到移动层
     end
+
+    -- 移动到目标位置，默认在移动层
+    function rmg:move2TargetPos(bay, row)
+        rmg:addtask({"move2", rmg:getContainerCoord(bay, row, rmg.toplevel)})
+    end
+
+    -- 移动到agv上方，默认在移动层
+    function rmg:move2Agv(bay)
+        rmg:addtask({"move2", rmg:getContainerCoord(bay, -1, rmg.toplevel)})
+    end
+
+    -- 添加任务
 
     -- 注册到动作队列
     table.insert(actionObjs, rmg) -- 注意！如果以后要管理多个堆场，这行需要修改！
