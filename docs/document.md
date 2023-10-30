@@ -5,12 +5,24 @@
 
 目前，由于`maxstep()`首先被执行，因此需要判断是否需要在这个函数中进行一些初始化操作。（可能需要优化）
 
-# Controller
+# Watchdog 仿真推进器
+```lua
+WatchDog(simv, ActionObjs)
+```
 主要负责仿真的推进，对各个动作对象进行管理。主要功能是遍历动作对象，执行各个对象的任务。
 
-## 字段
+参数：
 - ActionObjs: 动作对象列表，包含所有动作对象。Controller会通过`executeTask()`函数执行对象中的命令。
 - simv: 仿真速度
+
+## 字段
+- `t` 当前仿真时间
+- `dt` 推进步长
+- `runcommand` 是否继续运行（flag）
+
+## 函数
+- `update()` 仿真推进
+- `recycle()` 回收已经完成任务的对象
 
 # RoadMap 实现路线
 agv和road都放在Controller里面，由Controller进行管理。对于agv的操作，Controller遍历所有agv，转到每个agv的road中进行操作。
