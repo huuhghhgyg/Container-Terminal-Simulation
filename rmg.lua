@@ -315,11 +315,6 @@ function RMG(cy, actionObjs)
         return {dx, dy, dz}
     end
 
-    -- 获取车移动坐标（z）
-    function rmg:getlen(bay)
-        return {cy.containerPositions[bay][1][1][3] - cy.origin[3]}
-    end
-
     -- 将集装箱从agv抓取到目标位置，默认在移动层
     function rmg:lift2TargetPos(bay, row, level)
         rmg:addtask({"move2", rmg:getContainerCoord(bay, -1, 1)}) -- 抓取agv上的箱子
