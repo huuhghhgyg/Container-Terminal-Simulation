@@ -31,7 +31,7 @@ function WatchDog(simv, ActionObjs)
             local obj = ActionObjs[i]
 
             if obj.type == "agv" and #obj.tasksequence == 0 then
-                recycle(obj)
+                watchdog:recycle(obj)
                 table.remove(ActionObjs, i)
                 break -- 假设每次同时只能到达一个，因此可以中止
             end
