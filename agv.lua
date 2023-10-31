@@ -39,6 +39,11 @@ function AGV()
         agv.operator.stash = nil
     end
 
+    function agv:detach()
+        agv.operator.stash = agv.container
+        agv.container = nil
+    end
+
     function agv:executeTask(dt) -- 执行任务 task: {任务名称,{参数}}
         if agv.tasksequence[1] == nil or #agv.tasksequence == 0 then
             return
@@ -83,14 +88,15 @@ function AGV()
             -- 设置步进移动
             agv:move2(param.originXZ[1] + param.movedXZ[1], 0, param.originXZ[2] + param.movedXZ[2])
         elseif taskname == "attach" then
-            if agv.operator.stash ~= nil and agv.targetbay == agv.operator.bay or agv.targetbay == nil then
+            if agv.operator.stash ~= nil then
                 agv:attach()
                 print("[agv] attached container at ", coroutine.qtime())
                 agv:deltask()
             end
-        elseif taskname == "waitrmg" then -- {"waitrmg"} 等待rmg移动
-            -- 检测rmg.stash是否为空，如果为空则等待；否则进行所有权转移，并设置move2
-            if agv.operator.stash ~= nil then
+        elseif taskname == "detach" then
+            if agv.operator.stash == nil then
+                agv:detach()
+                print("[agv] detached container at ", coroutine.qtime())
                 agv:deltask()
             end
         elseif taskname == "waitrmgqc" then -- {"waitrmgqc"} 等待rmg移动
