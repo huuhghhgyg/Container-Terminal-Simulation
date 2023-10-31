@@ -62,7 +62,13 @@ function CY(p1, p2, level)
         -- 遍历bay坐标，进行投影
         local bayPos = {} -- bay的第一行坐标{x,z}
         for i = 1, cy.col do
-            bayPos[i] = {cy.containerPositions[i][cy.row][1][1], cy.containerPositions[i][cy.row][1][3]}
+            bayPos[i] = {cy.containerPositions[i][1][1][1], cy.containerPositions[i][1][1][3]}
+            -- -- 显示baypos位置
+            -- scene.addobj('points', {
+            --     vertices = {bayPos[i][1], 0, bayPos[i][2]},
+            --     color = 'blue',
+            --     size = 5
+            -- })
         end
 
         -- 投影
