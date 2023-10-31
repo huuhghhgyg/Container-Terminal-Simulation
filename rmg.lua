@@ -289,10 +289,10 @@ function RMG(cy, actionObjs)
     function rmg:getContainerCoord(bay, row, level)
         local x
         if row == -1 then
-            -- x = rmg.iox
+            x = rmg.cy.parkingSpaces[bay].iox + rmg.cy.containerPositions[bay][1][1][1] - rmg.origin[1]
             x = cy.parkingSpaces[bay].iox + cy.containerPositions[1][cy.row][1][1] -- 加一个cy.origin.x，减一个rmg.origin.x，就没了
         else
-            x = cy.containerPositions[1][row][1][1] - rmg.origin[1]
+            x = rmg.cy.containerPositions[1][row][1][1] - rmg.origin[1]
         end
 
         local ry = 0 -- 相对高度

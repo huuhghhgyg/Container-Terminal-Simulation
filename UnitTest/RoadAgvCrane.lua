@@ -18,7 +18,7 @@ require('watchdog')
 local RoadList = {} -- 道路列表
 
 -- 创建对象
-local cy1 = CY({19.66 / 2, 51.49 / 2}, {-19.66 / 2, -51.49 / 2}, 3) -- 创建堆场
+local cy1 = CY({-19.66 / 2, -51.49 / 2}, {19.66 / 2, 51.49 / 2}, 3) -- 创建堆场
 local road1 = Road({-15, 0, -50}, {-15, 0, 50}, RoadList) -- 创建道路
 
 -- 绑定道路
@@ -41,7 +41,7 @@ local target = {2, 5, 3}
 
 rmg1:addtask({'move2', rmg1:getContainerCoord(3, 2, rmg1.toplevel)}) -- 初始化位置
 -- 取出
-rmg1:move2TargetPos(target[1],target[2])
+rmg1:move2TargetPos(target[1], target[2])
 rmg1:lift2Agv(table.unpack(target))
 -- 存放
 rmg1:move2Agv(target[1])
