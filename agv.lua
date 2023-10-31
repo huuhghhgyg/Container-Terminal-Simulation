@@ -20,11 +20,9 @@ function AGV()
     function agv:bindCrane(targetCY, targetContainer)
         agv.datamodel = targetCY -- 目标堆场(数据模型)
         agv.operator = targetCY.rmg -- 目标场桥(操作器)
-        agv.targetcontainer = targetContainer -- 目标集装箱{bay, col, level}
+        agv.targetContainerPos = targetContainer -- 目标集装箱{bay, col, level}
         agv.targetbay = targetContainer[1] -- 目标bay
         agv.arrived = false -- 是否到达目标
-
-        agv.operator:registeragv(agv) -- 向operator注册agv
     end
 
     function agv:move2(x, y, z) -- 直接移动到指定坐标
@@ -51,6 +49,7 @@ function AGV()
 
         local task = agv.tasksequence[1]
         local taskname, param = task[1], task[2]
+        -- print('[agv] 当前任务', taskname)
 
         -- 判断子任务序列
         if taskname == "queue" then -- {"queue", subtask={...}}
@@ -64,8 +63,6 @@ function AGV()
             taskname = param.subtask[1][1]
             param = param.subtask[1][2]
         end
-
-        -- print("正在执行任务", taskname)
 
         if taskname == "move2" then -- {"move2",x,z} 移动到指定位置 {x,z, 向量距离*2(3,4), moved*2(5,6), 初始位置*2(7,8)},occupy:当前占用道路位置
             if param.speed == nil then
@@ -88,7 +85,7 @@ function AGV()
             -- 设置步进移动
             agv:move2(param.originXZ[1] + param.movedXZ[1], 0, param.originXZ[2] + param.movedXZ[2])
         elseif taskname == "attach" then
-            if agv.operator.stash ~= nil then
+            if agv.operator.stash ~= nil then --todo: 需要补充条件
                 agv:attach()
                 print("[agv] attached container at ", coroutine.qtime())
                 agv:deltask()
@@ -99,14 +96,25 @@ function AGV()
                 print("[agv] detached container at ", coroutine.qtime())
                 agv:deltask()
             end
-        elseif taskname == "waitrmgqc" then -- {"waitrmgqc"} 等待rmg移动
-            if agv.container == nil then
-                agv:deltask()
+        elseif taskname == "waitoperator" then -- {"waitoperator",'load'/'unload'} 等待机械响应（agv装/卸货）
+            agv.arrived = true
+            -- 检测rmg.stash是否为空，如果为空则等待；否则完成任务
+            if param[1] == 'load' then
+                -- agv装货
+                if agv.operator.stash ~= nil then -- operator已经将货物放到stash中
+                    agv:deltask()
+                end
+            elseif param[1] == 'unload' then
+                -- agv卸货
+                if agv.operator.stash == nil then -- operator已经将货物取走
+                    agv:deltask()
+                    return
+                end
             end
         elseif taskname == "onboard" then
-            param[1]:registeragv(agv)
+            param[1]:registerAgv(agv)
             agv:deltask()
-        elseif taskname == "moveon" then
+        elseif taskname == "moveon" then -- {"moveon",{road=,distance=,targetDistance=}} 沿着当前道路行驶
             -- 获取道路
             local road = agv.road
             local roadAgvItem = road.agvs[agv.roadAgvId - road.agvLeaveNum]
@@ -123,13 +131,14 @@ function AGV()
                 end
             end
 
-            -- 步进
-            road:setAgvPos(dt, agv.roadAgvId)
-            if roadAgvItem.distance >= roadAgvItem.targetDistance then -- 判断是否到达目标
+            -- 判断是否到达目标
+            if roadAgvItem.distance + dt * agv.speed >= roadAgvItem.targetDistance then
                 -- 到达目标
+                road:setAgvDistance(roadAgvItem.targetDistance, agv.roadAgvId) -- 设置agv位置为终点位置
+
                 -- 判断是否连接节点，节点是否可用
                 -- 如果节点可用，则删除本任务，否则阻塞
-                if road.toNode ~= nil then
+                if road.toNode ~= nil and roadAgvItem.targetDistance == road.length then
                     if road.toNode.occupied then
                         -- 节点被占用，本轮等待
                         agv.state = "wait" -- 设置agv状态为等待
@@ -143,9 +152,14 @@ function AGV()
 
                 -- 结束任务
                 agv.state = nil -- 设置agv状态为空(正常)
+                agv.road = nil -- 清空agv道路信息
                 road:removeAgv(agv.roadAgvId) -- 从道路中移除agv
                 agv:deltask()
+                return
             end
+
+            -- 步进
+            road:setAgvPos(dt, agv.roadAgvId)
         elseif taskname == "onnode" then -- {"onnode", node, fromRoad, toRoad} 输入通过节点到达的道路id
             -- 默认已经占用了节点
 
@@ -432,6 +446,13 @@ function AGV()
         local x, y, z = agv:getpos()
         local d = math.sqrt((tx - x) ^ 2 + (tz - z) ^ 2)
         return d < agv.safetyDistance
+    end
+
+    function agv.isSameContainerPosition(pos1, pos2)
+        if pos1 == nil or pos2 == nil then
+            return false
+        end
+        return pos1[1] == pos2[1] and pos1[2] == pos2[2] and pos1[3] == pos2[3]
     end
 
     return agv

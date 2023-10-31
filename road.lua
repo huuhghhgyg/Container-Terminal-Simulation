@@ -77,7 +77,7 @@ function Road(originPt, destPt, roadList)
     function road:removeAgv(agvId)
         table.remove(road.agvs, agvId - road.agvLeaveNum)
         road.agvLeaveNum = road.agvLeaveNum + 1
-        print("road",road.id,"删除agv，id为", agvId) -- debug
+        print("road", road.id, "删除agv，id为", agvId) -- debug
     end
 
     --- 获取指定id的agv前方的agv
@@ -102,10 +102,17 @@ function Road(originPt, destPt, roadList)
         -- 没有到达
         if roadAgv.distance <= roadAgv.targetDistance then
             roadAgv.distance = roadAgv.distance + dt * roadAgv.agv.speed -- 更新距离
-            roadAgv.agv:setpos(originPt[1] + roadAgv.distance * road.vecE[1], originPt[2] + roadAgv.distance * road.vecE[2],
-                originPt[3] + roadAgv.distance * road.vecE[3])
+            road:setAgvDistance(roadAgv.distance, agvId)
+            return
         end
-        -- 如果到达，由于存在maxstep，所以不会出现超出的情况，因此不需要处理
+        -- （暂时不灵）如果到达，由于存在maxstep，所以不会出现超出的情况，因此不需要处理
+    end
+
+    --- 设置指定id的agv在道路上的距离
+    function road:setAgvDistance(distance, agvId)
+        local roadAgv = road.agvs[agvId - road.agvLeaveNum] -- 获取道路agv对象
+        roadAgv.agv:move2(originPt[1] + distance * road.vecE[1], originPt[2] + distance * road.vecE[2],
+            originPt[3] + distance * road.vecE[3])
     end
 
     --- 获取指定id的agv的最大推进时间
@@ -113,7 +120,8 @@ function Road(originPt, destPt, roadList)
     function road:maxstep(agvId)
         local roadAgv = road.agvs[agvId - road.agvLeaveNum] -- 获取道路agv对象
         local distanceRemain = roadAgv.targetDistance - roadAgv.distance -- 计算剩余距离
-        return distanceRemain / roadAgv.agv.speed -- 计算最大步进时间
+        local timeRemain = distanceRemain / roadAgv.agv.speed -- 计算最大步进时间
+        return timeRemain >= 0 and timeRemain or 0 -- 返回最大步进时间
     end
 
     --- 注册道路，返回注册id
