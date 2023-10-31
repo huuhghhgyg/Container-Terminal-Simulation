@@ -7,6 +7,8 @@
 
 创建新RMG的时候，需要`cy`和`actionObjs`作为依赖传入。`cy`需要先绑定道路。
 
+- agvqueue: 等待服务的agv队列
+
 ## 任务
 ### move2
 移动到指定位置

@@ -37,7 +37,9 @@ agv和road都放在Controller里面，由Controller进行管理。对于agv的�
 - showBindingPoint(): 显示绑定道路对应的停车位点（debug用）
 
 ## 字段
-cy.parkingSpaces: 停车位列表，包含停车位的坐标、停车位相对道路的距离、对应的bay `{pos,roadDistance,bay}`。对应于旧代码的`cy.parkingspace`
+cy.parkingSpaces: 停车位列表，包含停车位的坐标、停车位相对道路的距离、对应的bay `{relativeDist, iox}`。对应于旧代码的`cy.parkingspace`
+  - `relativeDist` 停车位置在道路上的相对位置
+  - `iox` 停车位对应到堆场的iox距离
 
 containerPositions: 集装箱对应的位置。对应于旧代码的`cy.pos`
 
