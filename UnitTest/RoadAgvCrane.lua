@@ -39,6 +39,11 @@ local target = {2, 5, 3}
 -- rmg1:addtask({'move2', rmg1:getContainerCoord(3, 2, 5)})
 -- rmg1:addtask({'move2', rmg1:getContainerCoord(2, -1, 1)})
 
+-- 添加假agv用于进行单元测试
+local fakeAgv = { arrived = true }
+rmg1.agvqueue[1] = fakeAgv
+rmg1.agvqueue[2] = fakeAgv
+
 rmg1:addtask({'move2', rmg1:getContainerCoord(3, 2, rmg1.toplevel)}) -- 初始化位置
 -- 取出
 rmg1:move2TargetPos(target[1], target[2])

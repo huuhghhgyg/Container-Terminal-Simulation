@@ -4,7 +4,7 @@ scene.setenv({
 })
 
 -- 参数设置
-local simv = 8 -- 仿真速度
+local simv = 4 -- 仿真速度
 local actionobj = {} -- 动作队列声明
 
 -- 程序控制
