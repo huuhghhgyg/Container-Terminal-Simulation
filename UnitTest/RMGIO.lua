@@ -100,7 +100,8 @@ function generateagv()
     print('[agv] targetPos=', targetPos[1], targetPos[2], targetPos[3])
     agv:addtask({'moveon', {
         road = rd1,
-        targetDistance = cy.parkingSpaces[targetPos[1]].relativeDist
+        targetDistance = cy.parkingSpaces[targetPos[1]].relativeDist,
+        stay = true
     }})
     if agv.taskType == 'unload' then
         agv:addtask({'detach', nil})
@@ -111,8 +112,10 @@ function generateagv()
     end
     agv:addtask({'moveon', {
         road = rd1,
-        distance = cy.parkingSpaces[targetPos[1]].relativeDist
+        distance = cy.parkingSpaces[targetPos[1]].relativeDist,
+        stay = false
     }})
+    agv:addtask({'onnode',{node1, rd1, nil}})
 
     rmg:registerAgv(agv)
     cy:showBindingPoint() -- 显示绑定点

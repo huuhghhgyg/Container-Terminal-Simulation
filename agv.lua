@@ -49,7 +49,12 @@ function AGV()
 
         local task = agv.tasksequence[1]
         local taskname, param = task[1], task[2]
-        -- print('[agv] 当前任务', taskname)
+
+        -- -- debug
+        -- if agv.lasttask ~= taskname then
+        --     print('[agv] 当前任务', taskname)
+        --     agv.lasttask = taskname
+        -- end
 
         -- 判断子任务序列
         if taskname == "queue" then -- {"queue", subtask={...}}
@@ -85,7 +90,7 @@ function AGV()
             -- 设置步进移动
             agv:move2(param.originXZ[1] + param.movedXZ[1], 0, param.originXZ[2] + param.movedXZ[2])
         elseif taskname == "attach" then
-            if agv.operator.stash ~= nil then --todo: 需要补充条件
+            if agv.operator.stash ~= nil then -- todo: 需要补充条件
                 agv:attach()
                 print("[agv] attached container at ", coroutine.qtime())
                 agv:deltask()
@@ -114,7 +119,7 @@ function AGV()
         elseif taskname == "onboard" then
             param[1]:registerAgv(agv)
             agv:deltask()
-        elseif taskname == "moveon" then -- {"moveon",{road=,distance=,targetDistance=}} 沿着当前道路行驶
+        elseif taskname == "moveon" then -- {"moveon",{road=,distance=,targetDistance=,stay=}} 沿着当前道路行驶
             -- 获取道路
             local road = agv.road
             local roadAgvItem = road.agvs[agv.roadAgvId - road.agvLeaveNum]
@@ -138,7 +143,7 @@ function AGV()
 
                 -- 判断是否连接节点，节点是否可用
                 -- 如果节点可用，则删除本任务，否则阻塞
-                if road.toNode ~= nil and roadAgvItem.targetDistance == road.length then
+                if road.toNode ~= nil and roadAgvItem.distance == road.length then
                     if road.toNode.occupied then
                         -- 节点被占用，本轮等待
                         agv.state = "wait" -- 设置agv状态为等待
@@ -152,7 +157,6 @@ function AGV()
 
                 -- 结束任务
                 agv.state = nil -- 设置agv状态为空(正常)
-                agv.road = nil -- 清空agv道路信息
                 road:removeAgv(agv.roadAgvId) -- 从道路中移除agv
                 agv:deltask()
                 return
@@ -311,9 +315,9 @@ function AGV()
                     dt = math.min(dt, math.abs((param[i] - param.originXZ[i] - param.movedXZ[i]) / param.speed[i]))
                 end
             end
-        elseif taskname == "moveon" then -- {"moveon",{road=,distance=,targetDistance=}} 沿着当前道路行驶
+        elseif taskname == "moveon" then -- {"moveon",{road=,distance=,targetDistance=,stay=}} 沿着当前道路行驶
             -- 未注册道路
-            if agv.road == nil then
+            if agv.road == nil or agv.state == 'stay' then
                 if param.road == nil then -- 未注册道路
                     print("Exception: agv未注册道路")
                     agv:deltask()
@@ -324,7 +328,8 @@ function AGV()
                 param.road:registerAgv(agv, {
                     -- 输入参数，并使用registerAgv的nil检测
                     distance = param.distance,
-                    targetDistance = param.targetDistance
+                    targetDistance = param.targetDistance,
+                    stay = param.stay
                 })
             end
 

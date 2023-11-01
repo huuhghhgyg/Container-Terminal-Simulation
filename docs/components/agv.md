@@ -9,7 +9,8 @@
 - `agv.height = 2.10` agv平台高度
 - `agv.safetyDistance = 20` 安全离
 - `agv.road = nil` agv当前绑定的道路对象。相对应road:registerAgv中设置agv的road属性。
-- `agv.state` agv状态，包括`nil` 正常,`wait` 等待（用于避免计算`maxstep`）
+- `agv.state` agv状态，包括`nil` 正常,`wait` 等待（用于避免计算`maxstep`）,`stay` 在道路上执行别的任务
+
 运行时设置的属性
 - `agv.taskType` agv执行的任务类型，包括`unload`和`load`
 - `agv.targetContainerPos` agv目标位置`{bay,row,col}`

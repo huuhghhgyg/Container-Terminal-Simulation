@@ -366,8 +366,6 @@ function RMG(cy, actionObjs)
         rmg:addtask({"move2", rmg:getContainerCoord(bay, -1, rmg.toplevel)})
     end
 
-    -- 添加任务
-
     -- 注册到动作队列
     table.insert(actionObjs, rmg) -- 注意！如果以后要管理多个堆场，这行需要修改！
 

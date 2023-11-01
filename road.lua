@@ -49,6 +49,18 @@ function Road(originPt, destPt, roadList)
             params = {}
         end
 
+        -- todo: 判断是否已经存在于道路上(stay属性)，否则才插入对象
+        -- 遍历道路上的agv，如果有相同的agv，则不插入
+        for k, v in ipairs(road.agvs) do
+            if v.agv == agv then
+                road.agvs[k].stay = params.stay or false -- 更新stay属性
+                agv.state = nil
+                road.agvs[k].distance = params.distance or road.agvs[k].distance -- 更新agv在道路上移动的距离，初始为0
+                road.agvs[k].targetDistance = params.targetDistance or road.length -- 更新targetDistance属性
+                return v.id -- 返回id
+            end
+        end
+
         road.agvId = road.agvId + 1 -- id自增
 
         -- 向道路中插入对象
@@ -56,7 +68,8 @@ function Road(originPt, destPt, roadList)
             agv = agv, -- agv实体
             id = road.agvId, -- 道路为此agv分配的id
             distance = params.distance or 0, -- agv在道路上移动的距离，初始为0
-            targetDistance = params.targetDistance or road.length -- agv在道路上移动的目标距离，初始为道路长度（走完道路）
+            targetDistance = params.targetDistance or road.length, -- agv在道路上移动的目标距离，初始为道路长度（走完道路）
+            stay = params.stay or false -- agv到达目标位置后是否停留在道路上，默认不停留
         })
         -- print('road', road.id, '注册agv',agv.id,' {distance=', road.agvs[#road.agvs].distance, ',targetDistance=',
         --     road.agvs[#road.agvs].targetDistance, '}') --debug
@@ -75,9 +88,19 @@ function Road(originPt, destPt, roadList)
     --- 从道路移除agv
     ---@param agvId 指定的agv的id
     function road:removeAgv(agvId)
+        local roadAgvItem = road.agvs[agvId - road.agvLeaveNum]
+        if roadAgvItem.stay == true then
+            -- print('[road] 由于agv', agvId, '启用了stay，因此不实质性删除\t#road.agvs=', #road.agvs,
+            --     ' road.agvLeaveNum=', road.agvLeaveNum) -- debug
+            roadAgvItem.agv.state = 'stay' -- 设置agv状态
+            return -- 如果agv需要停留在道路上，则不删除
+        end
         table.remove(road.agvs, agvId - road.agvLeaveNum)
         road.agvLeaveNum = road.agvLeaveNum + 1
-        print("road", road.id, "删除agv，id为", agvId) -- debug
+        -- 删除agv上的道路信息
+        roadAgvItem.agv.road = nil
+        roadAgvItem.agv.roadAgvId = nil
+        -- print("road", road.id, "删除agv，id为", agvId) -- debug
     end
 
     --- 获取指定id的agv前方的agv
