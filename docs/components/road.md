@@ -24,8 +24,12 @@ Road对象会向agv注入`road`和`roadAgvId`两个属性，分别为道路对�
 - registerAgv(agv, params): 向道路注册agv。可以设置agv的初始位置
 - removeAgv(agvId): 从道路移除agv，根据指定的agvid
 - getAgvAhead(agvId): 获取指定id的agv前方的agv
-- setAgvPos(dt, agvId): 根据
+- setAgvPos(dt, agvId): 设置指定id的agv在道路上的位置(需要提前对dt进行maxstep验证)
+- setAgvDistance(distance, agvId): 设置指定id的agv在道路上的距离
 - maxstep(agvId): (interface)用于判断最大步进
+- register(): 向道路列表中注册道路，返回注册id
+- getRelativeDist(x, z): 根据向量，获取点在道路对向量上投影的距离
+- getRelativePosition(dist): 根据距离，获取道路上的点的位置
 
 ## 其他
 当需要根据`agvId`访问`road.agv`中的指定项时，应减去`agvLeaveNum`，以获得列表中的正确索引，如`roadAgvId-agvLeaveNum`

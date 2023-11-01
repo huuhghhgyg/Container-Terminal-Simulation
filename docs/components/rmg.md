@@ -27,3 +27,9 @@
 | 10,11    | 初始位置      | `initalXY`  |
 | 12       | 到达Z         | `arrivedZ`  |
 | 13       | 到达X         | `arrivedX`  |
+
+## 函数
+- lift2TargetPos(bay, row, level): 将集装箱从agv抓取到目标位置，默认在移动层。这个函数会标记当前rmg任务目标位置
+- lift2Agv(bay, row, level): 将集装箱从目标位置移动到agv，默认在移动层。这个函数会标记当前rmg任务目标位置
+- move2TargetPos(bay, row): 移动到目标位置，默认在移动层
+- move2Agv(bay): 移动到agv上方，默认在移动层
