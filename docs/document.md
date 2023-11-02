@@ -61,5 +61,17 @@ containerPositions: 集装箱对应的位置。对应于旧代码的`cy.pos`
 - 将吊具从datamodel移动到agv。吊具最终在agv上方。`move2Agv`
 
 # 集装箱生命周期
-1. 在堆场中生成时，标记集装箱的位置(`container.tag`属性)。
-2. cy -> agv：在rmg卸载集装箱的时候需要读取集装箱的位置信息，划分归属。集装箱卸载到agv上时抹掉取出位置。
+## rmg: 集装箱从cy到agv
+1. cy -> rmg: rmg在attach cy中的集装箱时对集装箱进行标记。这样输入的集装箱也不会出现没有tag的问题。
+2. rmg -> agv：在rmg卸载集装箱的时候需要读取集装箱的位置信息，划分归属。集装箱卸载到agv上时抹掉取出位置。
+
+## agv和rmg之间的集装箱流动
+agv卸载到rmg
+流程：agv -> moveon -> (arrived=true) -> detach -> waitoperator -> moveon(leave)
+
+agv从rmg装载
+流程：agv -> moveon -> (arrived=true) -> waitoperator -> attach -> moveon(leave)
+
+为什么要判断`currentAgv`？
+如果不判断，后面的agv可能提前占用stash槽位，导致前面的agv无法写下/装载。
+后期如果需要扩展rmg功能可以考虑从将`currentAgv`改为列表，让rmg决定如何操作。

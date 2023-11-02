@@ -8,6 +8,7 @@
 创建新RMG的时候，需要`cy`和`actionObjs`作为依赖传入。`cy`需要先绑定道路。
 
 - agvqueue: 等待服务的agv队列
+- currentAgv: 用于指示当前正在服务的agv对象。阻止其他agv对rmg进行不合时宜的attach或者detach操作，避免扰乱rmg的操作顺序。
 
 ## 任务
 ### move2
