@@ -11,7 +11,7 @@ require('node')
 require('road')
 
 -- 参数设置
-local simv = 2 -- 仿真速度
+local simv = 8 -- 仿真速度
 local ActionObjs = {} -- 动作队列声明
 
 -- 仿真控制
@@ -32,37 +32,38 @@ local rd1 = node1:createRoad(node2, RoadList)
 local cy = CY({30, 50}, {10, 0}, 3)
 cy:bindRoad(rd1)
 cy:showBindingPoint()
-cy:fillRandomContainerPositions(50)
+cy:fillRandomContainerPositions(50, {'/res/ct/container_blue.glb'})
 
 local rmg = RMG(cy, ActionObjs) -- 创建rmg时会自动添加到ActionObjs中
 scene.render()
 
 local containerUrls = {'/res/ct/container.glb', '/res/ct/container_brown.glb', '/res/ct/container_blue.glb',
-                       '/res/ct/container_yellow.glb'}
+                       '/res/ct/container_yellow.glb'} -- 集装箱模型路径列表（从其他文件中复制过来的）
 
 local generateConfig = {
     cy = cy,
-    summonNum = 10,
+    summonNum = 50,
     averageSummonSpan = 15
 }
 -- todo: 获取的集装箱列表混乱，导致存取集装箱时位置有误，阻止仿真运行
 -- 生成具有任务的agv(cy)
 function generateagv()
     -- 获取位置可用箱数信息
-    local availableNum = {
-        generated = 0
-    }
-    for i = 1, cy.row do
-        availableNum[i] = {}
-        for j = 1, cy.row do
-            -- 计算此位置的堆叠层数
-            local levelCount = 0
-            for k = 1, cy.level do
-                if cy.containers[i][j][k] ~= nil then
-                    levelCount = levelCount + 1
+    if cy.availablePosLevels == nil then
+        cy.availablePosLevels = {} -- 初始化集装箱可用位置列表
+
+        for i = 1, cy.col do
+            cy.availablePosLevels[i] = {}
+            for j = 1, cy.row do
+                -- 计算此位置的堆叠层数
+                local levelCount = 0
+                for k = 1, cy.level do
+                    if cy.containers[i][j][k] ~= nil then
+                        levelCount = levelCount + 1
+                    end
                 end
+                cy.availablePosLevels[i][j] = levelCount
             end
-            availableNum[i][j] = levelCount
         end
     end
 
@@ -72,9 +73,9 @@ function generateagv()
 
     -- 识别任务类型并生成可用位置列表
     local availablePos = {} -- 可用位置
-    for i = 1, cy.row do
+    for i = 1, cy.col do
         for j = 1, cy.row do
-            local containerLevel = availableNum[i][j] -- 获取堆叠层数
+            local containerLevel = cy.availablePosLevels[i][j] -- 获取堆叠层数
             if agvTaskType == 'unload' then
                 -- agv卸货，找到所有可用的存货位置(availableNum < cy.level)
                 if containerLevel < cy.level then
@@ -90,15 +91,20 @@ function generateagv()
     end
 
     local targetPos = availablePos[math.random(#availablePos)] -- 抽取可用位置
+    -- 记录抽取位置的影响
+    local trow, tcol = targetPos[1], targetPos[2]
+    cy.availablePosLevels[trow][tcol] = cy.availablePosLevels[trow][tcol] + (agvTaskType == 'unload' and 1 or -1)
+
     local agv = AGV() -- 生成agv
     agv.taskType = agvTaskType -- 设置agv任务类型(unload/load)
     if agv.taskType == 'unload' then -- agv卸货，生成集装箱
-        agv.container = scene.addobj(containerUrls[math.random(#containerUrls)]) -- 生成agv携带的集装箱
+        agv.container = scene.addobj(containerUrls[1]) -- 生成agv携带的集装箱
     end
+    agv:move2(10, 0, -10)
     agv.targetContainerPos = targetPos -- 设置agv目标位置{bay,row,col}
     agv:bindCrane(cy, targetPos) -- 绑定agv和堆场
     -- agv移动到目标位置(以后由controller调度)
-    print('[agv] targetPos=', targetPos[1], targetPos[2], targetPos[3])
+    -- print('[agv] targetPos=', targetPos[1], targetPos[2], targetPos[3]) -- debug
     agv:addtask({'moveon', {
         road = rd1,
         targetDistance = cy.parkingSpaces[targetPos[1]].relativeDist,
@@ -116,10 +122,9 @@ function generateagv()
         distance = cy.parkingSpaces[targetPos[1]].relativeDist,
         stay = false
     }})
-    agv:addtask({'onnode',{node1, rd1, nil}})
+    agv:addtask({'onnode', {node1, rd1, nil}})
 
     rmg:registerAgv(agv)
-    cy:showBindingPoint() -- 显示绑定点
 
     -- 程序控制
     if not watchdog.runcommand or generateConfig.summonNum == 0 then
@@ -127,9 +132,8 @@ function generateagv()
     end
     generateConfig.summonNum = generateConfig.summonNum - 1 -- agv剩余生成次数减1
 
-    print("[agv] summoned at: ", coroutine.qtime())
+    print("[agv", agv.roadAgvId or agv.id, "] summon at: ", coroutine.qtime())
     local tArriveSpan = math.random(generateConfig.averageSummonSpan)
-    print('next arrive at', tArriveSpan)
     coroutine.queue(tArriveSpan, generateagv)
 end
 generateagv()

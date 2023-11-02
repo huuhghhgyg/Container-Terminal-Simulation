@@ -32,7 +32,8 @@ function RMG(cy, actionObjs)
     rmg.zspeed = 2 -- 车移动速度
     rmg.attached = nil -- 抓取的集装箱
     rmg.stash = nil -- io物品暂存
-    rmg.agvqueue = {} -- agv服务队列
+    rmg.agvqueue = {} -- agv服务队列，用于堆存需要服务的agv对象
+    rmg.currentAgv = nil -- 当前正在服务的agv
     -- rmg.currentBay = nil -- 指示当前bay位置
 
     rmg.outerActionObjs = actionObjs -- 注入的外部动作队列
@@ -80,14 +81,29 @@ function RMG(cy, actionObjs)
     -- 抓箱子
     function rmg:attach(bay, row, level)
         if bay == nil then -- 如果没有指定位置，则为抓取agv上的集装箱
+            -- 判断agv上的集装箱是否为空
+            if rmg.stash == nil then
+                print('[rmg] 错误，抓取agv上的集装箱为空')
+                -- debug
+                os.exit()
+            end
+
             -- 从暂存中取出集装箱
             rmg.attached = rmg.stash
             rmg.stash = nil
             return
         end
 
+        -- 判断抓取的集装箱是否为空
+        if rmg.cy.containers[bay][row][level] == nil then
+            print('[rmg] 错误，抓取堆场中的集装箱为空')
+            -- debug
+            os.exit()
+        end
+
         -- 抓取堆场中的集装箱
         rmg.attached = rmg.cy.containers[bay][row][level]
+        rmg.attached.tag = {bay, row, level} -- 给集装箱设置tag
         rmg.cy.containers[bay][row][level] = nil
     end
 
@@ -159,7 +175,11 @@ function RMG(cy, actionObjs)
         local task = rmg.tasksequence[1]
         local taskname, param = task[1], task[2]
 
-        -- print('[rmg] execute task: ', taskname) -- debug
+        -- -- debug
+        -- if rmg.lasttask ~= taskname then
+        --     print('[rmg] 当前任务', taskname)
+        --     rmg.lasttask = taskname
+        -- end
         if taskname == "move2" then -- 1:col(x), 2:height(y), 3:bay(z), [4:初始bay, 5:已移动bay距离,向量*2(6,7),当前位置*2(8,9),初始位置*2(10,11),到达(12,13)*2]
             -- 计算移动值
             local ds = {}
@@ -202,10 +222,17 @@ function RMG(cy, actionObjs)
                 rmg:deltask()
             end
         elseif taskname == "waitagv" then -- {"waitagv", nil}
+            -- print('[rmg] waitagv: agvqueue[1]=', rmg.agvqueue[1], ', rmg.agvqueue[1].arrived=', rmg.agvqueue[1].arrived,
+            --     '(agv', rmg.agvqueue[1].id, ')') -- debug
+
             if rmg.agvqueue[1] == nil then
                 print("rmg: rmg.agvqueue[1]=nil, #rmg.agvqueue=", #rmg.agvqueue)
+                return
             end
+
             if rmg.agvqueue[1] ~= nil and rmg.agvqueue[1].arrived then -- agv到达
+                rmg.currentAgv = rmg.agvqueue[1] -- 设置当前agv
+                -- print('[rmg] set current agv to agv', rmg.currentAgv.id) -- debug
                 table.remove(rmg.agvqueue, 1) -- 移除等待的agv
                 rmg:deltask()
             end
@@ -297,7 +324,8 @@ function RMG(cy, actionObjs)
     function rmg:deltask()
         table.remove(rmg.tasksequence, 1)
 
-        if (rmg.tasksequence[1] ~= nil and rmg.tasksequence[1][1] == "detach") then
+        -- debug
+        if (rmg.tasksequence[1] ~= nil) then
             print("[rmg] task executing: ", rmg.tasksequence[1][1])
         end
     end

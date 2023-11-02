@@ -89,8 +89,13 @@ function Road(originPt, destPt, roadList)
     function road:removeAgv(agvId)
         local roadAgvItem = road.agvs[agvId - road.agvLeaveNum]
         if roadAgvItem.stay == true then
+            -- debug
             -- print('[road] 由于agv', agvId, '启用了stay，因此不实质性删除\t#road.agvs=', #road.agvs,
-            --     ' road.agvLeaveNum=', road.agvLeaveNum) -- debug
+            --     ' road.agvLeaveNum=', road.agvLeaveNum, '\t目标(',
+            --     road.agvs[agvId - road.agvLeaveNum].agv.targetContainerPos[1],
+            --     road.agvs[agvId - road.agvLeaveNum].agv.targetContainerPos[2],
+            --     road.agvs[agvId - road.agvLeaveNum].agv.targetContainerPos[3], ')')
+            
             roadAgvItem.agv.state = 'stay' -- 设置agv状态
             return -- 如果agv需要停留在道路上，则不删除
         end

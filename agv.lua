@@ -53,7 +53,7 @@ function AGV()
 
         -- -- debug
         -- if agv.lasttask ~= taskname then
-        --     print('[agv] 当前任务', taskname)
+        --     print('[agv', agv.id, '] 当前任务', taskname)
         --     agv.lasttask = taskname
         -- end
 
@@ -91,26 +91,80 @@ function AGV()
             -- 设置步进移动
             agv:move2(param.originXZ[1] + param.movedXZ[1], 0, param.originXZ[2] + param.movedXZ[2])
         elseif taskname == "attach" then
-            if agv.operator.stash ~= nil and agv.isSameContainerPosition(agv.targetContainerPos, agv.operator.stash.tag) then -- agv装货(判断交换区是否有集装箱&集装箱所有权)
+            -- -- debug
+            -- if agv.operator.stash ~= nil then
+            --     print("[agv", agv.roadAgvId or agv.id, "] agv.operator.stash.tag=",
+            --         agv.operator.stash ~= nil and agv.operator.stash.tag ~= nil and agv.operator.stash.tag[1] ..
+            --             agv.operator.stash.tag[2] .. agv.operator.stash.tag[3], " isSameContainerPos=", agv.operator
+            --             .stash ~= nil and agv.isSameContainerPosition(agv.targetContainerPos, agv.operator.stash.tag)) -- debug
+            -- end
+
+            if agv.operator.currentAgv ~= self then
+                -- print('[agv', agv.roadAgvId or agv.id, '] detected operator currentAgv is not self') -- debug
+                return
+            end
+
+            if agv.operator.stash == nil then
+                print('[agv', agv.roadAgvId or agv.id, '] detected operator stash is nil') -- debug
+                return
+            end
+
+            -- if agv.operator.currentAgv == self then
+            --     print('[agv', agv.roadAgvId or agv.id, '] detected operator currentAgv is self(agv', self.id, ')') -- debug
+            -- end
+
+            if agv.isSameContainerPosition(agv.targetContainerPos, agv.operator.stash.tag) then -- agv装货(判断交换区是否有集装箱&集装箱所有权)
+                agv:attach()
+                print("[agv", agv.roadAgvId or agv.id, "] attached container(", agv.container.tag[1],
+                    agv.container.tag[2], agv.container.tag[3], ") at ", coroutine.qtime(), ', agv target=',
+                    agv.targetContainerPos[1], agv.targetContainerPos[2], agv.targetContainerPos[3])
                 agv.container.tag = nil -- 清除集装箱原有的tag信息
-                print("[agv] attached container at ", coroutine.qtime())
                 agv:deltask()
             end
         elseif taskname == "detach" then
-            if agv.operator.stash == nil then
-                agv:detach()
-                print("[agv] detached container at ", coroutine.qtime())
-                agv:deltask()
+            -- agv的attach任务:(moveon -> (arrived) -> detach -> waitrmg)
+            if agv.taskType == 'unload' then
+                agv.arrived = true
             end
+
+            if agv.operator.currentAgv ~= self then
+                -- print('[agv', agv.roadAgvId or agv.id, '] detected operator currentAgv is not self, is agv',
+                --     agv.operator.currentAgv.id) -- debug
+                return
+            end
+
+            if agv.operator.stash ~= nil then
+                print('[agv', agv.roadAgvId or agv.id, '] detected operator stash not nil') -- debug
+                return
+            end
+
+            -- if agv.operator.currentAgv == self then
+            --     print('[agv', agv.roadAgvId or agv.id, '] detected operator currentAgv is self(agv', self.id, ')') -- debug
+            -- end
+
+            -- print("[agv", agv.roadAgvId or agv.id, "] operator stash not nil") -- debug
+            print("[agv", agv.roadAgvId or agv.id, "] detached container(",
+                agv.targetContainerPos == nil and 'targetPos=nil' or agv.targetContainerPos[1] ..
+                    agv.targetContainerPos[2] .. agv.targetContainerPos[3], ") at ", coroutine.qtime())
+            agv:detach()
+            agv:deltask()
         elseif taskname == "waitoperator" then -- {"waitoperator",'load'/'unload'} 等待机械响应（agv装/卸货）
-            agv.arrived = true
+            -- agv的attach任务:(moveon -> (arrived) -> waitrmg -> attach)
+            if agv.taskType == 'load' then
+                agv.arrived = true
+            end
+
+            if agv.operator.currentAgv ~= self then
+                return -- 如果当前operator操作的对象不是本身，则不需要继续判断，直接返回
+            end
+
             -- 检测rmg.stash是否为空，如果为空则等待；否则完成任务
-            if param[1] == 'load' then
+            if param[1] == 'load' then -- attach
                 -- agv装货
                 if agv.operator.stash ~= nil then -- operator已经将货物放到stash中
                     agv:deltask()
                 end
-            elseif param[1] == 'unload' then
+            elseif param[1] == 'unload' then -- detach
                 -- agv卸货
                 if agv.operator.stash == nil then -- operator已经将货物取走
                     agv:deltask()
@@ -266,7 +320,7 @@ function AGV()
         table.remove(agv.tasksequence, 1)
 
         if (agv.tasksequence[1] ~= nil and agv.tasksequence[1][1] == "attach") then
-            print("[agv] task executing: ", agv.tasksequence[1][1])
+            print("[agv", agv.roadAgvId or agv.id, "] task executing: ", agv.tasksequence[1][1])
         end
     end
 

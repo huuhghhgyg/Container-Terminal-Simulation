@@ -126,7 +126,13 @@ function CY(p1, p2, level)
 
     --- 根据sum随机生成每个(cy.bay,cy.row)位置的集装箱数量
     ---@param sum number 生成的集装箱总数
-    function cy:fillRandomContainerPositions(sum)
+    ---@param containerUrls table 集装箱链接(颜色)列表，可选参数
+    function cy:fillRandomContainerPositions(sum, containerUrls)
+        -- 注入集装箱颜色列表
+        if containerUrls ~= nil then
+            cy.containerUrls = containerUrls -- 修改cy的集装箱颜色列表
+        end
+
         -- 初始化
         local containerNum = {}
         for i = 1, cy.col do
@@ -163,7 +169,6 @@ function CY(p1, p2, level)
 
         local container = scene.addobj(url) -- 生成集装箱
         container:setpos(table.unpack(containerPos)) -- 设置集装箱位置
-        container.tag = {bay, row, level} -- 生成集装箱时，将集装箱的标记设置为位置信息
         cy.containers[bay][row][level] = container
     end
 
