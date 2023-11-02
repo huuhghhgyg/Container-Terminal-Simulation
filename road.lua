@@ -49,7 +49,6 @@ function Road(originPt, destPt, roadList)
             params = {}
         end
 
-        -- todo: 判断是否已经存在于道路上(stay属性)，否则才插入对象
         -- 遍历道路上的agv，如果有相同的agv，则不插入
         for k, v in ipairs(road.agvs) do
             if v.agv == agv then

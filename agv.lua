@@ -15,6 +15,7 @@ function AGV()
     agv.safetyDistance = 20 -- 安全距离
     agv.road = nil -- 相对应road:registerAgv中设置agv的road属性.
     agv.state = nil -- 正常状态
+    agv.targetContainerPos = nil -- 目标集装箱位置{bay, col, level}
 
     -- 绑定起重机（RMG/RMGQC）
     function agv:bindCrane(targetCY, targetContainer)
@@ -90,8 +91,8 @@ function AGV()
             -- 设置步进移动
             agv:move2(param.originXZ[1] + param.movedXZ[1], 0, param.originXZ[2] + param.movedXZ[2])
         elseif taskname == "attach" then
-            if agv.operator.stash ~= nil then -- todo: 需要补充条件
-                agv:attach()
+            if agv.operator.stash ~= nil and agv.isSameContainerPosition(agv.targetContainerPos, agv.operator.stash.tag) then -- agv装货(判断交换区是否有集装箱&集装箱所有权)
+                agv.container.tag = nil -- 清除集装箱原有的tag信息
                 print("[agv] attached container at ", coroutine.qtime())
                 agv:deltask()
             end

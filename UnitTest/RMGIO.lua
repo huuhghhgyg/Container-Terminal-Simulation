@@ -45,6 +45,7 @@ local generateConfig = {
     summonNum = 10,
     averageSummonSpan = 15
 }
+-- todo: 获取的集装箱列表混乱，导致存取集装箱时位置有误，阻止仿真运行
 -- 生成具有任务的agv(cy)
 function generateagv()
     -- 获取位置可用箱数信息
@@ -120,15 +121,16 @@ function generateagv()
     rmg:registerAgv(agv)
     cy:showBindingPoint() -- 显示绑定点
 
-    -- -- 程序控制
-    -- if not watchdog.runcommand or generateConfig.summonNum == 0 then
-    --     return
-    -- end
+    -- 程序控制
+    if not watchdog.runcommand or generateConfig.summonNum == 0 then
+        return
+    end
+    generateConfig.summonNum = generateConfig.summonNum - 1 -- agv剩余生成次数减1
 
-    -- print("[agv] summoned at: ", coroutine.qtime())
-    -- local tArriveSpan = math.random(generateConfig.averageSummonSpan)
-    -- print('next arrive at', tArriveSpan)
-    -- coroutine.queue(tArriveSpan, generateagv)
+    print("[agv] summoned at: ", coroutine.qtime())
+    local tArriveSpan = math.random(generateConfig.averageSummonSpan)
+    print('next arrive at', tArriveSpan)
+    coroutine.queue(tArriveSpan, generateagv)
 end
 generateagv()
 

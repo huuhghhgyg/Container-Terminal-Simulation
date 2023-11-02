@@ -34,7 +34,6 @@ function RMG(cy, actionObjs)
     rmg.stash = nil -- io物品暂存
     rmg.agvqueue = {} -- agv服务队列
     -- rmg.currentBay = nil -- 指示当前bay位置
-    -- todo: 如何表示当前rmg任务相关的集装箱位置，用于标识集装箱所有权
 
     rmg.outerActionObjs = actionObjs -- 注入的外部动作队列
 

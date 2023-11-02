@@ -161,8 +161,10 @@ function CY(p1, p2, level)
         local url = cy.containerUrls[math.random(1, #cy.containerUrls)] -- 随机选择集装箱颜色
         local containerPos = cy.containerPositions[bay][row][level] -- 获取集装箱位置
 
-        cy.containers[bay][row][level] = scene.addobj(url) -- 添加集装箱
-        cy.containers[bay][row][level]:setpos(table.unpack(containerPos))
+        local container = scene.addobj(url) -- 生成集装箱
+        container:setpos(table.unpack(containerPos)) -- 设置集装箱位置
+        container.tag = {bay, row, level} -- 生成集装箱时，将集装箱的标记设置为位置信息
+        cy.containers[bay][row][level] = container
     end
 
     return cy
