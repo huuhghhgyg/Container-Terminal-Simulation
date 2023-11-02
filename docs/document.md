@@ -59,3 +59,7 @@ containerPositions: 集装箱对应的位置。对应于旧代码的`cy.pos`
 - 将集装箱从datamodel移动到agv。直接向下抓取指定位置集装箱，吊具最终在agv上方。`lift2agv`（内置等待）
 - 将吊具从agv移动到datamodel。吊具最终在datamodel上方。`move2TargetPos`
 - 将吊具从datamodel移动到agv。吊具最终在agv上方。`move2Agv`
+
+# 集装箱生命周期
+1. 在堆场中生成时，标记集装箱的位置(`container.tag`属性)。
+2. cy -> agv：在rmg卸载集装箱的时候需要读取集装箱的位置信息，划分归属。集装箱卸载到agv上时抹掉取出位置。

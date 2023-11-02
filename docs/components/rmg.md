@@ -28,6 +28,26 @@
 | 12       | 到达Z         | `arrivedZ`  |
 | 13       | 到达X         | `arrivedX`  |
 
+### waitagv
+```lua
+{"waitagv", nil}
+```
+等待agv
+
+### attach
+```lua
+{"attach", {row, col, level}} -- 抓取堆场中指定位置的集装箱
+{"attach", nil} -- 抓取agv上的集装箱
+```
+attach中的参数是目标位置。如果没有指定位置，则为抓取agv上的集装箱；否则抓取堆场中的集装箱。
+
+### detach
+```lua
+{"detach", {row, col, level}} -- 放置集装箱到堆场中指定位置
+{"detach", nil} -- 放置集装箱到agv上
+```
+detach中的参数是目标位置。如果没有指定位置，则将集装箱放置到对应bay位置的agv位置上；否则放置集装箱到堆场中。
+
 ## 函数
 - lift2TargetPos(bay, row, level): 将集装箱从agv抓取到目标位置，默认在移动层。这个函数会标记当前rmg任务目标位置
 - lift2Agv(bay, row, level): 将集装箱从目标位置移动到agv，默认在移动层。这个函数会标记当前rmg任务目标位置
