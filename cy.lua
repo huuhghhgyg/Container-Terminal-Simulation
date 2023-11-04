@@ -13,7 +13,8 @@ function CY(p1, p2, level)
                          '/res/ct/container_yellow.glb'},
         rotdeg = 0, -- 旋转角度
         bindingRoad = nil, -- 绑定的道路
-        positionLevels = nil -- cy可用位置列表
+        positionLevels = nil, -- cy各位置集装箱层数
+        operator = nil -- 操作器（cy对应rmg）
     }
 
     local pdx = (p2[1] - p1[1]) / math.abs(p1[1] - p2[1]) -- x方向向量

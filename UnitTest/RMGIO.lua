@@ -45,7 +45,6 @@ local generateConfig = {
     summonNum = 50,
     averageSummonSpan = 15
 }
--- todo: 获取的集装箱列表混乱，导致存取集装箱时位置有误，阻止仿真运行
 -- 生成具有任务的agv(cy)
 function generateagv()
     -- 获取位置可用箱数信息，如果没有则注入

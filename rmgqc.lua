@@ -1,4 +1,4 @@
-function RMGQC(origin) -- origin={x,y,z}
+function RMGQC(origin, actionObjs) -- origin={x,y,z}
     local rmgqc = scene.addobj('/res/ct/rmqc.glb')
     -- 模型组件
     rmgqc.trolley = scene.addobj('/res/ct/trolley_rmqc.glb')
@@ -20,7 +20,9 @@ function RMGQC(origin) -- origin={x,y,z}
     rmgqc.attached = nil -- 抓取的集装箱
     rmgqc.stash = nil -- io物品暂存
     rmgqc.agvqueue = {} -- agv服务队列
-    rmgqc.queuelen = 11 -- 服务队列长度（额外）
+    rmgqc.parkingSpaces = {} -- 停车位对象(使用bay位置索引)
+    -- rmgqc.queuelen = 11 -- 服务队列长度（额外）
+    rmgqc.outerActionObjs = actionObjs -- 外部动作队列
 
     -- 初始化集装箱船高度
     for i = 1, 4 do
@@ -38,35 +40,28 @@ function RMGQC(origin) -- origin={x,y,z}
     print("初始化：spreader z = ", rmgqc.origin[3])
 
     -- todo: 旧代码
-    function rmgqc:registeragv(agv)
-        -- 初始化agv
-        agv.arrived = false -- 设置到达标识
-        agv.targetcontainer = rmgqc.ship:getidlepos() -- 设置目标集装箱位置（船上空余位置）
-        agv.targetbay = agv.targetcontainer[1]
-        local transfered = agv.worktype ~= nil -- 表示agv的来源是否来自所有权转移，如果是则不需要重复添加到执行队列
-        agv.worktype = "rmgqc"
-        agv.operator = rmgqc
-        agv.datamodel = rmgqc.ship
+    function rmgqc:registerAgv(agv)
+        -- rmg添加任务
+        if agv.taskType == 'unload' then
+            -- print('[rmg] agv:unload, targetPos=(', agv.targetContainerPos[1], agv.targetContainerPos[2], agv.targetContainerPos[3], ')') -- debug
+            rmgqc:move2Agv(agv.targetContainerPos[1])
+            -- print('[rmgqc] move2Agv()完成') -- debug
+            rmgqc:lift2TargetPos(table.unpack(agv.targetContainerPos))
+            -- print('[rmgqc] lift2TargetPos()完成') -- debug
+        elseif agv.taskType == 'load' then
+            -- print('[rmgqc] agv:load') -- debug
+            rmgqc:move2TargetPos(agv.targetContainerPos[1], agv.targetContainerPos[2])
+            -- print('[rmgqc] move2TargetPos()完成') -- debug
+            rmgqc:lift2Agv(table.unpack(agv.targetContainerPos))
+            -- print('[rmgqc] lift2Agv()完成') -- debug
+        else
+            print('[rmgqc] 错误，没有检测到agv的任务类型，注册失败。')
+            return
+        end
 
-        -- 为agv添加任务
-        agv:addtask({"move2", {agv.datamodel.summon[1], agv.datamodel.summon[3]}})
-        agv:addtask({"move2", {
-            occupy = 1
-        }}) -- 移动到第一个车位
-
-        -- 为岸桥添加任务
-        rmgqc:move2readyPos(agv.targetcontainer[1]) -- 将抓住的集装箱移动到agv上
-        rmgqc:addtask({"waitagv"}) -- 等待agv到达
-        rmgqc:lift2ship(table.unpack(agv.targetcontainer)) -- 将集装箱移动到指定位置
-
+        -- 注册agv
         table.insert(rmgqc.agvqueue, agv) -- 加入agv队列
-        for i = 1, agv.datamodel.agvspan do
-            agv.datamodel.parkingspace[i].occupied = agv.datamodel.parkingspace[i].occupied + 1 -- 停车位占用数+1
-        end
-        if not transfered then
-            table.insert(controller.actionObjs, agv) -- 加入动作队列
-            print("agv已加入动作队列")
-        end
+        table.insert(rmgqc.outerActionObjs, agv) -- 加入动作队列
     end
 
     -- 放箱子
@@ -84,17 +79,32 @@ function RMGQC(origin) -- origin={x,y,z}
     end
 
     -- 抓箱子
-    function rmgqc:attach(bay, col, level)
+    function rmgqc:attach(bay, row, level)
         if bay == nil then -- 如果没有指定位置，则为抓取agv上的集装箱
+            -- 判断agv上的集装箱是否为空
+            if rmgqc.stash == nil then
+                print('[rmg] 错误，抓取agv上的集装箱为空')
+                -- debug
+                os.exit()
+            end
+
             -- 从暂存中取出集装箱
             rmgqc.attached = rmgqc.stash
             rmgqc.stash = nil
             return
         end
 
-        -- 抓取船上的集装箱
-        rmgqc.attached = rmgqc.ship.containers[bay][col][level]
-        rmgqc.ship.containers[bay][col][level] = nil
+        -- 判断抓取的集装箱是否为空
+        if rmgqc.ship.containers[bay][row][level] == nil then
+            print('[rmg] 错误，抓取堆场中的集装箱为空')
+            -- debug
+            os.exit()
+        end
+
+        -- 抓取堆场中的集装箱
+        rmgqc.attached = rmgqc.ship.containers[bay][row][level]
+        rmgqc.attached.tag = {bay, row, level} -- 给集装箱设置tag
+        rmgqc.ship.containers[bay][row][level] = nil
     end
 
     -- 爪子移动
@@ -196,6 +206,8 @@ function RMGQC(origin) -- origin={x,y,z}
                 print("rmgqc: rmgqc.agvqueue[1]=nil")
             end
             if rmgqc.agvqueue[1] ~= nil and rmgqc.agvqueue[1].arrived then -- agv到达
+                rmgqc.currentAgv = rmgqc.agvqueue[1] -- 设置当前agv
+                table.remove(rmgqc.agvqueue, 1) -- 移除等待的agv
                 rmgqc:deltask()
             end
         elseif taskname == "attach" then -- {"attach", {row, col, level}}
@@ -308,6 +320,7 @@ function RMGQC(origin) -- origin={x,y,z}
 
     -- 将集装箱从agv抓取到目标位置，默认在移动层
     function rmgqc:lift2TargetPos(bay, row, level)
+        rmgqc:addtask({"waitagv"}) -- 等待agv到达
         rmgqc:addtask({"move2", rmgqc:getcontainercoord(bay, -1, 1)}) -- 抓取agv上的箱子
         rmgqc:addtask({"attach", nil}) -- 抓取
         rmgqc:addtask({"move2", rmgqc:getcontainercoord(bay, -1, rmgqc.toplevel)}) -- 吊具提升到移动层
@@ -323,6 +336,7 @@ function RMGQC(origin) -- origin={x,y,z}
         rmgqc:addtask({"attach", {bay, row, level}}) -- 抓取
         rmgqc:addtask({"move2", rmgqc:getcontainercoord(bay, row, rmgqc.toplevel)}) -- 吊具提升到移动层
         rmgqc:addtask({"move2", rmgqc:getcontainercoord(bay, -1, rmgqc.toplevel)}) -- 移动爪子到agv上方
+        rmgqc:addtask({"waitagv"}) -- 等待agv到达
         rmgqc:addtask({"move2", rmgqc:getcontainercoord(bay, -1, 1)}) -- 移动爪子到agv
         rmgqc:addtask({"detach", nil}) -- 放下指定箱
         rmgqc:addtask({"move2", rmgqc:getcontainercoord(bay, -1, rmgqc.toplevel)}) -- 爪子抬起到移动层
@@ -339,8 +353,72 @@ function RMGQC(origin) -- origin={x,y,z}
     end
 
     function rmgqc:bindShip(ship)
-        self.ship = ship
+        if rmgqc.bindingRoad == nil then
+            print('[rmgqc] bindShip()错误，rmgqc未绑定道路')
+            return
+        end
+
+        -- 进行绑定（对应rmg的绑定在依赖注入后执行）
+        rmgqc.ship = ship
+        ship.operator = rmgqc
+
+        local bayPos = {} -- bay的第一行坐标{x,z}
+        for i = 1, ship.bay do
+            bayPos[i] = {ship.containerPositions[i][1][1][1], ship.containerPositions[i][1][1][3]}
+            -- 显示baypos位置
+            scene.addobj('points', {
+                vertices = {bayPos[i][1], 0, bayPos[i][2]},
+                color = 'blue',
+                size = 5
+            })
+        end
+
+        -- 投影
+        rmgqc.parkingSpaces = {}
+        for i = 1, #bayPos do
+            rmgqc.parkingSpaces[i] = {}
+            rmgqc.parkingSpaces[i].relativeDist = rmgqc.bindingRoad:getVectorRelativeDist(bayPos[i][1], bayPos[i][2],
+                math.cos(ship.rotradian - math.pi / 2), math.sin(ship.rotradian - math.pi / 2) * -1)
+            -- print('cy debug: parking space', i, ' relative distance = ', rmgqc.parkingSpaces[i].relativeDist)
+        end
+
+        -- 生成停车位并计算iox
+        for k, v in ipairs(rmgqc.parkingSpaces) do
+            local x, y, z = rmgqc.bindingRoad:getRelativePosition(v.relativeDist)
+
+            -- 计算iox
+            rmgqc.parkingSpaces[k].iox = -1 * math.sqrt((x - bayPos[k][1]) ^ 2 + (z - bayPos[k][2]) ^ 2)
+            -- print('cy debug: parking space', k, ' iox = ', rmgqc.parkingSpaces[k].iox)
+        end
     end
+
+    function rmgqc:bindRoad(road)
+        self.bindingRoad = road
+    end
+
+    --- 显示绑定道路对应的停车位点（debug用）
+    function rmgqc:showBindingPoint()
+        -- 显示rmgqc.parkingSpaces的位置
+        for k, v in ipairs(rmgqc.parkingSpaces) do
+            local x, y, z = rmgqc.bindingRoad:getRelativePosition(v.relativeDist)
+
+            -- 显示位置
+            scene.addobj('points', {
+                vertices = {x, y, z},
+                color = 'red',
+                size = 5
+            })
+            local pointLabel = scene.addobj('label', {
+                text = 'no.' .. k
+            })
+            pointLabel:setpos(x, y, z)
+
+            print('rmgqc debug: parking space', k, ' ,iox = ', rmgqc.parkingSpaces[k].iox, ' ,Position=', x, y, z)
+        end
+    end
+
+    -- 注册到动作队列(对应rmg)
+    table.insert(actionObjs, rmgqc)
 
     return rmgqc
 end

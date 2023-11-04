@@ -20,7 +20,7 @@ function AGV()
     -- 绑定起重机（RMG/RMGQC）
     function agv:bindCrane(targetCY, targetContainer)
         agv.datamodel = targetCY -- 目标堆场(数据模型)
-        agv.operator = targetCY.rmg -- 目标场桥(操作器)
+        agv.operator = targetCY.operator -- 目标场桥(操作器)
         agv.targetContainerPos = targetContainer -- 目标集装箱{bay, col, level}
         agv.targetbay = targetContainer[1] -- 目标bay
         agv.arrived = false -- 是否到达目标
@@ -28,9 +28,12 @@ function AGV()
 
     function agv:move2(x, y, z) -- 直接移动到指定坐标
         agv:setpos(x, y, z)
+        agv:setrot(0, agv.roty, 0)
         if agv.container ~= nil then
             agv.container:setpos(x, y + agv.height, z)
+            agv.container:setrot(0, agv.roty, 0)
         end
+
     end
 
     function agv:attach()
@@ -198,16 +201,21 @@ function AGV()
 
                 -- 判断是否连接节点，节点是否可用
                 -- 如果节点可用，则删除本任务，否则阻塞
-                if road.toNode ~= nil and roadAgvItem.distance == road.length then
+                if road.toNode ~= nil then
+                    -- print('[agv', agv.id, '] road.toNode==', road.toNode, '. road', road.id, '.toNode.occupied=',
+                    --     road.toNode.occupied, '\t param.targetDist=', param.targetDistance, ' ,road.length=', road.length)
                     if road.toNode.occupied then
                         -- 节点被占用，本轮等待
                         agv.state = "wait" -- 设置agv状态为等待
-                        print('agv', agv.id, '前方节点(', road.toNode.id, ')被堵塞，正在等待') -- debug
+                        -- print('agv', agv.id, '前方节点(', road.toNode.id, ')被堵塞，正在等待') -- debug
                         return
                     end
 
-                    -- 节点没有被占用
-                    road.toNode.occupied = true -- 设置节点占用
+                    -- 节点没有被占用且agv到达了道路尽头，才能设置节点占用
+                    if param.targetDistance==nil or road.targetDistance == road.length then
+                    -- if road.targetDistance == road.length then
+                        road.toNode.occupied = true -- 设置节点占用
+                    end
                 end
 
                 -- 结束任务
@@ -224,13 +232,14 @@ function AGV()
 
             local function tryExitNode()
                 local x, y, z = table.unpack(param[3].originPt)
-                agv:setpos(x, y, z) -- 到达目标
                 local radian = math.atan(param[3].vecE[1], param[3].vecE[3]) - math.atan(0, 1)
-                agv:setrot(0, radian, 0)
+                agv.roty = radian -- 设置agv旋转，下面的move2会一起设置
+                agv:move2(x, y, z) -- 到达目标
 
                 -- 判断出口是否占用，如果占用则在Node中等待，阻止其他agv进入Node
                 if #param[3].agvs > 0 then -- 目标道路是否有agv
-                    if agv:InSafetyDistance(param[3].agvs[#param[3].agvs].agv) then
+                    local roadAgvList = param[3].agvs
+                    if agv:InSafetyDistance(roadAgvList[#roadAgvList].agv) then
                         agv.state = "wait" -- 设置agv状态为等待
                         return false -- 本轮等待
                     end
@@ -248,10 +257,10 @@ function AGV()
                 -- 直线
                 -- 计算步进
                 local ds = agv.speed * dt
-                local dx, dz = ds * fromRoad.vecE[1], ds * fromRoad.vecE[3]
 
                 -- 判断是否到达目标
-                if math.abs(ds + param.walked) >= param[1].radius * 2 then
+                if param.arrived or math.abs(ds + param.walked) >= param[1].radius * 2 then
+                    param.arrived = true
                     if tryExitNode() then
                         local toRoad = param[3]
                         -- 显示轨迹
@@ -260,36 +269,39 @@ function AGV()
                                         toRoad.originPt[2], toRoad.originPt[3]}
                         })
 
-                        return
                     end
+                    return
                 end
 
                 -- 设置步进
                 param.walked = param.walked + ds
                 local x, y, z = agv:getpos()
-                agv:setpos(x + ds * fromRoad.vecE[1], y + ds * fromRoad.vecE[2], z + ds * fromRoad.vecE[3]) -- 设置agv位置
+                agv:move2(x + ds * fromRoad.vecE[1], y + ds * fromRoad.vecE[2], z + ds * fromRoad.vecE[3]) -- 设置agv位置
             else
                 -- 转弯
                 -- 计算步进
                 local dRadian = param.angularSpeed * dt * param.direction
-                param.walked = param.walked + dRadian
+                if not param.arrived then
+                    param.walked = param.walked + dRadian
+                end
 
                 -- 判断是否到达目标
                 if (dRadian + param.walked) / param.deltaRadian >= 1 then
+                    param.arrived = true
                     if tryExitNode() then
                         -- 显示轨迹
                         scene.addobj('polyline', {
                             vertices = param.trail
                         })
-                        return
                     end
+                    return
                 end
 
-                -- 计算步进并设置位置
+                -- 计算步进
                 local _, y, _ = agv:getpos()
                 local x, z = param.radius * math.sin(param.walked + param.turnOriginRadian) + param.center[1],
                     param.radius * math.cos(param.walked + param.turnOriginRadian) + param.center[3]
-                agv:setpos(x, y, z)
+
                 -- 记录轨迹
                 table.insert(param.trail, x)
                 table.insert(param.trail, y)
@@ -299,7 +311,9 @@ function AGV()
                 param.walked = param.walked + dRadian
                 -- agv.roty = agv.roty + dRadian*2 --为什么要*2 ???
                 agv.roty = math.atan(param[2].vecE[1], param[2].vecE[3]) + param.walked - math.atan(0, 1)
-                agv:setrot(0, agv.roty, 0)
+
+                -- 应用计算结果
+                agv:move2(x, y, z)
             end
         end
     end

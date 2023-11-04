@@ -9,9 +9,15 @@ function Ship(size, origin) -- size={bays,rows,levels}, originPt={x,y,z}
     ship.level = size[3] or 2
     ship.clength, ship.cbaygap = 6.06, 0.5 -- 集装箱长度，集装箱bay间距
     ship.origin = origin
+    ship.containerPositions = {} -- 集装箱位置列表{bay, col, level}
+    ship.containers = {}
     ship.bayPosition = {} -- bay位相对坐标，用于计算船上集装箱位置和绑定停车位
+    ship.positionLevels = nil -- ship各位置集装箱层数
+    ship.operator = nil -- 操作器（ship对应rmgqc）
     ship.containerUrls = {'/res/ct/container.glb', '/res/ct/container_brown.glb', '/res/ct/container_blue.glb',
                           '/res/ct/container_yellow.glb'}
+    ship.rotdeg = 0 -- 旋转角度
+    ship.rotradian = ship.rotdeg * math.pi / 180 -- 旋转弧度
 
     ship:setpos(ship.origin[1], ship.origin[2], ship.origin[3])
     print("ship origin:", ship.origin[1], ",", ship.origin[2], ",", ship.origin[3])
@@ -23,8 +29,6 @@ function Ship(size, origin) -- size={bays,rows,levels}, originPt={x,y,z}
     end
 
     -- 初始化集装箱位置和集装箱
-    ship.containerPositions = {} -- 集装箱位置列表{bay, col, level}
-    ship.containers = {}
     for bay = 1, ship.bay do
         ship.containerPositions[bay] = {}
         ship.containers[bay] = {}
@@ -42,37 +46,10 @@ function Ship(size, origin) -- size={bays,rows,levels}, originPt={x,y,z}
 
     -- 将船绑定到场桥
     function ship:bindRMGQC(rmgqc)
-
+        
     end
 
-    function ship:initqueue() -- 初始化队列(ship.parkingspace) iox出入位置x相对坐标
-        -- 停车队列(iox)
-        ship.parkingspace = {} -- 属性：occupied:停车位占用情况，pos:停车位坐标，bay:对应堆场bay位
-
-        -- 停车位
-        for i = 1, ship.bay do
-            ship.parkingspace[i] = {} -- 初始化
-            ship.parkingspace[i].occupied = 0 -- 0:空闲，1:临时占用，2:作业占用
-            ship.parkingspace[i].pos = {ship.origin[1], 0, ship.containerPositions[ship.bay - i + 1][1][1][3]} -- x,y,z
-            ship.parkingspace[i].bay = ship.bay - i + 1
-        end
-
-        local lastbaypos = ship.parkingspace[1].pos -- 记录最后一个添加的位置
-
-        -- bay外停车位
-        for i = 1, rmgqc.queuelen do
-            local pos = {lastbaypos[1], 0, lastbaypos[3] - i * (ship.clength + ship.cspan)}
-            table.insert(ship.parkingspace, 1, {
-                occupied = 0,
-                pos = pos
-            }) -- 无对应bay
-        end
-
-        ship.summon = {ship.parkingspace[1].pos[1], 0, ship.parkingspace[1].pos[3]}
-        ship.exit = {ship.parkingspace[1].pos[1], 0, ship.parkingspace[#ship.parkingspace].pos[3] + 20} -- 设置离开位置
-    end
-
-    -- 返回空余位置编号
+    -- 返回空余位置编号(old)
     function ship:getIdlePosition()
         for level = 1, ship.level do
             for bay = 1, ship.bay do
@@ -103,6 +80,44 @@ function Ship(size, origin) -- size={bays,rows,levels}, originPt={x,y,z}
             for j = 1, ship.row do
                 for k = 1, ship.level do
                     ship:fillWithContainer(i, j, k)
+                end
+            end
+        end
+    end
+
+    --- 根据sum随机生成每个(ship.bay,ship.row)位置的集装箱数量
+    ---@param sum number 生成的集装箱总数
+    ---@param containerUrls table 集装箱链接(颜色)列表，可选参数
+    function ship:fillRandomContainerPositions(sum, containerUrls)
+        -- 注入集装箱颜色列表
+        if containerUrls ~= nil then
+            ship.containerUrls = containerUrls -- 修改ship的集装箱颜色列表
+        end
+
+        -- 初始化
+        local containerNum = {}
+        for i = 1, ship.bay do
+            containerNum[i] = {}
+            for j = 1, ship.row do
+                containerNum[i][j] = 0
+            end
+        end
+
+        -- 随机生成
+        for n = 1, sum do
+            local bay = math.random(ship.bay)
+            local row = math.random(ship.row)
+            containerNum[bay][row] = containerNum[bay][row] + 1
+        end
+
+        -- 填充
+        for i = 1, ship.bay do
+            for j = 1, ship.row do
+                for k = 1, ship.level do
+                    -- 如果层数小于当前(bay,row)生成的层数，则放置集装箱，否则不放置
+                    if k <= containerNum[i][j] then
+                        ship:fillWithContainer(i, j, k)
+                    end
                 end
             end
         end

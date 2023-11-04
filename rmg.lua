@@ -17,7 +17,7 @@ function RMG(cy, actionObjs)
     -- 参数设置
     rmg.type = "rmg" -- 对象种类标识(interface)
     rmg.cy = cy -- 初始化对应堆场
-    rmg.cy.rmg = rmg -- 堆场对应rmg(控制反转)
+    rmg.cy.operator = rmg -- 堆场对应rmg(控制反转)
     rmg.level = {}
     for i = 1, #cy.levels do
         rmg.level[i] = cy.levels[i] + cy.cheight
