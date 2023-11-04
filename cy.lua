@@ -12,7 +12,8 @@ function CY(p1, p2, level)
         containerUrls = {'/res/ct/container.glb', '/res/ct/container_brown.glb', '/res/ct/container_blue.glb',
                          '/res/ct/container_yellow.glb'},
         rotdeg = 0, -- 旋转角度
-        bindingRoad = nil -- 绑定的道路
+        bindingRoad = nil, -- 绑定的道路
+        positionLevels = nil -- cy可用位置列表
     }
 
     local pdx = (p2[1] - p1[1]) / math.abs(p1[1] - p2[1]) -- x方向向量

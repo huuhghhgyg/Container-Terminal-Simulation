@@ -48,12 +48,13 @@ local generateConfig = {
 -- todo: 获取的集装箱列表混乱，导致存取集装箱时位置有误，阻止仿真运行
 -- 生成具有任务的agv(cy)
 function generateagv()
-    -- 获取位置可用箱数信息
-    if cy.availablePosLevels == nil then
-        cy.availablePosLevels = {} -- 初始化集装箱可用位置列表
+    -- 获取位置可用箱数信息，如果没有则注入
+    -- 只有generateagv函数中能存取集装箱，因此只有此处设置positionLevels
+    if cy.positionLevels == nil then
+        cy.positionLevels = {} -- 初始化集装箱可用位置列表
 
         for i = 1, cy.col do
-            cy.availablePosLevels[i] = {}
+            cy.positionLevels[i] = {}
             for j = 1, cy.row do
                 -- 计算此位置的堆叠层数
                 local levelCount = 0
@@ -62,7 +63,7 @@ function generateagv()
                         levelCount = levelCount + 1
                     end
                 end
-                cy.availablePosLevels[i][j] = levelCount
+                cy.positionLevels[i][j] = levelCount
             end
         end
     end
@@ -75,7 +76,7 @@ function generateagv()
     local availablePos = {} -- 可用位置
     for i = 1, cy.col do
         for j = 1, cy.row do
-            local containerLevel = cy.availablePosLevels[i][j] -- 获取堆叠层数
+            local containerLevel = cy.positionLevels[i][j] -- 获取堆叠层数
             if agvTaskType == 'unload' then
                 -- agv卸货，找到所有可用的存货位置(availableNum < cy.level)
                 if containerLevel < cy.level then
@@ -93,9 +94,10 @@ function generateagv()
     local targetPos = availablePos[math.random(#availablePos)] -- 抽取可用位置
     -- 记录抽取位置的影响
     local trow, tcol = targetPos[1], targetPos[2]
-    cy.availablePosLevels[trow][tcol] = cy.availablePosLevels[trow][tcol] + (agvTaskType == 'unload' and 1 or -1)
+    cy.positionLevels[trow][tcol] = cy.positionLevels[trow][tcol] + (agvTaskType == 'unload' and 1 or -1)
 
-    local agv = AGV() -- 生成agv
+    -- 生成agv
+    local agv = AGV()
     agv.taskType = agvTaskType -- 设置agv任务类型(unload/load)
     if agv.taskType == 'unload' then -- agv卸货，生成集装箱
         agv.container = scene.addobj(containerUrls[1]) -- 生成agv携带的集装箱
@@ -103,6 +105,8 @@ function generateagv()
     agv:move2(10, 0, -10)
     agv.targetContainerPos = targetPos -- 设置agv目标位置{bay,row,col}
     agv:bindCrane(cy, targetPos) -- 绑定agv和堆场
+
+    -- agv添加任务
     -- agv移动到目标位置(以后由controller调度)
     -- print('[agv] targetPos=', targetPos[1], targetPos[2], targetPos[3]) -- debug
     agv:addtask({'moveon', {
@@ -132,6 +136,7 @@ function generateagv()
     end
     generateConfig.summonNum = generateConfig.summonNum - 1 -- agv剩余生成次数减1
 
+    -- 添加事件
     print("[agv", agv.roadAgvId or agv.id, "] summon at: ", coroutine.qtime())
     local tArriveSpan = math.random(generateConfig.averageSummonSpan)
     coroutine.queue(tArriveSpan, generateagv)
