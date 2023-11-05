@@ -3,6 +3,7 @@ function Ship(size, origin) -- size={bays,rows,levels}, originPt={x,y,z}
     local ship = scene.addobj('/res/ct/ship.glb')
 
     -- 参数
+    ship.type = 'ship'
     ship.containerConst = {6.06, 2.44, 2.42} -- 集装箱长宽高常数
     ship.bay = size[1] or 8
     ship.row = size[2] or 9
@@ -42,11 +43,6 @@ function Ship(size, origin) -- size={bays,rows,levels}, originPt={x,y,z}
                     ship.origin[2] + 11.29 + (level - 1) * 2.42, ship.origin[3] + ship.bayPosition[bay]}
             end
         end
-    end
-
-    -- 将船绑定到场桥
-    function ship:bindRMGQC(rmgqc)
-        
     end
 
     -- 返回空余位置编号(old)

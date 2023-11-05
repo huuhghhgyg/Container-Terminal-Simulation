@@ -264,7 +264,7 @@ function AGV()
             local fromRoad = param[2]
             local toRoad = param[3]
 
-            -- 判断与前面的agv是否保持安全距离
+            -- 判断与前面的agv是否保持安全距离(不需要判断toRoad因为maxstep已经判断过了)
             if #toRoad.agvs > 0 and agv:InSafetyDistance(toRoad.agvs[#toRoad.agvs].agv) then
                 agv.state = "wait" -- 设置agv状态为等待
                 return -- 本轮等待

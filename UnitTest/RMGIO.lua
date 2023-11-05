@@ -28,7 +28,7 @@ local node2 = Node({0, 0, 80}, NodeList)
 -- 创建道路
 local rd1 = node1:createRoad(node2, RoadList)
 
--- 创建堆场和rmg
+-- 创建船和rmgqc
 local cy = CY({30, 50}, {10, 0}, 3)
 cy:bindRoad(rd1)
 cy:showBindingPoint()
@@ -125,7 +125,7 @@ function generateagv()
         distance = cy.parkingSpaces[targetPos[1]].relativeDist,
         stay = false
     }})
-    agv:addtask({'onnode', {node1, rd1, nil}})
+    agv:addtask({'onnode', {node2, rd1, nil}})
 
     rmg:registerAgv(agv)
 

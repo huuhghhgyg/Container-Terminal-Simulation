@@ -4,8 +4,6 @@ scene.setenv({
 })
 
 -- 引用组件
-require('ship')
-require('rmg')
 require('agv')
 require('node')
 require('road')

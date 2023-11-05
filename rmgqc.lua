@@ -6,6 +6,7 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
     rmgqc.spreader = scene.addobj('/res/ct/spreader.glb')
 
     -- 参数
+    rmgqc.type = 'rmgqc'
     rmgqc.origin = origin -- rmgqc初始位置
     rmgqc.pos = 0
     rmgqc.level = {}
@@ -83,7 +84,7 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
         if bay == nil then -- 如果没有指定位置，则为抓取agv上的集装箱
             -- 判断agv上的集装箱是否为空
             if rmgqc.stash == nil then
-                print('[rmg] 错误，抓取agv上的集装箱为空')
+                print('[rmgqc] 错误，抓取agv上的集装箱为空')
                 -- debug
                 os.exit()
             end
@@ -96,7 +97,7 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
 
         -- 判断抓取的集装箱是否为空
         if rmgqc.ship.containers[bay][row][level] == nil then
-            print('[rmg] 错误，抓取堆场中的集装箱为空')
+            print('[rmgqc] 错误，抓取堆场中的集装箱为空')
             -- debug
             os.exit()
         end
@@ -203,7 +204,7 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
             end
         elseif taskname == "waitagv" then -- {"waitagv", nil}
             if rmgqc.agvqueue[1] == nil then
-                print("rmgqc: rmgqc.agvqueue[1]=nil")
+                print("[rmgqc] rmgqc.agvqueue[1]=nil")
             end
             if rmgqc.agvqueue[1] ~= nil and rmgqc.agvqueue[1].arrived then -- agv到达
                 rmgqc.currentAgv = rmgqc.agvqueue[1] -- 设置当前agv
@@ -413,7 +414,7 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
             })
             pointLabel:setpos(x, y, z)
 
-            print('rmgqc debug: parking space', k, ' ,iox = ', rmgqc.parkingSpaces[k].iox, ' ,Position=', x, y, z)
+            -- print('rmgqc debug: parking space', k, ' ,iox = ', rmgqc.parkingSpaces[k].iox, ' ,Position=', x, y, z) -- debug
         end
     end
 

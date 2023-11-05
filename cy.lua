@@ -1,5 +1,6 @@
 function CY(p1, p2, level)
     local cy = {
+        type = 'cy',
         clength = 6.06,
         cwidth = 2.44,
         cheight = 2.42,
@@ -25,6 +26,7 @@ function CY(p1, p2, level)
     cy.width, cy.length = math.abs(p1[1] - p2[1]), math.abs(p1[2] - p2[2])
     cy.row = math.floor((cy.width + cy.cspan) / (cy.cwidth + cy.cspan)) -- 行数
     cy.col = math.floor((cy.length + cy.cspan) / (cy.clength + cy.cspan)) -- 列数
+    cy.bay = cy.col -- 映射bay为col
     cy.marginx = (cy.width + cy.cspan - (cy.cwidth + cy.cspan) * cy.row) / 2 -- 横向外边距
     cy.rotradian = cy.rotdeg * math.pi / 180 -- 旋转弧度
 
