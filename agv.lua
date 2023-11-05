@@ -185,11 +185,18 @@ function AGV()
             -- 判断前方是否被堵塞
             local agvAhead = road:getAgvAhead(agv.roadAgvId)
             if agvAhead ~= nil then
+                -- 不是最后一个agv
                 local ax, _, az = agvAhead:getpos()
                 local x, _, z = agv:getpos()
                 local d = math.sqrt((ax - x) ^ 2 + (az - z) ^ 2)
 
                 if d < agv.safetyDistance then -- 前方被堵塞
+                    return -- 直接返回
+                end
+            else
+                -- 是最后一个agv
+                if (param.targetDistance == nil or param.targetDistance == road.length) and road.toNode ~= nil and
+                    road.toNode.agv ~= nil and agv:InSafetyDistance(road.toNode.agv) then -- agv目标是道路尽头，且前方节点被堵塞
                     return -- 直接返回
                 end
             end
@@ -212,9 +219,10 @@ function AGV()
                     end
 
                     -- 节点没有被占用且agv到达了道路尽头，才能设置节点占用
-                    if param.targetDistance==nil or road.targetDistance == road.length then
-                    -- if road.targetDistance == road.length then
+                    if param.targetDistance == nil or road.targetDistance == road.length then
+                        -- if road.targetDistance == road.length then
                         road.toNode.occupied = true -- 设置节点占用
+                        road.toNode.agv = agv -- 设置节点agv信息
                     end
                 end
 
@@ -248,11 +256,21 @@ function AGV()
                 -- 满足退出条件，删除本任务
                 agv.state = nil -- 设置agv状态为空(正常)
                 param[1].occupied = false -- 解除节点占用
+                param[1].agv = nil -- 清空节点agv信息
                 agv:deltask() -- 删除任务
                 return true -- 本轮任务完成
             end
 
             local fromRoad = param[2]
+            local toRoad = param[3]
+
+            -- 判断与前面的agv是否保持安全距离
+            if #toRoad.agvs > 0 and agv:InSafetyDistance(toRoad.agvs[#toRoad.agvs].agv) then
+                agv.state = "wait" -- 设置agv状态为等待
+                return -- 本轮等待
+            end
+            agv.state = nil -- 设置agv状态为空(正常)
+
             if param.angularSpeed == nil then -- 判断是否转弯
                 -- 直线
                 -- 计算步进
@@ -262,7 +280,6 @@ function AGV()
                 if param.arrived or math.abs(ds + param.walked) >= param[1].radius * 2 then
                     param.arrived = true
                     if tryExitNode() then
-                        local toRoad = param[3]
                         -- 显示轨迹
                         scene.addobj('polyline', {
                             vertices = {fromRoad.destPt[1], fromRoad.destPt[2], fromRoad.destPt[3], toRoad.originPt[1],
@@ -403,9 +420,9 @@ function AGV()
             end
 
             -- 判断agv状态
-            if agv.state == "wait" then -- agv状态为等待
-                return dt -- 不做计算
-            end
+            -- if agv.state == "wait" then -- agv状态为等待
+            --     return dt -- 不做计算
+            -- end
 
             local road = agv.road -- 获取道路
             dt = math.min(dt, road:maxstep(agv.roadAgvId)) -- 使用road中的方法计算最大步进
@@ -420,6 +437,7 @@ function AGV()
                 if param[3] == nil then
                     -- 在本节点终止
                     node.occupied = false -- 解除节点占用
+                    node.agv = nil -- 清空节点agv信息
 
                     agv:deltask()
                     return agv:maxstep() -- 重新计算
