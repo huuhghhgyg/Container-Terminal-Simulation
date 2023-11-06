@@ -22,7 +22,6 @@ function AGV()
         agv.datamodel = targetCY -- 目标堆场(数据模型)
         agv.operator = targetCY.operator -- 目标场桥(操作器)
         agv.targetContainerPos = targetContainer -- 目标集装箱{bay, col, level}
-        agv.targetbay = targetContainer[1] -- 目标bay
         agv.arrived = false -- 是否到达目标
     end
 
@@ -529,6 +528,17 @@ function AGV()
             end
 
             dt = math.min(dt, agv.state == nil and timeRemain or dt) -- 计算最大步进，跳过agv等待状态的情况
+        elseif taskname == "register" then -- {"register", operator}
+            if param == nil then
+                print('[agv] register错误，没有operator参数')
+                os.exit()
+            end
+            print('[agv] executing register')
+
+            param:registerAgv(agv)
+
+            agv:deltask() -- 删除任务
+            return agv:maxstep() -- 重新计算
         end
         return dt
     end
