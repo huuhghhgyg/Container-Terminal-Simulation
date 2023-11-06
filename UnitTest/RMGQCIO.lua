@@ -55,7 +55,6 @@ rmgqc:showBindingPoint()
 -- ship填充集装箱
 ship:fillRandomContainerPositions(30, {'/res/ct/container_blue.glb'})
 
-
 scene.render()
 
 local containerUrls = {'/res/ct/container.glb', '/res/ct/container_brown.glb', '/res/ct/container_blue.glb',
@@ -125,36 +124,52 @@ function generateagv()
     agv:move2(10, 0, -10)
     agv.targetContainerPos = targetPos -- 设置agv目标位置{bay,row,col}
     agv:bindCrane(ship, targetPos) -- 绑定agv和船
+    table.insert(ActionObjs, agv)
 
     -- agv添加任务
     -- agv移动到目标位置(以后由controller调度)
-    agv:addtask({'moveon', {road=rd1}})
-    agv:addtask({'onnode', {node2, rd1, rd5}})
-    agv:addtask({'moveon',{road = rd5}})
-    agv:addtask({'onnode', {node5, rd5, rd6}})
-    agv:addtask({'moveon',{road = rd6}})
-    agv:addtask({'onnode', {node6, rd6, rd7}})
-    agv:addtask({'moveon',{road = rd7, targetDistance = rmgqc.parkingSpaces[targetPos[1]].relativeDist, stay = true}})
+    agv:addtask('moveon', {
+        road = rd1
+    })
+    agv:addtask('onnode', {node2, rd1, rd5})
+    agv:addtask('moveon', {
+        road = rd5
+    })
+    agv:addtask('onnode', {node5, rd5, rd6})
+    agv:addtask('moveon', {
+        road = rd6
+    })
+    agv:addtask('onnode', {node6, rd6, rd7})
+    agv:addtask('moveon', {
+        road = rd7,
+        targetDistance = rmgqc.parkingSpaces[targetPos[1]].relativeDist,
+        stay = true
+    })
     if agv.taskType == 'unload' then
-        agv:addtask({'detach', nil})
-        agv:addtask({'waitoperator', {agv.taskType}})
+        agv:addtask('detach', nil)
+        agv:addtask('waitoperator', {agv.taskType})
     else
-        agv:addtask({'waitoperator', {agv.taskType}})
-        agv:addtask({'attach', nil})
+        agv:addtask('waitoperator', {agv.taskType})
+        agv:addtask('attach', nil)
     end
-    agv:addtask({'moveon', {
+    agv:addtask('moveon', {
         road = rd7,
         distance = rmgqc.parkingSpaces[targetPos[1]].relativeDist,
         stay = false
-    }})
-    agv:addtask({'onnode', {node7, rd7, rd8}})
-    agv:addtask({'moveon',{road = rd8}})
-    agv:addtask({'onnode', {node8, rd8, rd10}})
-    agv:addtask({'moveon',{road = rd10}})
-    agv:addtask({'onnode', {node9, rd10, nil}})
+    })
+    agv:addtask('onnode', {node7, rd7, rd8})
+    agv:addtask('moveon', {
+        road = rd8
+    })
+    agv:addtask('onnode', {node8, rd8, rd10})
+    agv:addtask('moveon', {
+        road = rd10
+    })
+    agv:addtask('onnode', {node9, rd10, nil})
 
     rmgqc:registerAgv(agv)
-    print('[main] agv target=',agv.targetContainerPos[1],agv.targetContainerPos[2],agv.targetContainerPos[3], ', agv taskType=', agv.taskType)
+    print('[main] agv target=', agv.targetContainerPos[1], agv.targetContainerPos[2], agv.targetContainerPos[3],
+        ', agv taskType=', agv.taskType)
 
     -- 程序控制
     if not watchdog.runcommand or generateConfig.summonNum == 0 then
