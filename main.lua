@@ -77,9 +77,8 @@ local generateConfig = {
 }
 
 function agv2rmgTask(agv, targetPos)
-    agv:addtask({'register', rmg})
-    -- agv移动到目标位置(以后由controller调度)
     agv:addtask('register', rmg)
+    -- agv移动到目标位置(以后由controller调度)
     agv:addtask('moveon', {
         road = rd1
     })
@@ -121,9 +120,8 @@ function agv2rmgTask(agv, targetPos)
 end
 
 function agv2rmgqcTask(agv, targetPos)
-    agv:addtask({'register', rmgqc})
-    -- agv移动到目标位置(以后由controller调度)
     agv:addtask('register', rmgqc)
+    -- agv移动到目标位置(以后由controller调度)
     agv:addtask('moveon', {
         road = rd1
     })

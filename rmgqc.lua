@@ -269,9 +269,13 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
                 param.arrivedXY = {param[1] == param.initalXY[1], param[2] == param.initalXY[2]}
 
                 -- 计算各方向分速度
-                param.speed = {param.vectorXY[1] / math.abs(param.vectorXY[1]) * rmgqc.speed[1],
-                               param.vectorXY[2] / math.abs(param.vectorXY[2]) * rmgqc.speed[2],
-                               rmgqc.zspeed * ((param[3] - rmgqc.pos) / math.abs(param[3] - rmgqc.pos))} -- speed[3]:速度乘方向
+                param.speed = {param.vectorXY[1] == 0 and 0 or param.vectorXY[1] / math.abs(param.vectorXY[1]) *
+                    rmgqc.speed[1],
+                               param.vectorXY[2] == 0 and 0 or param.vectorXY[2] / math.abs(param.vectorXY[2]) *
+                    rmgqc.speed[2],
+                               param[3] == rmgqc.pos and 0 or rmgqc.zspeed *
+                    ((param[3] - rmgqc.pos) / math.abs(param[3] - rmgqc.pos))} -- speed[3]:速度乘方向
+                print('[rmgqc] speed:', param.speed[1], param.speed[2], param.speed[3])
             end
 
             if not param.arrivedZ then -- bay方向没有到达目标

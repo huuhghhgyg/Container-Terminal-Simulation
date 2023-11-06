@@ -128,6 +128,7 @@ function generateagv()
     agv:addtask('onnode', {node2, rd1, nil})
 
     rmg:registerAgv(agv)
+    table.insert(ActionObjs, agv)
 
     -- 程序控制
     if not watchdog.runcommand or generateConfig.summonNum == 0 then

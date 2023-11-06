@@ -124,6 +124,7 @@ function generateagv()
     agv:move2(10, 0, -10)
     agv.targetContainerPos = targetPos -- 设置agv目标位置{bay,row,col}
     agv:bindCrane(ship, targetPos) -- 绑定agv和船
+    table.insert(ActionObjs, agv)
 
     -- agv添加任务
     -- agv移动到目标位置(以后由controller调度)
