@@ -28,7 +28,7 @@ rmgqc:bindShip(ship)
 
 -- 添加任务
 local target1 = {3, 4, 2}
-rmgqc:addtask({"move2", rmgqc:getcontainercoord(target1[1], -1, rmgqc.toplevel)}) -- 初始化位置
+rmgqc:addtask("move2", rmgqc:getcontainercoord(target1[1], -1, rmgqc.toplevel)) -- 初始化位置
 
 -- 取下1
 rmgqc:move2TargetPos(table.unpack(target1))
