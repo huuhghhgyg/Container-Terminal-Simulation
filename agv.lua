@@ -336,8 +336,9 @@ function AGV()
     end
 
     -- 添加任务
-    function agv:addtask(obj)
-        table.insert(agv.tasksequence, obj)
+    function agv:addtask(name, param)
+        local task = {name, param}
+        table.insert(agv.tasksequence, task)
     end
 
     -- 删除任务

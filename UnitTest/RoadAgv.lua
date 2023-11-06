@@ -76,7 +76,7 @@ local agv2 = AGV()
 local agv2Rd1Id = rd1:registerAgv(agv2, {
     distance = 5
 })
-agv2:addtask({"moveon"})
+agv2:addtask("moveon")
 table.insert(actionobj, agv2)
 print('agv2 rd1 id:', agv2Rd1Id)
 print('agv2 rd1 distance:', rd1.agvs[agv2Rd1Id].distance)
@@ -89,14 +89,14 @@ local agv1Rd1Id = rd1:registerAgv(agv1)
 print('agv1 rd1 id:', agv1Rd1Id)
 print('agv1 rd1 agv ahead:', rd1:getAgvAhead(agv1Rd1Id))
 
-agv1:addtask({"move2", {0, 10}})
-agv1:addtask({"moveon"})
+agv1:addtask("move2", {0, 10})
+agv1:addtask("moveon")
 table.insert(actionobj, agv1)
 
 -- 运行时（根据任务）注册道路
 local agv3 = AGV()
-agv3:addtask({"move2", {0, 10}})
-agv3:addtask({"moveon",{road=rd1,distance=5}})
+agv3:addtask("move2", {0, 10})
+agv3:addtask("moveon",{road=rd1,distance=5})
 table.insert(actionobj, agv3)
 
 update()

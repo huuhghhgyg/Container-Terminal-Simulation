@@ -78,155 +78,159 @@ local generateConfig = {
 
 function agv2rmgTask(agv, targetPos)
     -- agv移动到目标位置(以后由controller调度)
-    agv:addtask({'moveon', {
+    agv:addtask('register', rmg)
+    agv:addtask('moveon', {
         road = rd1
-    }})
-    agv:addtask({'onnode', {node2, rd1, rd2}})
-    agv:addtask({'moveon', {
+    })
+    agv:addtask('onnode', {node2, rd1, rd2})
+    agv:addtask('moveon', {
         road = rd2
-    }})
-    agv:addtask({'onnode', {node3, rd2, rd3}})
-    agv:addtask({'moveon', {
+    })
+    agv:addtask('onnode', {node3, rd2, rd3})
+    agv:addtask('moveon', {
         road = rd3,
         targetDistance = rmg.cy.parkingSpaces[targetPos[1]].relativeDist,
         stay = true
-    }})
+    })
     if agv.taskType == 'unload' then
-        agv:addtask({'detach', nil})
-        agv:addtask({'waitoperator', {agv.taskType}})
+        agv:addtask('detach', nil)
+        agv:addtask('waitoperator', {agv.taskType})
     else
-        agv:addtask({'waitoperator', {agv.taskType}})
-        agv:addtask({'attach', nil})
+        agv:addtask('waitoperator', {agv.taskType})
+        agv:addtask('attach', nil)
     end
-    agv:addtask({'moveon', {
+    agv:addtask('moveon', {
         road = rd3,
         distance = rmg.cy.parkingSpaces[targetPos[1]].relativeDist,
         stay = false
-    }})
-    agv:addtask({'onnode', {node4, rd3, rd4}})
-    agv:addtask({'moveon', {
+    })
+    agv:addtask('onnode', {node4, rd3, rd4})
+    agv:addtask('moveon', {
         road = rd4
-    }})
-    agv:addtask({'onnode', {node5, rd4, rd9}})
-    agv:addtask({'moveon', {
+    })
+    agv:addtask('onnode', {node5, rd4, rd9})
+    agv:addtask('moveon', {
         road = rd9
-    }})
-    agv:addtask({'onnode', {node8, rd9, rd10}})
-    agv:addtask({'moveon', {
+    })
+    agv:addtask('onnode', {node8, rd9, rd10})
+    agv:addtask('moveon', {
         road = rd10
-    }})
-    agv:addtask({'onnode', {node9, rd10, nil}})
+    })
+    agv:addtask('onnode', {node9, rd10, nil})
 
-    rmg:registerAgv(agv)
+    -- rmg:registerAgv(agv)
 end
 
 function agv2rmgqcTask(agv, targetPos)
     -- agv移动到目标位置(以后由controller调度)
-    agv:addtask({'moveon', {
+    agv:addtask('register', rmgqc)
+    agv:addtask('moveon', {
         road = rd1
-    }})
-    agv:addtask({'onnode', {node2, rd1, rd5}})
-    agv:addtask({'moveon', {
+    })
+    agv:addtask('onnode', {node2, rd1, rd5})
+    agv:addtask('moveon', {
         road = rd5
-    }})
-    agv:addtask({'onnode', {node5, rd5, rd6}})
-    agv:addtask({'moveon', {
+    })
+    agv:addtask('onnode', {node5, rd5, rd6})
+    agv:addtask('moveon', {
         road = rd6
-    }})
-    agv:addtask({'onnode', {node6, rd6, rd7}})
-    agv:addtask({'moveon', {
+    })
+    agv:addtask('onnode', {node6, rd6, rd7})
+    agv:addtask('moveon', {
         road = rd7,
         targetDistance = rmgqc.parkingSpaces[targetPos[1]].relativeDist,
         stay = true
-    }})
+    })
     if agv.taskType == 'unload' then
-        agv:addtask({'detach', nil})
-        agv:addtask({'waitoperator', {agv.taskType}})
+        agv:addtask('detach', nil)
+        agv:addtask('waitoperator', {agv.taskType})
     else
-        agv:addtask({'waitoperator', {agv.taskType}})
-        agv:addtask({'attach', nil})
+        agv:addtask('waitoperator', {agv.taskType})
+        agv:addtask('attach', nil)
     end
-    agv:addtask({'moveon', {
+    agv:addtask('moveon', {
         road = rd7,
         distance = rmgqc.parkingSpaces[targetPos[1]].relativeDist,
         stay = false
-    }})
-    agv:addtask({'onnode', {node7, rd7, rd8}})
-    agv:addtask({'moveon', {
+    })
+    agv:addtask('onnode', {node7, rd7, rd8})
+    agv:addtask('moveon', {
         road = rd8
-    }})
-    agv:addtask({'onnode', {node8, rd8, rd10}})
-    agv:addtask({'moveon', {
+    })
+    agv:addtask('onnode', {node8, rd8, rd10})
+    agv:addtask('moveon', {
         road = rd10
-    }})
-    agv:addtask({'onnode', {node9, rd10, nil}})
+    })
+    agv:addtask('onnode', {node9, rd10, nil})
 
-    rmgqc:registerAgv(agv)
+    -- rmgqc:registerAgv(agv)
 end
 
 function agv2rmg2rmgqcTask(agv, targetPos)
     -- agv移动到目标位置(以后由controller调度)
-    agv:addtask({'moveon', {
+    agv:addtask('register', rmg)
+    agv:addtask('moveon', {
         road = rd1
-    }})
-    agv:addtask({'onnode', {node2, rd1, rd2}})
-    agv:addtask({'moveon', {
+    })
+    agv:addtask('onnode', {node2, rd1, rd2})
+    agv:addtask('moveon', {
         road = rd2
-    }})
-    agv:addtask({'onnode', {node3, rd2, rd3}})
-    agv:addtask({'moveon', {
+    })
+    agv:addtask('onnode', {node3, rd2, rd3})
+    agv:addtask('moveon', {
         road = rd3,
         targetDistance = rmg.cy.parkingSpaces[targetPos[1]].relativeDist,
         stay = true
-    }})
+    })
     if agv.taskType == 'unload' then
-        agv:addtask({'detach', nil})
-        agv:addtask({'waitoperator', {agv.taskType}})
+        agv:addtask('detach', nil)
+        agv:addtask('waitoperator', {agv.taskType})
     else
-        agv:addtask({'waitoperator', {agv.taskType}})
-        agv:addtask({'attach', nil})
+        agv:addtask('waitoperator', {agv.taskType})
+        agv:addtask('attach', nil)
     end
-    agv:addtask({'moveon', {
+    agv:addtask('register', rmgqc)
+    agv:addtask('moveon', {
         road = rd3,
         distance = rmg.cy.parkingSpaces[targetPos[1]].relativeDist,
         stay = false
-    }})
-    agv:addtask({'onnode', {node4, rd3, rd4}})
-    agv:addtask({'moveon', {
+    })
+    agv:addtask('onnode', {node4, rd3, rd4})
+    agv:addtask('moveon', {
         road = rd4
-    }})
-    agv:addtask({'onnode', {node5, rd4, rd6}})
-    agv:addtask({'moveon', {
+    })
+    agv:addtask('onnode', {node5, rd4, rd6})
+    agv:addtask('moveon', {
         road = rd6
-    }})
-    agv:addtask({'onnode', {node6, rd6, rd7}})
-    agv:addtask({'moveon', {
+    })
+    agv:addtask('onnode', {node6, rd6, rd7})
+    agv:addtask('moveon', {
         road = rd7,
         targetDistance = rmgqc.parkingSpaces[targetPos[1]].relativeDist,
         stay = true
-    }})
+    })
     if agv.taskType == 'unload' then
-        agv:addtask({'detach', nil})
-        agv:addtask({'waitoperator', {agv.taskType}})
+        agv:addtask('detach', nil)
+        agv:addtask('waitoperator', {agv.taskType})
     else
-        agv:addtask({'waitoperator', {agv.taskType}})
-        agv:addtask({'attach', nil})
+        agv:addtask('waitoperator', {agv.taskType})
+        agv:addtask('attach', nil)
     end
-    agv:addtask({'moveon', {
+    agv:addtask('moveon', {
         road = rd7,
         distance = rmgqc.parkingSpaces[targetPos[1]].relativeDist,
         stay = false
-    }})
-    agv:addtask({'onnode', {node7, rd7, rd8}})
-    agv:addtask({'moveon', {
+    })
+    agv:addtask('onnode', {node7, rd7, rd8})
+    agv:addtask('moveon', {
         road = rd8
-    }})
-    agv:addtask({'onnode', {node8, rd8, rd10}})
-    agv:addtask({'moveon', {
+    })
+    agv:addtask('onnode', {node8, rd8, rd10})
+    agv:addtask('moveon', {
         road = rd10
-    }})
-    agv:addtask({'onnode', {node9, rd10, nil}})
-    rmg:registerAgv(agv)
+    })
+    agv:addtask('onnode', {node9, rd10, nil})
+    -- rmg:registerAgv(agv)
 end
 
 -- 生成具有任务的agv(ship)

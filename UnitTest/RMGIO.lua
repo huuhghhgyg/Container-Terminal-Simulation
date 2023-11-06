@@ -108,24 +108,24 @@ function generateagv()
     -- agv添加任务
     -- agv移动到目标位置(以后由controller调度)
     -- print('[agv] targetPos=', targetPos[1], targetPos[2], targetPos[3]) -- debug
-    agv:addtask({'moveon', {
+    agv:addtask('moveon', {
         road = rd1,
         targetDistance = cy.parkingSpaces[targetPos[1]].relativeDist,
         stay = true
-    }})
+    })
     if agv.taskType == 'unload' then
-        agv:addtask({'detach', nil})
-        agv:addtask({'waitoperator', {agv.taskType}})
+        agv:addtask('detach', nil)
+        agv:addtask('waitoperator', {agv.taskType})
     else
-        agv:addtask({'waitoperator', {agv.taskType}})
-        agv:addtask({'attach', nil})
+        agv:addtask('waitoperator', {agv.taskType})
+        agv:addtask('attach', nil)
     end
-    agv:addtask({'moveon', {
+    agv:addtask('moveon', {
         road = rd1,
         distance = cy.parkingSpaces[targetPos[1]].relativeDist,
         stay = false
-    }})
-    agv:addtask({'onnode', {node2, rd1, nil}})
+    })
+    agv:addtask('onnode', {node2, rd1, nil})
 
     rmg:registerAgv(agv)
 
