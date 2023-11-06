@@ -177,7 +177,7 @@ function AGV()
         elseif taskname == "onboard" then
             param[1]:registerAgv(agv)
             agv:deltask()
-        elseif taskname == "moveon" then -- {"moveon",{road=,distance=,targetDistance=,stay=}} 沿着当前道路行驶
+        elseif taskname == "moveon" then -- {"moveon",{road=,distance=,targetDistance=,stay=}} 沿着当前道路行驶。注意事项：param可能为nil
             -- 获取道路
             local road = agv.road
             local roadAgvItem = road.agvs[agv.roadAgvId - road.agvLeaveNum]
@@ -195,7 +195,7 @@ function AGV()
                 end
             else
                 -- 是最后一个agv
-                if (param.targetDistance == nil or param.targetDistance == road.length) and road.toNode ~= nil and
+                if (param == nil or param.targetDistance == nil or param.targetDistance == road.length) and road.toNode ~= nil and
                     road.toNode.agv ~= nil and agv:InSafetyDistance(road.toNode.agv) then -- agv目标是道路尽头，且前方节点被堵塞
                     return -- 直接返回
                 end
@@ -404,7 +404,7 @@ function AGV()
         elseif taskname == "moveon" then -- {"moveon",{road=,distance=,targetDistance=,stay=}} 沿着当前道路行驶
             -- 未注册道路
             if agv.road == nil or agv.state == 'stay' then
-                if param.road == nil then -- 未注册道路
+                if param.road == nil then -- agv未注册道路且没有输入道路参数
                     print("Exception: agv未注册道路")
                     agv:deltask()
                     return agv:maxstep() -- 重新计算
