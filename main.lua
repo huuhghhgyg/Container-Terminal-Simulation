@@ -77,6 +77,7 @@ local generateConfig = {
 }
 
 function agv2rmgTask(agv, targetPos)
+    agv:addtask({'register', rmg})
     -- agv移动到目标位置(以后由controller调度)
     agv:addtask({'moveon', {
         road = rd1
@@ -116,11 +117,10 @@ function agv2rmgTask(agv, targetPos)
         road = rd10
     }})
     agv:addtask({'onnode', {node9, rd10, nil}})
-
-    rmg:registerAgv(agv)
 end
 
 function agv2rmgqcTask(agv, targetPos)
+    agv:addtask({'register', rmgqc})
     -- agv移动到目标位置(以后由controller调度)
     agv:addtask({'moveon', {
         road = rd1
@@ -160,12 +160,11 @@ function agv2rmgqcTask(agv, targetPos)
         road = rd10
     }})
     agv:addtask({'onnode', {node9, rd10, nil}})
-
-    rmgqc:registerAgv(agv)
 end
 
 function agv2rmg2rmgqcTask(agv, targetPos)
-    -- agv移动到目标位置(以后由controller调度)
+    agv:addtask({'register', rmg})
+    -- 先到rmg
     agv:addtask({'moveon', {
         road = rd1
     }})
@@ -186,6 +185,9 @@ function agv2rmg2rmgqcTask(agv, targetPos)
         agv:addtask({'waitoperator', {agv.taskType}})
         agv:addtask({'attach', nil})
     end
+
+    -- 再到rmgqc
+    agv:addtask({'register', rmgqc})
     agv:addtask({'moveon', {
         road = rd3,
         distance = rmg.cy.parkingSpaces[targetPos[1]].relativeDist,
@@ -226,7 +228,6 @@ function agv2rmg2rmgqcTask(agv, targetPos)
         road = rd10
     }})
     agv:addtask({'onnode', {node9, rd10, nil}})
-    rmg:registerAgv(agv)
 end
 
 -- 生成具有任务的agv(ship)
@@ -303,6 +304,8 @@ function generateagv()
         print('[main] error: unknown dataModel type', dataModel.type, '. stopped.')
         os.exit()
     end
+    table.insert(ActionObjs, agv)
+    print('[main] agv', agv.id, 'added to ActionObjs, #ActionObjs=', #ActionObjs)
 
     print('[main] agv target=', agv.targetContainerPos[1], agv.targetContainerPos[2], agv.targetContainerPos[3],
         ', agv taskType=', agv.taskType)

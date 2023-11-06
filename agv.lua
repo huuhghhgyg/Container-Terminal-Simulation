@@ -173,9 +173,6 @@ function AGV()
                     return
                 end
             end
-        elseif taskname == "onboard" then
-            param[1]:registerAgv(agv)
-            agv:deltask()
         elseif taskname == "moveon" then -- {"moveon",{road=,distance=,targetDistance=,stay=}} 沿着当前道路行驶。注意事项：param可能为nil
             -- 获取道路
             local road = agv.road
@@ -363,6 +360,12 @@ function AGV()
         local taskname = agv.tasksequence[1][1] -- 任务名称
         local param = agv.tasksequence[1][2] -- 任务参数
 
+        -- -- debug
+        -- if agv.lastmaxstep ~= taskname then
+        --     print('[agv', agv.id, '] maxstep', taskname)
+        --     agv.lastmaxstep = taskname
+        -- end
+
         -- 判断子任务序列
         if taskname == "queue" then -- {"queue", subtask={...}}
             if #param.subtask == 0 then -- 子任务序列为空，删除queue任务
@@ -533,12 +536,11 @@ function AGV()
                 print('[agv] register错误，没有operator参数')
                 os.exit()
             end
-            print('[agv] executing register')
 
             param:registerAgv(agv)
 
             agv:deltask() -- 删除任务
-            return agv:maxstep() -- 重新计算
+            return math.min(agv:maxstep(), param:maxstep()) -- 重新计算
         end
         return dt
     end
