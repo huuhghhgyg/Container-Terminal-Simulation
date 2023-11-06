@@ -22,7 +22,6 @@ function AGV()
         agv.datamodel = targetCY -- 目标堆场(数据模型)
         agv.operator = targetCY.operator -- 目标场桥(操作器)
         agv.targetContainerPos = targetContainer -- 目标集装箱{bay, col, level}
-        agv.targetbay = targetContainer[1] -- 目标bay
         agv.arrived = false -- 是否到达目标
     end
 
@@ -174,9 +173,6 @@ function AGV()
                     return
                 end
             end
-        elseif taskname == "onboard" then
-            param[1]:registerAgv(agv)
-            agv:deltask()
         elseif taskname == "moveon" then -- {"moveon",{road=,distance=,targetDistance=,stay=}} 沿着当前道路行驶。注意事项：param可能为nil
             -- 获取道路
             local road = agv.road
@@ -365,6 +361,12 @@ function AGV()
         local taskname = agv.tasksequence[1][1] -- 任务名称
         local param = agv.tasksequence[1][2] -- 任务参数
 
+        -- -- debug
+        -- if agv.lastmaxstep ~= taskname then
+        --     print('[agv', agv.id, '] maxstep', taskname)
+        --     agv.lastmaxstep = taskname
+        -- end
+
         -- 判断子任务序列
         if taskname == "queue" then -- {"queue", subtask={...}}
             if #param.subtask == 0 then -- 子任务序列为空，删除queue任务
@@ -530,6 +532,16 @@ function AGV()
             end
 
             dt = math.min(dt, agv.state == nil and timeRemain or dt) -- 计算最大步进，跳过agv等待状态的情况
+        elseif taskname == "register" then -- {"register", operator}
+            if param == nil then
+                print('[agv] register错误，没有operator参数')
+                os.exit()
+            end
+
+            param:registerAgv(agv)
+
+            agv:deltask() -- 删除任务
+            return math.min(agv:maxstep(), param:maxstep()) -- 重新计算
         end
         return dt
     end

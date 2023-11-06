@@ -74,7 +74,6 @@ function RMG(cy, actionObjs)
 
         -- 注册agv
         table.insert(rmg.agvqueue, agv) -- 加入agv队列
-        table.insert(rmg.outerActionObjs, agv) -- 加入动作队列
         -- print('[rmg] agv注册完成, #agv.tasksequence=', #agv.tasksequence, ' #actionObjs=', #actionObjs) -- debug
     end
 
