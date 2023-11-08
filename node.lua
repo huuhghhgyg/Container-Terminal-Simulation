@@ -18,9 +18,9 @@ function Node(point, nodeList, params)
         agv = nil, -- 占用节点的agv对象
     }
 
-    -- 计算属性
+    -- 注册节点
     table.insert(nodeList, node)
-    node.id = #nodeList
+    node.id = #nodeList -- 设置id
 
     --- 将指定id的道路连接到本节点，本节点作为其起点
     --- @class Road road 道路对象

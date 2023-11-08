@@ -39,6 +39,10 @@ function Road(originPt, destPt, roadList)
     road.length = math.sqrt(road.vec[1] ^ 2 + road.vec[2] ^ 2 + road.vec[3] ^ 2) -- 道路长度
     road.vecE = {road.vec[1] / road.length, road.vec[2] / road.length, road.vec[3] / road.length} -- 道路单位向量
 
+    -- 注册道路
+    table.insert(road, roadList)
+    road.id = #roadList
+
     --- 向道路注册agv
     ---@class agv number agv实体
     ---@param params table 注册参数(targertDistance在道路上的目标移动距离, distance生成在道路上的初始距离)

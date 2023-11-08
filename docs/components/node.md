@@ -6,6 +6,11 @@
 - `connectedRoad`：连接的道路列表。以固定的格式添加
   - `{roadId, roty}`：道路ID、道路在节点处对于y轴的旋转弧度值
 - `occupied`：指示道路当前是否被占用
+- `id`: Node对象添加到NodeList中后在NodeList中的索引
+
+Controller模块注入的属性
+- `fromNodesId`：来自节点，记录节点的O信息
+- `toNodesId`：去向节点，记录节点的D信息
 
 
 ## 函数
