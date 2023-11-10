@@ -34,8 +34,8 @@ function Node(point, nodeList, params)
             roadId = road.id,
             roty = deltaRadian
         })
-        road.fromNode = self -- 将本节点作为道路的终点
-        road.toNode = destNode-- 将终点节点作为道路的终点
+        road.fromNode = self -- 将本节点对象作为道路的终点
+        road.toNode = destNode-- 将终点节点对象作为道路的终点
     end
 
     --- 根据本节点和输入的终点节点创建一条道路
@@ -53,7 +53,7 @@ function Node(point, nodeList, params)
         local road = Road(p1, p2, roadList) -- 根据Road.lua，id已经在road.id里面
 
         -- 加入Node的connectedRoad里面
-        destNode:connectRoad(road, destNode)
+        node:connectRoad(road, destNode)
 
         return road
     end
