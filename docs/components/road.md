@@ -17,8 +17,8 @@ Road对象会向agv注入`road`和`roadAgvId`两个属性，分别为道路对�
 - road.length: 道路长度
 - road.vecE: 道路单位向量(x,y,z)
 - road.id: 道路id，用于在道路列表中索引道路
-- road.fromNode: 道路起点Node节点
-- road.toNode: 道路终点Node节点。用于检测占用状态
+- road.fromNode: 道路起点Node节点对象
+- road.toNode: 道路终点Node节点对象。用于检测占用状态
 
 ## 函数
 - registerAgv(agv, params): 向道路注册agv。可以设置agv的初始位置
