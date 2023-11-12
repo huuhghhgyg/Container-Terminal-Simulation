@@ -40,6 +40,8 @@ function Node(point, nodeList, params)
 
     --- 根据本节点和输入的终点节点创建一条道路
     --- @class Node destNode 终点节点
+    --- @param roadList table 道路列表
+    --- @return Road road 道路对象
     function node:createRoad(destNode, roadList)
         local c1, c2 = self.center, destNode.center
         local vector = {c2[1] - c1[1], c2[2] - c1[2], c2[3] - c1[3]}

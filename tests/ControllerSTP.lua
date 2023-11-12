@@ -78,12 +78,13 @@ scene.render()
 print('RoadNum:', #controller.Roads)
 print('NodeNum:', #controller.Nodes)
 
-local stp = controller:shortestPath(1, 19)
+local stpFromNodeId, stpToNodeId = 1, 19 -- road.id 正向
+local stpFromNodeId, stpToNodeId = 17, 5 -- road.id 反向
+local stpRoadIds = controller:shortestPath(stpFromNodeId, stpToNodeId)
+local result = controller:sortRoadIdSequence(stpFromNodeId ,stpRoadIds)
 
--- print(mip['obj'], ' ', mip['c1'], ' ', mip['c2'])
-print('目标函数值：', stp['obj'])
-for i = 1, #controller.Roads do
-    if stp['c' .. i] == 1 then
-        print('through road' .. i .. '=', stp['c' .. i])
-    end
+local strRoadIds = ''
+for i, roadId in ipairs(stpRoadIds) do
+    strRoadIds = strRoadIds .. roadId .. (i == #stpRoadIds and '' or ',')
 end
+print('stpRoadIds:', strRoadIds)

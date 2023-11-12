@@ -16,6 +16,8 @@ function Controller()
         -- 注入属性
         node.fromNodesId = {}
         node.toNodesId = {}
+        node.fromRoads = {}
+        node.toRoads = {}
 
         return node
     end
@@ -33,11 +35,16 @@ function Controller()
             print('[controller] 警告：node', node2.id, '不是从Controller中创建的，没有fromNodesId或toNodesId属性')
         end
 
-        -- 添加OD信息
+        -- 向节点添加OD点信息
         table.insert(node1.toNodesId, node2.id)   -- node1中的去向节点ID列表中添加node2的id
         table.insert(node2.fromNodesId, node1.id) -- node2中的来源节点ID列表中添加node1的id
 
-        return node1:createRoad(node2, controller.Roads)
+        -- 向节点添加连接道路信息
+        local linkRoad = node1:createRoad(node2, controller.Roads) -- 创建道路
+        table.insert(node1.toRoads, linkRoad)                      -- node1中的去向道路列表中添加linkRoad
+        table.insert(node2.fromRoads, linkRoad)                    -- node2中的来源道路列表中添加linkRoad
+
+        return linkRoad
     end
 
     function controller:shortestPath(fromNodeId, toNodeId)
@@ -83,7 +90,7 @@ function Controller()
             end
             print(str, '==', b)
         end
-        
+
         -- 添加01变量
         for roadId = 1, #controller.Roads do
             stp:addrow('c' .. roadId, 'bin')
@@ -91,7 +98,63 @@ function Controller()
         end
         stp:solve()
 
-        return stp
+        local throughRoadIds = {}
+        print('目标函数值：', stp['obj'])
+        for i = 1, #controller.Roads do
+            if stp['c' .. i] == 1 then
+                table.insert(throughRoadIds, i)
+                print('through road' .. i .. '=', stp['c' .. i])
+            end
+        end
+
+        return throughRoadIds
+    end
+
+    --- 对道路id序列进行排序，使得相邻的道路id在controller.Roads中相邻
+    --- @param nodeId number 初始节点id
+    --- @param roadIds table 道路id序列
+    function controller:sortRoadIdSequence(nodeId, roadIds)
+        local result = { roads = {}, nodes = {} } -- 初始化返回结果
+        local currentNode = controller.Nodes[nodeId]
+        local currentRoad = nil
+
+        for i = 1, #roadIds - 1 do
+            for j = 1, #roadIds do
+                for k, toRoad in ipairs(currentNode.toRoads) do
+                    if toRoad.id == roadIds[j] then
+                        currentRoad = toRoad
+                        break
+                    end
+                end
+                if currentRoad ~= nil then
+                    table.remove(roadIds, j)
+                    table.insert(result.roads, currentRoad)
+                    table.insert(result.nodes, currentNode)
+                    -- 轮换节点
+                    currentNode = currentRoad.toNode
+                    currentRoad = nil -- 重置currentRoad
+                    break
+                end
+            end
+        end
+        -- 最后一个就不用查询了，直接插入
+        table.insert(result.roads, controller.Nodes[roadIds[1]])
+        table.insert(result.nodes, currentNode)
+
+        -- debug：打印结果
+        local strRoadSeq = ''
+        for i, road in ipairs(result.roads) do
+            strRoadSeq = strRoadSeq .. road.id .. (i == #result.roads and '' or ',')
+        end
+        print('roadSeq:', strRoadSeq)
+
+        local strRoadSeq = ''
+        for i, node in ipairs(result.nodes) do
+            strRoadSeq = strRoadSeq .. node.id .. (i == #result.nodes and '' or ',')
+        end
+        print('nodeSeq:', strRoadSeq)
+
+        return result
     end
 
     return controller
