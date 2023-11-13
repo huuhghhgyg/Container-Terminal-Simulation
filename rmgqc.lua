@@ -21,6 +21,7 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
     rmgqc.attached = nil -- 抓取的集装箱
     rmgqc.stash = nil -- io物品暂存
     rmgqc.agvqueue = {} -- agv服务队列
+    rmgqc.bindingRoad = nil -- 绑定的道路
     rmgqc.parkingSpaces = {} -- 停车位对象(使用bay位置索引)
     -- rmgqc.queuelen = 11 -- 服务队列长度（额外）
     rmgqc.outerActionObjs = actionObjs -- 外部动作队列
