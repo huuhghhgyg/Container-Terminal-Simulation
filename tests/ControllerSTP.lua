@@ -7,6 +7,8 @@ scene.setenv({
 require('node')
 require('road')
 require('controller')
+require('agv')
+require('watchdog')
 local controller = Controller()
 
 -- 创建节点
@@ -78,13 +80,32 @@ scene.render()
 print('RoadNum:', #controller.Roads)
 print('NodeNum:', #controller.Nodes)
 
-local stpFromNodeId, stpToNodeId = 1, 19 -- road.id 正向
+-- local stpFromNodeId, stpToNodeId = 1, 19 -- road.id 正向
 local stpFromNodeId, stpToNodeId = 17, 5 -- road.id 反向
-local stpRoadIds = controller:shortestPath(stpFromNodeId, stpToNodeId)
-local result = controller:sortRoadIdSequence(stpFromNodeId ,stpRoadIds)
+local agv = AGV()
 
-local strRoadIds = ''
-for i, roadId in ipairs(stpRoadIds) do
-    strRoadIds = strRoadIds .. roadId .. (i == #stpRoadIds and '' or ',')
-end
-print('stpRoadIds:', strRoadIds)
+-- -- 手动添加stpFromNodeId到stpToNodeId的道路任务步骤
+-- local stpRoadIds = controller:shortestPath(stpFromNodeId, stpToNodeId)
+-- -- 显示规划得到的道路结果列表
+-- local strRoadIds = ''
+-- for i, roadId in ipairs(stpRoadIds) do
+--     strRoadIds = strRoadIds .. roadId .. (i == #stpRoadIds and '' or ',')
+-- end
+-- print('stpRoadIds:', strRoadIds)
+-- -- 将规划得到的道路结果列表按照从stpFromNodeId到stpToNodeId的顺序排序
+-- local sortedSTPResult = controller:sortRoadIdSequence(stpFromNodeId ,stpRoadIds)
+
+-- -- debug.pause()
+-- controller:setAgvRoute(agv, sortedSTPResult, controller.Roads[20], {road = controller.Roads[5]}) -- 提供下一条道路的信息
+-- -- controller:setAgvRoute(agv, sortedSTPResult, controller.Roads[20]) -- 不提供下一条道路的信息
+
+-- 自动添加stpFromNodeId到stpToNodeId的道路任务步骤
+agv:addtask('moveon',{road = controller.Roads[20]})
+debug.pause()
+controller:addAgvNaviTask(agv, stpFromNodeId, stpToNodeId, controller.Roads[20], {road = controller.Roads[5]}) -- 提供下一条道路的信息
+-- controller:addAgvNaviTask(agv, stpFromNodeId, stpToNodeId, controller.Roads[20]) -- 不提供下一条道路的信息
+
+local ActionObjs = {}
+local watchdog = WatchDog(4, ActionObjs)
+table.insert(ActionObjs, agv)
+watchdog.update()
