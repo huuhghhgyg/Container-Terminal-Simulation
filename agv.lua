@@ -32,7 +32,6 @@ function AGV()
             agv.container:setpos(x, y + agv.height, z)
             agv.container:setrot(0, agv.roty, 0)
         end
-
     end
 
     function agv:attach()
@@ -191,8 +190,8 @@ function AGV()
                 end
             else
                 -- 是最后一个agv
-                if (param == nil or param.targetDistance == nil or param.targetDistance == road.length) and road.toNode ~= nil and
-                    road.toNode.agv ~= nil and agv:InSafetyDistance(road.toNode.agv) then -- agv目标是道路尽头，且前方节点被堵塞
+                if (param == nil or param.targetDistance == nil or param.targetDistance == road.length) and road.toNode ~=
+                    nil and road.toNode.agv ~= nil and agv:InSafetyDistance(road.toNode.agv) then -- agv目标是道路尽头，且前方节点被堵塞
                     return -- 直接返回
                 end
             end
@@ -281,7 +280,6 @@ function AGV()
                             vertices = {fromRoad.destPt[1], fromRoad.destPt[2], fromRoad.destPt[3], toRoad.originPt[1],
                                         toRoad.originPt[2], toRoad.originPt[3]}
                         })
-
                     end
                     return
                 end
@@ -299,6 +297,7 @@ function AGV()
                 end
 
                 -- 判断是否到达目标
+                -- print('dRadian=', dRadian, 'param.walked=', param.walked, 'param.deltaRadian=', param.deltaRadian) -- debug
                 if (dRadian + param.walked) / param.deltaRadian >= 1 then
                     param.arrived = true
                     if tryExitNode() then
@@ -459,6 +458,10 @@ function AGV()
                 param.fromRadian = math.atan(fromRoad.vecE[1], fromRoad.vecE[3]) - math.atan(0, 1)
                 param.toRadian = math.atan(toRoad.vecE[1], toRoad.vecE[3]) - math.atan(0, 1)
                 param.deltaRadian = param.toRadian - param.fromRadian
+                -- 模型假设弧度变化在-pi~pi之间，检测是否在这个区间内，如果不在需要修正
+                if math.abs(param.deltaRadian) >= math.pi then
+                    param.deltaRadian = param.deltaRadian * (1 - math.pi * 2 / math.abs(param.deltaRadian))
+                end
                 param.walked = 0 -- 已经旋转的弧度/已经通过的直线距离
 
                 -- 判断是否需要转弯（可能存在直线通过的情况）
@@ -487,8 +490,10 @@ function AGV()
                         param.turnOriginRadian = math.atan(fromRoad.vecE[3], -fromRoad.vecE[1]) -- 转弯圆的起始位置弧度(左转)
                     end
 
+                    -- debug
                     -- print('agv', agv.id, '在node', node.id, (param.deltaRadian > 0 and '左' or '右'),
-                    --     '转 (deltaRadian=', param.deltaRadian, ')') -- debug
+                    --     '转 (deltaRadian=', param.deltaRadian, '):fromRadian', param.fromRadian, ', toRadian',
+                    --     param.toRadian)
 
                     -- 显示转弯圆心
                     scene.addobj('points', {
