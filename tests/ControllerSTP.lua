@@ -102,7 +102,7 @@ local agv = AGV()
 -- 自动添加stpFromNodeId到stpToNodeId的道路任务步骤
 agv:addtask('moveon',{road = controller.Roads[20]})
 debug.pause()
-controller:addAgvNaviTask(agv, stpFromNodeId, stpToNodeId, controller.Roads[20], {road = controller.Roads[5]}) -- 提供下一条道路的信息
+controller:addAgvNaviTask(agv, stpFromNodeId, stpToNodeId, controller.Roads[20], {road = controller.Roads[5], targetDistance = 10}) -- 提供下一条道路的信息
 -- controller:addAgvNaviTask(agv, stpFromNodeId, stpToNodeId, controller.Roads[20]) -- 不提供下一条道路的信息
 
 local ActionObjs = {}

@@ -58,7 +58,7 @@ function Controller()
             functionCoeffs[roadId] = road.length
         end
         stp:addrow(functionCoeffs, 'min') -- 添加目标函数行
-        print('targetfunc:\n', table.unpack(functionCoeffs))
+        -- print('targetfunc:\n', table.unpack(functionCoeffs))
 
         -- 对每个点添加约束条件
         for nodeId, node in ipairs(controller.Nodes) do
@@ -85,12 +85,14 @@ function Controller()
             end
 
             stp:addrow(constraintCoeffs, '==', b)
+
+            -- debug
             -- print(table.unpack(constraintCoeffs), '==', b)
-            local str = ''
-            for k, v in ipairs(constraintCoeffs) do
-                str = str .. v .. ' '
-            end
-            print(str, '==', b)
+            -- local str = ''
+            -- for k, v in ipairs(constraintCoeffs) do
+            --     str = str .. v .. ' '
+            -- end
+            -- print(str, '==', b)
         end
 
         -- 添加01变量
@@ -101,11 +103,11 @@ function Controller()
         stp:solve()
 
         local throughRoadIds = {}
-        print('目标函数值：', stp['obj'])
+        -- print('目标函数值：', stp['obj'])
         for i = 1, #controller.Roads do
             if stp['c' .. i] == 1 then
                 table.insert(throughRoadIds, i)
-                print('through road' .. i .. '=', stp['c' .. i])
+                -- print('through road' .. i .. '=', stp['c' .. i]) -- debug
             end
         end
 
@@ -148,18 +150,18 @@ function Controller()
         -- 添加road指向的节点
         table.insert(result.nodes, result.roads[#result.roads].toNode)
 
-        -- debug：打印结果
-        local strRoadSeq = ''
-        for i, road in ipairs(result.roads) do
-            strRoadSeq = strRoadSeq .. road.id .. (i == #result.roads and '' or ',')
-        end
-        print('roadSeq.id:', strRoadSeq)
+        -- -- debug：打印结果
+        -- local strRoadSeq = ''
+        -- for i, road in ipairs(result.roads) do
+        --     strRoadSeq = strRoadSeq .. road.id .. (i == #result.roads and '' or ',')
+        -- end
+        -- print('roadSeq.id:', strRoadSeq)
 
-        local strRoadSeq = ''
-        for i, node in ipairs(result.nodes) do
-            strRoadSeq = strRoadSeq .. node.id .. (i == #result.nodes and '' or ',')
-        end
-        print('nodeSeq.id:', strRoadSeq)
+        -- local strRoadSeq = ''
+        -- for i, node in ipairs(result.nodes) do
+        --     strRoadSeq = strRoadSeq .. node.id .. (i == #result.nodes and '' or ',')
+        -- end
+        -- print('nodeSeq.id:', strRoadSeq)
 
         return result
     end
@@ -197,9 +199,7 @@ function Controller()
         -- 如果提供了最后一个到道路的（参数）信息，添加最后一个onnode任务。否则不添加onnode任务
         if nextRoadParam ~= nil then
             agv:addtask('onnode', {nodes[#nodes], roads[#roads], nextRoadParam.road})
-            agv:addtask('moveon', {
-                road = nextRoadParam.road
-            })
+            agv:addtask('moveon', nextRoadParam)
             -- print('onnode', nodes[#nodes].id, roads[#roads].id, nextRoadParam.road.id, 'vecE=(', roads[#roads].vecE[1],
             --     roads[#roads].vecE[2], roads[#roads].vecE[3], '),(', nextRoadParam.road.vecE[1],
             --     nextRoadParam.road.vecE[2], nextRoadParam.road.vecE[3], ')')
@@ -207,7 +207,7 @@ function Controller()
         end
     end
 
-    --- 向agv添加从node到road的导航任务的集成函数
+    --- 向agv添加从起始node到终点前road(或终点node)的导航任务的集成函数
     --- 包括shortestPath(), sortRoadIdSequence(), setAgvRoute()
     ---@param agv AGV AGV对象
     ---@param fromNodeId integer 起始节点id
