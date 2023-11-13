@@ -7,14 +7,35 @@ cy.rotradian = math.atan2(p2[2] - p1[2], p2[1] - p1[1])
 ```
 
 ## debug
-
+常用debug函数
 ```lua
 debug.watch('x') -- 观察变量x的值（表也可以）
 debug.debug()
 debug.debug(false) -- 退出debug模式
 ```
 
+堆栈跟踪
+```lua
+function myFunction()
+    -- 某些代码逻辑
+    print(debug.traceback("Stack trace"))
+    -- 其他代码逻辑
+end
+
+function anotherFunction()
+    myFunction()
+end
+
+anotherFunction()
+```
+
 其他debug命令
 https://www.runoob.com/lua/lua-debug.html
 
 Lua版本：5.4
+
+# 常见错误
+```lua
+agv:addtask('moveon', {road=,}) -- 参数键值列表，记得param加大括号
+agv:addtask('onnode', {node, fromRoad, toRoad}) -- 参数列表，顺序参数，记得param加大括号
+```
