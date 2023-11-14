@@ -6,6 +6,12 @@
 cy.rotradian = math.atan2(p2[2] - p1[2], p2[1] - p1[1])
 ```
 
+## 文件管理
+publish按钮的右键是share，可以将文件上传。使用`os.upload`可以将文件从远程拉取到web的虚拟磁盘中。
+```lua
+os.upload('https://mixwind-1.github.io/test.txt') -- 将内容上传到虚拟磁盘中
+```
+
 ## debug
 常用debug函数
 ```lua
