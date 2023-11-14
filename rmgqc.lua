@@ -39,7 +39,7 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
     rmgqc.spreader:setpos(rmgqc.origin[1] + 0, rmgqc.origin[2], rmgqc.origin[3])
     rmgqc.trolley:setpos(rmgqc.origin[1] + 0, rmgqc.origin[2], rmgqc.origin[3])
     rmgqc:setpos(rmgqc.origin[1], rmgqc.origin[2], rmgqc.origin[3])
-    print("初始化：spreader z = ", rmgqc.origin[3])
+    -- print("初始化：spreader z = ", rmgqc.origin[3]) --debug
 
     function rmgqc:registerAgv(agv)
         -- rmg添加任务

@@ -21,7 +21,7 @@ function Ship(size, origin) -- size={bays,rows,levels}, originPt={x,y,z}
     ship.rotradian = ship.rotdeg * math.pi / 180 -- 旋转弧度
 
     ship:setpos(ship.origin[1], ship.origin[2], ship.origin[3])
-    print("ship origin:", ship.origin[1], ",", ship.origin[2], ",", ship.origin[3])
+    -- print("ship origin:", ship.origin[1], ",", ship.origin[2], ",", ship.origin[3]) -- debug
 
     -- 初始化bay位置
     local bayLength = ship.clength * ship.bay + ship.cbaygap * (ship.bay - 1)

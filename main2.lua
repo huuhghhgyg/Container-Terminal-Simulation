@@ -156,7 +156,8 @@ for roadId, road in ipairs(controller.Roads) do
 end
 
 scene.render()
-print('实体生成完成')
+print('实体生成完成，可以随时开始')
+debug.pause()
 
 -- 简易版
 -- 任意选择一个控件，任意选择一项任务，执行。
