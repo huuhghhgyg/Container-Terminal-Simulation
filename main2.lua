@@ -73,6 +73,9 @@ local rd24 = controller:linkNode(n18, n19)
 
 print('正在生成实体...')
 
+require('ProgressBar')
+local pgb = ProgressBar(_,_,_,500)
+
 -- for k, node in ipairs(controller.Nodes) do
 --     print('node',k,'.id=',node.id)
 -- end
@@ -110,7 +113,9 @@ for i = 1, 6 do
     cys[i]:bindRoad(road)
     cys[i]:showBindingPoint()
     cys[i]:fillRandomContainerPositions(50, {'/res/ct/container_blue.glb'})
+    pgb:setp(pgb.value+1/2/6/2) -- 创建cy集装箱的进度为1/2/2
     rmgs[i] = RMG(cys[i], ActionObjs) -- 创建rmg时会自动添加到ActionObjs中
+    pgb:setp(pgb.value+1/2/6/2) -- 创建rmg的进度为1/2/2
 end
 
 -- 将资源添加到controller中
@@ -127,8 +132,10 @@ for i = 1, 3 do
     rmgqcs[i]:bindRoad(controller.Roads[i * 5 - 1]) -- 绑定road
     rmgqcs[i]:bindShip(ships[i]) -- 绑定Ship
     rmgqcs[i]:showBindingPoint()
+    pgb:setp(pgb.value+1/2/3/2) -- 创建rmg和ship的进度为1/2/2
     -- ship填充集装箱
     ships[i]:fillRandomContainerPositions(30, {'/res/ct/container_blue.glb'})
+    pgb:setp(pgb.value+1/2/3/2) -- 创建ship集装箱的进度为1/2/2
 end
 
 -- 将资源添加到controller中
@@ -154,6 +161,9 @@ for roadId, road in ipairs(controller.Roads) do
     end
     label:setpos(table.unpack(centerPos))
 end
+
+pgb:del()
+scene.setenv({camtype = 'persp'})
 
 scene.render()
 print('实体生成完成，可以随时开始')
