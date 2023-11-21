@@ -7,64 +7,13 @@ scene.setenv({
 local simv = 4 -- 仿真速度
 local actionobj = {} -- 动作队列声明
 
--- 程序控制
-local runcommand = true
-
--- 初始时间
-local t = os.clock()
-local dt = 0
-
-function update()
-    if runcommand then
-        coroutine.queue(dt, update)
-    end
-
-    -- 计算最大更新时间
-    local maxstep = math.huge
-    for i = 1, #actionobj do
-        if #actionobj[i].tasksequence > 0 then
-            maxstep = math.min(maxstep, actionobj[i]:maxstep())
-        end
-    end
-
-    -- 执行更新
-    for i = 1, #actionobj do
-        actionobj[i]:executeTask(dt)
-    end
-
-    -- 回收
-    for i = 1, #actionobj do
-        local obj = actionobj[i]
-
-        if obj.type == "agv" and #obj.tasksequence == 0 then
-            recycle(obj)
-            table.remove(actionobj, i)
-            break -- 假设每次同时只能到达一个，因此可以中止
-        end
-    end
-
-    -- 绘图
-    runcommand = scene.render()
-
-    -- 刷新时间间隔
-    dt = (os.clock() - t) * simv
-    dt = math.min(dt, maxstep)
-    t = os.clock()
-end
-
-function recycle(obj)
-    if obj.type == "agv" then
-        if obj.container ~= nil then
-            obj.container:delete()
-        end
-        obj:delete()
-    end
-end
-
 -- 引用库
 require('agv')
 require('road')
 require('node')
+require('watchdog')
+
+local watchdog = WatchDog(simv, actionobj)
 
 -- 创建道路系统
 local RoadList = {} -- 道路列表
@@ -106,4 +55,5 @@ agv1:addtask("moveon",{road = roadAuto6})
 agv1:addtask("onnode",{node7,roadAuto6})
 table.insert(actionobj, agv1)
 
-update()
+-- 仿真任务
+watchdog:update()

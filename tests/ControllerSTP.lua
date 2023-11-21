@@ -108,4 +108,6 @@ controller:addAgvNaviTask(agv, stpFromNodeId, stpToNodeId, controller.Roads[20],
 local ActionObjs = {}
 local watchdog = WatchDog(4, ActionObjs)
 table.insert(ActionObjs, agv)
-watchdog.update()
+
+-- 仿真任务
+watchdog:update()
