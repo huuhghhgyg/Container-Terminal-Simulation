@@ -197,6 +197,13 @@ function AGV()
             end
 
             -- 判断是否到达目标
+
+            -- -- debug
+            -- if dt < 0.00000001 then
+            --     print('[agv', agv.id, '] moveon road=', agv.road.id, ' ,+dt=', dt, ', distance=',
+            --         roadAgvItem.distance + dt * agv.speed, '>=targetDistance=', roadAgvItem.targetDistance, '?',
+            --         roadAgvItem.distance + dt * agv.speed >= roadAgvItem.targetDistance)
+            -- end
             if roadAgvItem.distance + dt * agv.speed >= roadAgvItem.targetDistance then
                 -- 到达目标
                 road:setAgvDistance(roadAgvItem.targetDistance, agv.roadAgvId) -- 设置agv位置为终点位置
@@ -213,6 +220,7 @@ function AGV()
                         return
                     end
 
+                    agv.state = nil -- 解除agv占用状态
                     -- 节点没有被占用且agv到达了道路尽头，才能设置节点占用
                     if param.targetDistance == nil or road.targetDistance == road.length then
                         -- if road.targetDistance == road.length then
@@ -422,11 +430,14 @@ function AGV()
             end
 
             -- 判断agv状态
-            -- if agv.state == "wait" then -- agv状态为等待
-            --     return dt -- 不做计算
-            -- end
+            if agv.state == "wait" or agv.road.toNode.occupied then -- agv状态为等待
+                return dt -- 不做计算
+            end
 
             local road = agv.road -- 获取道路
+            if road == nil then
+                print('[agv' .. agv.id .. '] 警告，agv.roadAgvId==nil')
+            end
             dt = math.min(dt, road:maxstep(agv.roadAgvId)) -- 使用road中的方法计算最大步进
         elseif taskname == "onnode" then -- {"onnode", node, fromRoad, toRoad} 输入通过节点到达的道路id
             agv.road = nil -- 清空agv道路信息

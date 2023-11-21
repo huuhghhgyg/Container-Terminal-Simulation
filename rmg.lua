@@ -190,7 +190,7 @@ function RMG(cy, actionObjs)
             -- 判断bay方向是否已经到达目标
             if not param.arrivedZ then
                 -- bay方向没有到达目标
-                if (param.movedZ + ds[3]) / (param[3] - param.initalZ) > 1 then -- 首次到达目标
+                if (param.movedZ + ds[3]) / (param[3] - param.initalZ) >= 1 then -- 首次到达目标
                     rmg:move(param[3] - param.initalZ - param.movedZ)
                     param.arrivedZ = true
                 else

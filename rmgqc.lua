@@ -177,7 +177,7 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
             -- 判断bay方向是否已经到达目标
             if not param.arrivedZ then
                 -- bay方向没有到达目标
-                if (param.movedZ + ds[3]) / (param[3] - param.initalZ) > 1 then -- 首次到达目标
+                if (param.movedZ + ds[3]) / (param[3] - param.initalZ) >= 1 then -- 首次到达目标
                     rmgqc:move(param[3] - param.initalZ - param.movedZ)
                     param.arrivedZ = true
                 else
@@ -276,7 +276,7 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
                     rmgqc.speed[2],
                                param[3] == rmgqc.pos and 0 or rmgqc.zspeed *
                     ((param[3] - rmgqc.pos) / math.abs(param[3] - rmgqc.pos))} -- speed[3]:速度乘方向
-                print('[rmgqc] speed:', param.speed[1], param.speed[2], param.speed[3])
+                -- print('[rmgqc] speed:', param.speed[1], param.speed[2], param.speed[3])
             end
 
             if not param.arrivedZ then -- bay方向没有到达目标
