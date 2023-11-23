@@ -25,9 +25,8 @@ function RMG(cy, actionObjs)
     rmg.toplevel = #rmg.level -- 最高层(吊具行走层)
     rmg.level.agv = 2.1 -- agv高度
     rmg.spreaderpos = {0, rmg.level[2], 0} -- 初始位置(x,y)
-    rmg.pos = 0 -- 初始位置z
+    rmg.zpos = 0 -- 初始位置z
     rmg.tasksequence = {} -- 初始化任务队列
-    rmg.iox = -16 -- 进出口x坐标
     rmg.speed = {8, 4} -- x,y方向的移动速度
     rmg.zspeed = 2 -- 车移动速度
     rmg.attached = nil -- 抓取的集装箱
@@ -147,7 +146,7 @@ function RMG(cy, actionObjs)
 
     -- 车移动(-z方向)
     function rmg:move(dist)
-        rmg.pos = rmg.pos + dist
+        rmg.zpos = rmg.zpos + dist
         local wx, wy, wz = rmg.wirerope:getpos()
         local sx, sy, sz = rmg.spreader:getpos()
         local tx, ty, tz = rmg.trolley:getpos()
@@ -263,7 +262,7 @@ function RMG(cy, actionObjs)
         -- print('[rmg] maxstep task', taskname) -- debug
         if taskname == "move2" then
             if param.initalZ == nil then
-                param.initalZ = rmg.pos -- 初始位置
+                param.initalZ = rmg.zpos -- 初始位置
                 param.movedZ = 0 -- 已经移动的距离
 
                 param.vectorXY = {} -- 初始化向量(6,7)
@@ -288,8 +287,8 @@ function RMG(cy, actionObjs)
                     rmg.speed[1],
                                param.vectorXY[2] == 0 and 0 or param.vectorXY[2] / math.abs(param.vectorXY[2]) *
                     rmg.speed[2],
-                               param[3] == rmg.pos and 0 or rmg.zspeed *
-                    ((param[3] - rmg.pos) / math.abs(param[3] - rmg.pos))} -- speed[3]:速度乘方向
+                               param[3] == rmg.zpos and 0 or rmg.zspeed *
+                    ((param[3] - rmg.zpos) / math.abs(param[3] - rmg.zpos))} -- speed[3]:速度乘方向
             end
 
             if not param.arrivedZ then -- bay方向没有到达目标
