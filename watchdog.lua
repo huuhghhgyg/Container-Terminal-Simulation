@@ -8,30 +8,30 @@ function WatchDog(simv, ActionObjs)
     }
 
     function watchdog:update()
-        -- 刷新运行时间间隔
-        watchdog.dt = (os.clock() - watchdog.t) * simv
-        watchdog.t = os.clock() -- 刷新update时间
-
         -- 绘图
         watchdog.runcommand = scene.render()
-
-        -- 检测暂停指令
-        if not watchdog.runcommand then
-            scene.render() -- 最后一次绘图
-            print('仿真推进停止')
-            return
-        end
-
+        
         -- 回收
         for i = 1, #ActionObjs do
             local obj = ActionObjs[i]
-
+            
             if obj.type == "agv" and #obj.tasksequence == 0 then
                 watchdog:recycle(obj)
                 table.remove(ActionObjs, i)
                 break -- 假设每次同时只能到达一个，因此可以中止
             end
         end
+        
+        -- 检测暂停指令
+        if not watchdog.runcommand then
+            scene.render() -- 最后一次绘图
+            print('仿真推进停止')
+            return
+        end
+        
+        -- 刷新运行时间间隔
+        watchdog.dt = (os.clock() - watchdog.t) * simv
+        watchdog.t = os.clock() -- 刷新update时间
 
         -- 计算最大更新时间
         local maxstep = watchdog.dt
