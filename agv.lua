@@ -267,6 +267,12 @@ function AGV()
             local fromRoad = param[2]
             local toRoad = param[3]
 
+            -- 在本节点终止任务
+            if toRoad == nil then
+                agv:deltask()
+                return
+            end
+
             -- 判断与前面的agv是否保持安全距离(不需要判断toRoad因为maxstep已经判断过了)
             if #toRoad.agvs > 0 and agv:InSafetyDistance(toRoad.agvs[#toRoad.agvs].agv) then
                 agv.state = "wait" -- 设置agv状态为等待
@@ -362,6 +368,7 @@ function AGV()
     function agv:maxstep() -- 初始化和计算最大允许步进时间
         local dt = math.huge -- 初始化步进
         if agv.tasksequence[1] == nil then -- 对象无任务，直接返回最大值
+            print('此处agv无任务，maxstep直接返回math.huge')
             return dt
         end
 
@@ -414,6 +421,7 @@ function AGV()
         elseif taskname == "moveon" then -- {"moveon",{road=,distance=,targetDistance=,stay=}} 沿着当前道路行驶
             -- 未注册道路
             if agv.road == nil or agv.state == 'stay' then
+                print('[agv'..agv.id..'] first moveon at',coroutine.qtime()) -- debug
                 if param.road == nil then -- agv未注册道路且没有输入道路参数
                     print("Exception: agv未注册道路")
                     agv:deltask()
@@ -434,32 +442,27 @@ function AGV()
                 return dt -- 不做计算
             end
 
-            local road = agv.road -- 获取道路
-            if road == nil then
-                print('[agv' .. agv.id .. '] 警告，agv.roadAgvId==nil')
-            end
-            dt = math.min(dt, road:maxstep(agv.roadAgvId)) -- 使用road中的方法计算最大步进
+            dt = agv.road:maxstep(agv.roadAgvId) -- 使用road中的方法计算最大步进
         elseif taskname == "onnode" then -- {"onnode", node, fromRoad, toRoad} 输入通过节点到达的道路id
-            agv.road = nil -- 清空agv道路信息
             -- 默认已经占用了节点
+            agv.road = nil -- 清空agv道路信息
             local node = param[1]
+            -- 获取道路信息
+            local fromRoad = param[2]
+            local toRoad = param[3]
 
             -- 判断是否初始化
             if param.deltaRadian == nil then
+                print('[agv'..agv.id..'] first onnode at',coroutine.qtime())
+
                 -- 判断是否在本节点终止
-                if param[3] == nil then
+                if toRoad == nil then
                     -- 在本节点终止
                     node.occupied = false -- 解除节点占用
                     node.agv = nil -- 清空节点agv信息
 
-                    agv:deltask()
-                    return agv:maxstep() -- 重新计算
+                    return 0 -- 可能触发删除实体，需要空转一次
                 end
-
-                -- print("agv", agv.id, " 'onnode' ", param[1].id) -- debug
-                -- 获取道路信息
-                local fromRoad = param[2]
-                local toRoad = param[3]
 
                 -- 获取fromRoad的终点坐标。由于已知角度，toRoad的起点坐标就不需要了
                 local fromRoadEndPoint = fromRoad.destPt -- {x,y,z}
@@ -547,7 +550,7 @@ function AGV()
                 timeRemain = math.abs(radianRemain / param.angularSpeed)
             end
 
-            dt = math.min(dt, agv.state == nil and timeRemain or dt) -- 计算最大步进，跳过agv等待状态的情况
+            dt = agv.state == nil and timeRemain or dt -- 计算最大步进，跳过agv等待状态的情况
         elseif taskname == "register" then -- {"register", operator}
             if param == nil then
                 print('[agv] register错误，没有operator参数')

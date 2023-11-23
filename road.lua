@@ -89,7 +89,7 @@ function Road(originPt, destPt, roadList)
     end
 
     --- 从道路移除agv
-    ---@param agvId 指定的agv的id
+    ---@param agvId 道路对象中指定的agv的id
     function road:removeAgv(agvId)
         local roadAgvItem = road.agvs[agvId - road.agvLeaveNum]
         if roadAgvItem.stay == true then
@@ -112,7 +112,7 @@ function Road(originPt, destPt, roadList)
     end
 
     --- 获取指定id的agv前方的agv
-    ---@param agvId number 指定的agv的id
+    ---@param agvId number 道路对象中指定的agv的id
     ---@return number agv对象或nil
     function road:getAgvAhead(agvId)
         if agvId - road.agvLeaveNum - 1 > 0 then
@@ -125,7 +125,7 @@ function Road(originPt, destPt, roadList)
 
     --- 设置指定id的agv在道路上的位置(需要提前对dt进行maxstep验证)
     ---@param dt number 步进时间
-    ---@param agvId number 指定的agv的id
+    ---@param agvId number 道路对象中指定的agv的id
     function road:setAgvPos(dt, agvId)
         -- 更新agv在道路上的位置
         local roadAgv = road.agvs[agvId - road.agvLeaveNum] -- 获取道路agv对象
@@ -147,7 +147,7 @@ function Road(originPt, destPt, roadList)
     end
 
     --- 获取指定id的agv的最大推进时间
-    ---@param agvId number 指定的agv的id
+    ---@param agvId number 道路对象中指定的agv的id
     function road:maxstep(agvId)
         local roadAgv = road.agvs[agvId - road.agvLeaveNum] -- 获取道路agv对象
         local distanceRemain = roadAgv.targetDistance - roadAgv.distance -- 计算剩余距离

@@ -40,12 +40,9 @@ function WatchDog(simv, ActionObjs)
             if #ActionObjs[i].tasksequence > 0 then
                 maxstep = math.min(maxstep, ActionObjs[i]:maxstep())
                 -- 严格模式debug
-                if maxstep ~= laststep and maxstep < 0.000001 then
+                if maxstep ~= laststep and maxstep < 0.000001 and ActionObjs[i].tasksequence[1][1]~='onnode' then
                     print(ActionObjs[i].type, ActionObjs[i].id, ActionObjs[i].tasksequence[1][1], 'set maxstep=',
                         maxstep, ' ----------------------------------------------------------')
-                    if ActionObjs[i].type == 'agv' and ActionObjs[i].tasksequence[1][1] == 'moveon' then
-                        print('agv', ActionObjs[i].id, 'moveon', ActionObjs[i].road.id)
-                    end
                 end
                 laststep = maxstep
             end
