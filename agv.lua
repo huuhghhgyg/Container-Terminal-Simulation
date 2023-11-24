@@ -280,7 +280,8 @@ function AGV()
             end
             agv.state = nil -- 设置agv状态为空(正常)
 
-            if param.angularSpeed == nil then -- 判断是否转弯
+            -- 判断是转弯还是直行的情况
+            if param.angularSpeed == nil then
                 -- 直线
                 -- 计算步进
                 local ds = agv.speed * dt
@@ -311,8 +312,9 @@ function AGV()
                 end
 
                 -- 判断是否到达目标
-                -- print('dRadian=', dRadian, 'param.walked=', param.walked, 'param.deltaRadian=', param.deltaRadian) -- debug
-                if (dRadian + param.walked) / param.deltaRadian >= 1 then
+                -- print('dRadian=', dRadian, 'param.walked=', param.walked, 'param.deltaRadian=', param.deltaRadian,'dt=', dt) -- debug
+                -- if (dRadian + param.walked) / param.deltaRadian >= 1 then
+                if param.walked / param.deltaRadian >= 1 then
                     param.arrived = true
                     if tryExitNode() then
                         -- 显示轨迹
@@ -333,8 +335,6 @@ function AGV()
                 table.insert(param.trail, y)
                 table.insert(param.trail, z)
 
-                -- 设置旋转
-                param.walked = param.walked + dRadian
                 -- agv.roty = agv.roty + dRadian*2 --为什么要*2 ???
                 agv.roty = math.atan(param[2].vecE[1], param[2].vecE[3]) + param.walked - math.atan(0, 1)
 
@@ -421,7 +421,6 @@ function AGV()
         elseif taskname == "moveon" then -- {"moveon",{road=,distance=,targetDistance=,stay=}} 沿着当前道路行驶
             -- 未注册道路
             if agv.road == nil or agv.state == 'stay' then
-                print('[agv'..agv.id..'] first moveon at',coroutine.qtime()) -- debug
                 if param.road == nil then -- agv未注册道路且没有输入道路参数
                     print("Exception: agv未注册道路")
                     agv:deltask()
@@ -453,8 +452,6 @@ function AGV()
 
             -- 判断是否初始化
             if param.deltaRadian == nil then
-                print('[agv'..agv.id..'] first onnode at',coroutine.qtime())
-
                 -- 判断是否在本节点终止
                 if toRoad == nil then
                     -- 在本节点终止
@@ -534,7 +531,7 @@ function AGV()
                     param.trail = {fromRoadEndPoint[1], fromRoadEndPoint[2], fromRoadEndPoint[3]}
 
                     -- 计算角速度
-                    param.angularSpeed = agv.speed / param.radius / 2
+                    param.angularSpeed = agv.speed / param.radius
                 end
             end
 
