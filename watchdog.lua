@@ -35,16 +35,16 @@ function WatchDog(simv, ActionObjs)
 
         -- 计算最大更新时间
         local maxstep = watchdog.dt
-        local laststep = watchdog.dt -- debug 严格模式
+        -- local laststep = watchdog.dt -- debug 严格模式
         for i = 1, #ActionObjs do
             if #ActionObjs[i].tasksequence > 0 then
                 maxstep = math.min(maxstep, ActionObjs[i]:maxstep())
                 -- 严格模式debug
-                if maxstep ~= laststep and maxstep < 0.000001 and ActionObjs[i].tasksequence[1][1]~='onnode' then
-                    print(ActionObjs[i].type, ActionObjs[i].id, ActionObjs[i].tasksequence[1][1], 'set maxstep=',
-                        maxstep, ' ----------------------------------------------------------')
-                end
-                laststep = maxstep
+                -- if maxstep ~= laststep and maxstep < 0.000001 and ActionObjs[i].tasksequence[1][1]~='onnode' then
+                --     print(ActionObjs[i].type, ActionObjs[i].id, ActionObjs[i].tasksequence[1][1], 'set maxstep=',
+                --         maxstep, ' ----------------------------------------------------------')
+                -- end
+                -- laststep = maxstep
             end
         end
 
@@ -56,10 +56,11 @@ function WatchDog(simv, ActionObjs)
             ActionObjs[i]:executeTask(watchdog.dt)
         end
 
-        if watchdog.dt < 0.0001 then
-            print('dt < 0.0001, dt=', watchdog.dt,
-                ' =================================================================')
-        end
+        -- debug 唤醒时间间隔监测
+        -- if watchdog.dt < 0.0001 then
+        --     print('dt < 0.0001, dt=', watchdog.dt,
+        --         ' =================================================================')
+        -- end
 
         -- 下一次更新
         coroutine.queue(watchdog.dt, watchdog.update)
