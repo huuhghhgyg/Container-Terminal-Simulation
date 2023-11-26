@@ -46,7 +46,7 @@ function AGV()
     end
 
     -- 注册任务，添加到任务列表中（主要方便debug）
-    function agv.tasks.register(taskname)
+    function agv:registerTask(taskname)
         table.insert(agv.tasks, taskname)
     end
 
@@ -73,13 +73,14 @@ function AGV()
 
         -- debug
         if agv.lasttask ~= taskname then
-            print('[agv', agv.id, '] execute', taskname)
+            print('[agv', agv.id, '] executing', taskname)
             agv.lasttask = taskname
         end
 
         -- 执行任务
         if agv.tasks[taskname] ~= nil and agv.tasks[taskname].execute ~= nil then
             agv.tasks[taskname].execute(dt, params)
+            -- print('[agv', agv.id, '] task executing: ', taskname, 'dt=', dt)
         end
     end
 
@@ -120,16 +121,16 @@ function AGV()
                 agv:deltask()
                 return agv:maxstep() -- 重新计算
             end
-            
+
             -- 执行子任务
             taskname = params.subtask[1][1]
             params = params.subtask[1][2]
         end
-        
+
         -- debug
         if agv.lastmaxstep ~= taskname then
             agv.lastmaxstep = taskname
-            print('[agv'..agv.id..'] maxstep', taskname)
+            print('[agv' .. agv.id .. '] maxstep', taskname)
         end
 
         -- 计算maxstep
@@ -193,7 +194,7 @@ function AGV()
             return dt
         end
     }
-    agv.tasks.register("move2") -- 注册任务
+    agv:registerTask("move2") -- 注册任务
 
     -- {"attach"}
     agv.tasks.attach = {
@@ -206,7 +207,7 @@ function AGV()
             --             .stash ~= nil and agv.isSameContainerPosition(agv.targetContainerPos, agv.operator.stash.tag)) -- debug
             -- end
 
-            if agv.operator.currentAgv ~= self then
+            if agv.operator.currentAgv ~= nil and agv.operator.currentAgv ~= agv then
                 -- print('[agv', agv.roadAgvId or agv.id, '] detected operator currentAgv is not self') -- debug
                 return
             end
@@ -231,7 +232,7 @@ function AGV()
         end
         -- 无需maxstep
     }
-    agv.tasks.register("attach") -- 注册任务
+    agv:registerTask("attach") -- 注册任务
 
     -- {"detach"}
     agv.tasks.detach = {
@@ -241,7 +242,7 @@ function AGV()
                 agv.arrived = true
             end
 
-            if agv.operator.currentAgv ~= self then
+            if agv.operator.currentAgv ~= nil and agv.operator.currentAgv ~= agv then
                 -- print('[agv', agv.roadAgvId or agv.id, '] detected operator currentAgv is not self, is agv',
                 --     agv.operator.currentAgv.id) -- debug
                 return
@@ -265,7 +266,7 @@ function AGV()
         end
         -- 无需maxstep
     }
-    agv.tasks.register("detach") -- 注册任务
+    agv:registerTask("detach") -- 注册任务
 
     -- {"waitoperator",'load'/'unload'} 等待机械响应（agv装/卸货）
     agv.tasks.waitoperator = {
@@ -275,7 +276,7 @@ function AGV()
                 agv.arrived = true
             end
 
-            if agv.operator.currentAgv ~= self then
+            if agv.operator.currentAgv ~= nil and agv.operator.currentAgv ~= agv then
                 return -- 如果当前operator操作的对象不是本身，则不需要继续判断，直接返回
             end
 
@@ -295,7 +296,7 @@ function AGV()
         end
         -- 无需maxstep
     }
-    agv.tasks.register("waitoperator") -- 注册任务
+    agv:registerTask("waitoperator") -- 注册任务
 
     -- {"moveon",{road=,distance=,targetDistance=,stay=}} 沿着当前道路行驶。注意事项：param可能为nil
     agv.tasks.moveon = {
@@ -387,7 +388,7 @@ function AGV()
             end
 
             -- 判断agv状态
-            if agv.state == "wait" or (agv.road.toNode ~=nil and agv.road.toNode.occupied) then -- agv状态为等待
+            if agv.state == "wait" or (agv.road.toNode ~= nil and agv.road.toNode.occupied) then -- agv状态为等待
                 return dt -- 不做计算
             end
 
@@ -395,7 +396,7 @@ function AGV()
             return dt
         end
     }
-    agv.tasks.register("moveon") -- 注册任务
+    agv:registerTask("moveon") -- 注册任务
 
     -- {"onnode", node, fromRoad, toRoad} 输入通过节点到达的道路id
     agv.tasks.onnode = {
@@ -614,7 +615,7 @@ function AGV()
             return dt
         end
     }
-    agv.tasks.register("onnode") -- 注册任务
+    agv:registerTask("onnode") -- 注册任务
 
     -- {"register", operator}
     agv.tasks.register = {
@@ -630,7 +631,7 @@ function AGV()
             return 0 -- 重新计算
         end
     }
-    agv.tasks.register("register") -- 注册任务
+    agv:registerTask("register") -- 注册任务
 
     function agv:InSafetyDistance(targetAgv)
         local tx, ty, tz = targetAgv:getpos()
