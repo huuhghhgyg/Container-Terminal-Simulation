@@ -64,8 +64,12 @@ function AGV()
         --     agv.lasttask = taskname
         -- end
 
+        if agv.tasks[taskname] == nil then
+            print('[rmg] 错误，没有找到任务', taskname)
+        end
+
         -- 执行任务
-        if agv.tasks[taskname] ~= nil and agv.tasks[taskname].execute ~= nil then
+        if agv.tasks[taskname].execute ~= nil then
             agv.tasks[taskname].execute(dt, params)
             -- print('[agv', agv.id, '] task executing: ', taskname, 'dt=', dt)
         end
