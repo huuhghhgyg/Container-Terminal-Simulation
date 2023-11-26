@@ -16,6 +16,7 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
     rmgqc.ship = {} -- 对应的船
     rmgqc.iox = 0
     rmgqc.tasksequence = {} -- 初始化任务队列
+    rmgqc.tasks = {} -- 可用任务列表(数字索引为可用任务，字符索引为任务函数)
     rmgqc.speed = {8, 5} -- 移动速度
     rmgqc.zspeed = 2 -- 车移动速度
     rmgqc.attached = nil -- 抓取的集装箱
@@ -158,7 +159,7 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
         end
 
         local task = rmgqc.tasksequence[1]
-        local taskname, param = task[1], task[2]
+        local taskname, params = task[1], task[2]
 
         -- -- debug
         -- if rmgqc.lasttask ~= taskname then
@@ -166,68 +167,12 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
         --     rmgqc.lasttask = taskname
         -- end
 
-        if taskname == "move2" then -- 1:col(x), 2:height(y), 3:bay(z), [4:初始bay, 5:已移动bay距离,向量*2(6,7),当前位置*2(8,9),初始位置*2(10,11),到达(12,13)*2]
-            -- 计算移动值
-            local ds = {}
-            for i = 1, 2 do
-                ds[i] = param.speed[i] * dt -- dt移动
-            end
-            ds[3] = param.speed[3] * dt -- rmg向量速度*时间
+        if rmgqc.tasks[taskname] == nil then
+            print('[rmgqc] 错误，没有找到任务', taskname)
+        end
 
-            -- 判断bay方向是否已经到达目标
-            if not param.arrivedZ then
-                -- bay方向没有到达目标
-                if (param.movedZ + ds[3]) / (param[3] - param.initalZ) >= 1 then -- 首次到达目标
-                    rmgqc:move(param[3] - param.initalZ - param.movedZ)
-                    param.arrivedZ = true
-                else
-                    param.movedZ = param.movedZ + ds[3] -- 已移动bay
-                    rmgqc:move(ds[3])
-                end
-            end
-
-            for i = 1, 2 do
-                -- 判断X/Y方向是否到达目标
-                if not param.arrivedXY[i] then
-                    -- 未到达目标，判断本次移动是否能到达目标
-                    if (param[i] - param.currentXY[i] - ds[i]) * param.vectorXY[i] <= 0 then
-                        -- 分方向到达目标/经过此次计算分方向到达目标
-                        param.currentXY[i] = param[i] -- 设置到累计移动值
-                        param.arrivedXY[i] = true -- 设置到达标志，禁止进入判断
-                    else
-                        -- 分方向没有到达目标
-                        param.currentXY[i] = param.currentXY[i] + ds[i] -- 累计移动
-                    end
-                end
-            end
-
-            -- 执行移动
-            rmgqc:spreaderMove2(param.currentXY[1], param.currentXY[2], 0) -- 设置到累计移动值
-
-            if param.arrivedZ and param.arrivedXY[1] and param.arrivedXY[2] then
-                rmgqc:deltask()
-            end
-        elseif taskname == "waitagv" then -- {"waitagv", nil}
-            if rmgqc.agvqueue[1] == nil then
-                print("[rmgqc] rmgqc.agvqueue[1]=nil")
-            end
-            if rmgqc.agvqueue[1] ~= nil and rmgqc.agvqueue[1].arrived then -- agv到达
-                rmgqc.currentAgv = rmgqc.agvqueue[1] -- 设置当前agv
-                table.remove(rmgqc.agvqueue, 1) -- 移除等待的agv
-                rmgqc:deltask()
-            end
-        elseif taskname == "attach" then -- {"attach", {row, col, level}}
-            if param == nil then
-                param = {nil, nil, nil}
-            end
-            rmgqc:attach(param[1], param[2], param[3])
-            rmgqc:deltask()
-        elseif taskname == "detach" then -- {"detach", {row, col, level}}
-            if param == nil then
-                param = {nil, nil, nil}
-            end
-            rmgqc:detach(param[1], param[2], param[3])
-            rmgqc:deltask()
+        if rmgqc.tasks[taskname].execute ~= nil then
+            rmgqc.tasks[taskname].execute(dt, params)
         end
     end
 
@@ -239,7 +184,7 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
         end
 
         local taskname = rmgqc.tasksequence[1][1] -- 任务名称
-        local param = rmgqc.tasksequence[1][2] -- 任务参数
+        local params = rmgqc.tasksequence[1][2] -- 任务参数
 
         -- -- debug
         -- if rmgqc.lastmaxstep ~= taskname then
@@ -247,56 +192,14 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
         --     rmgqc.lastmaxstep = taskname
         -- end
 
-        if taskname == "move2" then
-            if param.initalZ == nil then
-                param.initalZ = rmgqc.pos -- 初始位置
-                param.movedZ = 0 -- 已经移动的距离
-
-                param.vectorXY = {} -- 初始化向量(6,7)
-                param.currentXY = {} -- 初始化当前位置(8,9)
-                param.initalXY = {} -- 初始化初始位置(10,11)
-                for i = 1, 2 do
-                    param.initalXY[i] = rmgqc.spreaderpos[i] -- 初始位置(10,11)
-                    param.currentXY[i] = rmgqc.spreaderpos[i] -- 当前位置(8,9)
-                    if param[i] - param.initalXY[i] == 0 then -- 目标距离差为0，向量设为0
-                        param.vectorXY[i] = 0
-                    else
-                        param.vectorXY[i] = param[i] - param.initalXY[i] -- 计算初始向量
-                    end
-                end
-
-                -- 判断是否到达目标
-                param.arrivedZ = (param[3] == param.initalZ)
-                param.arrivedXY = {param[1] == param.initalXY[1], param[2] == param.initalXY[2]}
-
-                -- 计算各方向分速度
-                param.speed = {param.vectorXY[1] == 0 and 0 or param.vectorXY[1] / math.abs(param.vectorXY[1]) *
-                    rmgqc.speed[1],
-                               param.vectorXY[2] == 0 and 0 or param.vectorXY[2] / math.abs(param.vectorXY[2]) *
-                    rmgqc.speed[2],
-                               param[3] == rmgqc.pos and 0 or rmgqc.zspeed *
-                    ((param[3] - rmgqc.pos) / math.abs(param[3] - rmgqc.pos))} -- speed[3]:速度乘方向
-                -- print('[rmgqc] speed:', param.speed[1], param.speed[2], param.speed[3])
-            end
-
-            if not param.arrivedZ then -- bay方向没有到达目标
-                dt = math.min(dt, math.abs((param[3] - param.initalZ - param.movedZ) / param.speed[3]))
-            end
-
-            for i = 1, 2 do -- 判断X/Y(col/level)方向有没有到达目标
-                if not param.arrivedXY[i] then -- 如果没有达到目标
-                    if param.vectorXY[i] ~= 0 then
-                        local taskRemainTime = (param[i] - param.currentXY[i]) / param.speed[i] -- 计算本方向任务的剩余时间
-                        if taskRemainTime < 0 then
-                            print('[警告!] rmg:maxstep(): XY方向[', i, ']的剩余时间小于0,已调整为0') -- 如果print了这行，估计是出问题了
-                            taskRemainTime = 0
-                        end
-
-                        dt = math.min(dt, taskRemainTime)
-                    end
-                end
-            end
+        if rmgqc.tasks[taskname] == nil then
+            print('[rmgqc] 错误，没有找到任务', taskname)
         end
+
+        if rmgqc.tasks[taskname].maxstep ~= nil then
+            dt = math.min(dt, rmgqc.tasks[taskname].maxstep(params))
+        end
+
         return dt
     end
 
@@ -314,6 +217,136 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
             print("[rmgqc] task executing: ", rmgqc.tasksequence[1][1], " at ", coroutine.qtime())
         end
     end
+
+    rmgqc.tasks.move2 = {
+        execute = function(dt, params)
+            -- 计算移动值
+            local ds = {}
+            for i = 1, 2 do
+                ds[i] = params.speed[i] * dt -- dt移动
+            end
+            ds[3] = params.speed[3] * dt -- rmg向量速度*时间
+
+            -- 判断bay方向是否已经到达目标
+            if not params.arrivedZ then
+                -- bay方向没有到达目标
+                if (params.movedZ + ds[3]) / (params[3] - params.initalZ) >= 1 then -- 首次到达目标
+                    rmgqc:move(params[3] - params.initalZ - params.movedZ)
+                    params.arrivedZ = true
+                else
+                    params.movedZ = params.movedZ + ds[3] -- 已移动bay
+                    rmgqc:move(ds[3])
+                end
+            end
+
+            for i = 1, 2 do
+                -- 判断X/Y方向是否到达目标
+                if not params.arrivedXY[i] then
+                    -- 未到达目标，判断本次移动是否能到达目标
+                    if (params[i] - params.currentXY[i] - ds[i]) * params.vectorXY[i] <= 0 then
+                        -- 分方向到达目标/经过此次计算分方向到达目标
+                        params.currentXY[i] = params[i] -- 设置到累计移动值
+                        params.arrivedXY[i] = true -- 设置到达标志，禁止进入判断
+                    else
+                        -- 分方向没有到达目标
+                        params.currentXY[i] = params.currentXY[i] + ds[i] -- 累计移动
+                    end
+                end
+            end
+
+            -- 执行移动
+            rmgqc:spreaderMove2(params.currentXY[1], params.currentXY[2], 0) -- 设置到累计移动值
+
+            if params.arrivedZ and params.arrivedXY[1] and params.arrivedXY[2] then
+                rmgqc:deltask()
+            end
+        end,
+        maxstep = function(params)
+            local dt = math.huge -- 初始化步进
+
+            if params.initalZ == nil then
+                params.initalZ = rmgqc.pos -- 初始位置
+                params.movedZ = 0 -- 已经移动的距离
+
+                params.vectorXY = {} -- 初始化向量(6,7)
+                params.currentXY = {} -- 初始化当前位置(8,9)
+                params.initalXY = {} -- 初始化初始位置(10,11)
+                for i = 1, 2 do
+                    params.initalXY[i] = rmgqc.spreaderpos[i] -- 初始位置(10,11)
+                    params.currentXY[i] = rmgqc.spreaderpos[i] -- 当前位置(8,9)
+                    if params[i] - params.initalXY[i] == 0 then -- 目标距离差为0，向量设为0
+                        params.vectorXY[i] = 0
+                    else
+                        params.vectorXY[i] = params[i] - params.initalXY[i] -- 计算初始向量
+                    end
+                end
+
+                -- 判断是否到达目标
+                params.arrivedZ = (params[3] == params.initalZ)
+                params.arrivedXY = {params[1] == params.initalXY[1], params[2] == params.initalXY[2]}
+
+                -- 计算各方向分速度
+                params.speed = {params.vectorXY[1] == 0 and 0 or params.vectorXY[1] / math.abs(params.vectorXY[1]) *
+                    rmgqc.speed[1],
+                                params.vectorXY[2] == 0 and 0 or params.vectorXY[2] / math.abs(params.vectorXY[2]) *
+                    rmgqc.speed[2],
+                                params[3] == rmgqc.pos and 0 or rmgqc.zspeed *
+                    ((params[3] - rmgqc.pos) / math.abs(params[3] - rmgqc.pos))} -- speed[3]:速度乘方向
+                -- print('[rmgqc] speed:', param.speed[1], param.speed[2], param.speed[3])
+            end
+
+            if not params.arrivedZ then -- bay方向没有到达目标
+                dt = math.min(dt, math.abs((params[3] - params.initalZ - params.movedZ) / params.speed[3]))
+            end
+
+            for i = 1, 2 do -- 判断X/Y(col/level)方向有没有到达目标
+                if not params.arrivedXY[i] then -- 如果没有达到目标
+                    if params.vectorXY[i] ~= 0 then
+                        local taskRemainTime = (params[i] - params.currentXY[i]) / params.speed[i] -- 计算本方向任务的剩余时间
+                        if taskRemainTime < 0 then
+                            print('[警告!] rmg:maxstep(): XY方向[', i, ']的剩余时间小于0,已调整为0') -- 如果print了这行，估计是出问题了
+                            taskRemainTime = 0
+                        end
+
+                        dt = math.min(dt, taskRemainTime)
+                    end
+                end
+            end
+        end
+    }
+
+    rmgqc.tasks.waitagv = {
+        execute = function(dt, params)
+            if rmgqc.agvqueue[1] == nil then
+                print("[rmgqc] rmgqc.agvqueue[1]=nil")
+            end
+            if rmgqc.agvqueue[1] ~= nil and rmgqc.agvqueue[1].arrived then -- agv到达
+                rmgqc.currentAgv = rmgqc.agvqueue[1] -- 设置当前agv
+                table.remove(rmgqc.agvqueue, 1) -- 移除等待的agv
+                rmgqc:deltask()
+            end
+        end
+    }
+
+    rmgqc.tasks.attach = {
+        execute = function(dt, params)
+            if params == nil then
+                params = {nil, nil, nil}
+            end
+            rmgqc:attach(params[1], params[2], params[3])
+            rmgqc:deltask()
+        end
+    }
+
+    rmgqc.tasks.detach = {
+        execute = function(dt, params)
+            if params == nil then
+                params = {nil, nil, nil}
+            end
+            rmgqc:detach(params[1], params[2], params[3])
+            rmgqc:deltask()
+        end
+    }
 
     -- 获取爪子移动坐标（x,y)
     function rmgqc:getcontainercoord(bay, row, level)

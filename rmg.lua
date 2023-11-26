@@ -27,6 +27,7 @@ function RMG(cy, actionObjs)
     rmg.spreaderpos = {0, rmg.level[2], 0} -- 初始位置(x,y)
     rmg.zpos = 0 -- 初始位置z
     rmg.tasksequence = {} -- 初始化任务队列
+    rmg.tasks = {} -- 可用任务列表(数字索引为可用任务，字符索引为任务函数)
     rmg.speed = {8, 4} -- x,y方向的移动速度
     rmg.zspeed = 2 -- 车移动速度
     rmg.attached = nil -- 抓取的集装箱
@@ -171,55 +172,149 @@ function RMG(cy, actionObjs)
         end
 
         local task = rmg.tasksequence[1]
-        local taskname, param = task[1], task[2]
+        local taskname, params = task[1], task[2]
 
         -- -- debug
         -- if rmg.lasttask ~= taskname then
         --     print('[rmg] 当前任务', taskname)
         --     rmg.lasttask = taskname
         -- end
-        if taskname == "move2" then -- 1:col(x), 2:height(y), 3:bay(z), [4:初始bay, 5:已移动bay距离,向量*2(6,7),当前位置*2(8,9),初始位置*2(10,11),到达(12,13)*2]
+
+        if rmg.tasks[taskname] == nil then
+            print('[rmg] 错误，没有找到任务', taskname)
+        end
+
+        if rmg.tasks[taskname].execute ~= nil then
+            rmg.tasks[taskname].execute(dt, params)
+        end
+    end
+
+    -- interface:计算最大允许步进
+    function rmg:maxstep()
+        local dt = math.huge -- 初始化步进
+        if rmg.tasksequence[1] == nil then -- 对象无任务，直接返回0
+            return dt
+        end
+
+        local taskname = rmg.tasksequence[1][1] -- 任务名称
+        local params = rmg.tasksequence[1][2] -- 任务参数
+
+        -- print('[rmg] maxstep task', taskname) -- debug
+
+        if rmg.tasks[taskname] == nil then
+            print('[rmg] 错误，没有找到任务', taskname)
+        end
+
+        if rmg.tasks[taskname].maxstep ~= nil then
+            dt = math.min(dt, rmg.tasks[taskname].maxstep(params))
+        end
+
+        return dt
+    end
+
+    -- {'move2', {col, level, bay}}
+    -- 1:col(x), 2:height(y), 3:bay(z), [4:初始bay, 5:已移动bay距离,向量*2(6,7),当前位置*2(8,9),初始位置*2(10,11),到达(12,13)*2]
+    rmg.tasks.move2 = {
+        execute = function (dt, params)
             -- 计算移动值
             local ds = {}
             for i = 1, 2 do
-                ds[i] = param.speed[i] * dt -- dt移动
+                ds[i] = params.speed[i] * dt -- dt移动
             end
-            ds[3] = param.speed[3] * dt -- rmg向量速度*时间
+            ds[3] = params.speed[3] * dt -- rmg向量速度*时间
 
             -- 判断bay方向是否已经到达目标
-            if not param.arrivedZ then
+            if not params.arrivedZ then
                 -- bay方向没有到达目标
-                if (param.movedZ + ds[3]) / (param[3] - param.initalZ) >= 1 then -- 首次到达目标
-                    rmg:move(param[3] - param.initalZ - param.movedZ)
-                    param.arrivedZ = true
+                if (params.movedZ + ds[3]) / (params[3] - params.initalZ) >= 1 then -- 首次到达目标
+                    rmg:move(params[3] - params.initalZ - params.movedZ)
+                    params.arrivedZ = true
                 else
-                    param.movedZ = param.movedZ + ds[3] -- 已移动bay
+                    params.movedZ = params.movedZ + ds[3] -- 已移动bay
                     rmg:move(ds[3])
                 end
             end
 
             for i = 1, 2 do
                 -- 判断X/Y方向是否到达目标
-                if not param.arrivedXY[i] then
+                if not params.arrivedXY[i] then
                     -- 未到达目标，判断本次移动是否能到达目标
-                    if (param[i] - param.currentXY[i] - ds[i]) * param.vectorXY[i] <= 0 then
+                    if (params[i] - params.currentXY[i] - ds[i]) * params.vectorXY[i] <= 0 then
                         -- 分方向到达目标/经过此次计算分方向到达目标
-                        param.currentXY[i] = param[i] -- 设置到累计移动值
-                        param.arrivedXY[i] = true -- 设置到达标志，禁止进入判断
+                        params.currentXY[i] = params[i] -- 设置到累计移动值
+                        params.arrivedXY[i] = true -- 设置到达标志，禁止进入判断
                     else
                         -- 分方向没有到达目标
-                        param.currentXY[i] = param.currentXY[i] + ds[i] -- 累计移动
+                        params.currentXY[i] = params.currentXY[i] + ds[i] -- 累计移动
                     end
                 end
             end
 
             -- 执行移动
-            rmg:spreaderMove2(param.currentXY[1], param.currentXY[2], 0) -- 设置到累计移动值
+            rmg:spreaderMove2(params.currentXY[1], params.currentXY[2], 0) -- 设置到累计移动值
 
-            if param.arrivedZ and param.arrivedXY[1] and param.arrivedXY[2] then
+            if params.arrivedZ and params.arrivedXY[1] and params.arrivedXY[2] then
                 rmg:deltask()
             end
-        elseif taskname == "waitagv" then -- {"waitagv", nil}
+        end,
+        maxstep = function (params)
+            local dt = math.huge -- 初始化步进
+
+            if params.initalZ == nil then
+                params.initalZ = rmg.zpos -- 初始位置
+                params.movedZ = 0 -- 已经移动的距离
+
+                params.vectorXY = {} -- 初始化向量(6,7)
+                params.currentXY = {} -- 初始化当前位置(8,9)
+                params.initalXY = {} -- 初始化初始位置(10,11)
+                for i = 1, 2 do
+                    params.initalXY[i] = rmg.spreaderpos[i] -- 初始位置(10,11)
+                    params.currentXY[i] = rmg.spreaderpos[i] -- 当前位置(8,9)
+                    if params[i] - params.initalXY[i] == 0 then -- 目标距离差为0，向量设为0
+                        params.vectorXY[i] = 0
+                    else
+                        params.vectorXY[i] = params[i] - params.initalXY[i] -- 计算初始向量
+                    end
+                end
+
+                -- 判断是否到达目标
+                params.arrivedZ = (params[3] == params.initalZ)
+                params.arrivedXY = {params[1] == params.initalXY[1], params[2] == params.initalXY[2]}
+
+                -- 计算各方向分速度
+                params.speed = {params.vectorXY[1] == 0 and 0 or params.vectorXY[1] / math.abs(params.vectorXY[1]) *
+                    rmg.speed[1],
+                               params.vectorXY[2] == 0 and 0 or params.vectorXY[2] / math.abs(params.vectorXY[2]) *
+                    rmg.speed[2],
+                               params[3] == rmg.zpos and 0 or rmg.zspeed *
+                    ((params[3] - rmg.zpos) / math.abs(params[3] - rmg.zpos))} -- speed[3]:速度乘方向
+            end
+
+            if not params.arrivedZ then -- bay方向没有到达目标
+                dt = math.min(dt, math.abs((params[3] - params.initalZ - params.movedZ) / params.speed[3]))
+            end
+
+            for i = 1, 2 do -- 判断X/Y(col/level)方向有没有到达目标
+                if not params.arrivedXY[i] then -- 如果没有达到目标
+                    if params.vectorXY[i] ~= 0 then
+                        local taskRemainTime = (params[i] - params.currentXY[i]) / params.speed[i] -- 计算本方向任务的剩余时间
+                        if taskRemainTime < 0 then
+                            print('[警告!] rmg:maxstep(): XY方向[', i, ']的剩余时间小于0,已调整为0') -- 如果print了这行，估计是出问题了
+                            taskRemainTime = 0
+                        end
+
+                        dt = math.min(dt, taskRemainTime)
+                    end
+                end
+            end
+
+            return dt
+        end
+    }
+
+    -- {'waitagv'}
+    rmg.tasks.waitagv = {
+        execute = function (dt, params)
             -- print('[rmg] waitagv: agvqueue[1]=', rmg.agvqueue[1], ', rmg.agvqueue[1].arrived=', rmg.agvqueue[1].arrived,
             --     '(agv', rmg.agvqueue[1].id, ')') -- debug
 
@@ -234,84 +329,30 @@ function RMG(cy, actionObjs)
                 table.remove(rmg.agvqueue, 1) -- 移除等待的agv
                 rmg:deltask()
             end
-        elseif taskname == "attach" then -- {"attach", {row, col, level}}
-            if param == nil then
-                param = {nil, nil, nil}
+        end
+    }
+
+    -- {'attach', {row, col, level}}
+    rmg.tasks.attach = {
+        execute = function (dt, params)
+            if params == nil then
+                params = {nil, nil, nil}
             end
-            rmg:attach(param[1], param[2], param[3])
+            rmg:attach(params[1], params[2], params[3])
             rmg:deltask()
-        elseif taskname == "detach" then -- {"detach", {row, col, level}}
-            if param == nil then
-                param = {nil, nil, nil}
+        end
+    }
+
+    -- {'detach', {row, col, level}}
+    rmg.tasks.detach = {
+        execute = function (dt, params)
+            if params == nil then
+                params = {nil, nil, nil}
             end
-            rmg:detach(param[1], param[2], param[3])
+            rmg:detach(params[1], params[2], params[3])
             rmg:deltask()
         end
-    end
-
-    -- interface:计算最大允许步进
-    function rmg:maxstep()
-        local dt = math.huge -- 初始化步进
-        if rmg.tasksequence[1] == nil then -- 对象无任务，直接返回0
-            return dt
-        end
-
-        local taskname = rmg.tasksequence[1][1] -- 任务名称
-        local param = rmg.tasksequence[1][2] -- 任务参数
-
-        -- print('[rmg] maxstep task', taskname) -- debug
-        if taskname == "move2" then
-            if param.initalZ == nil then
-                param.initalZ = rmg.zpos -- 初始位置
-                param.movedZ = 0 -- 已经移动的距离
-
-                param.vectorXY = {} -- 初始化向量(6,7)
-                param.currentXY = {} -- 初始化当前位置(8,9)
-                param.initalXY = {} -- 初始化初始位置(10,11)
-                for i = 1, 2 do
-                    param.initalXY[i] = rmg.spreaderpos[i] -- 初始位置(10,11)
-                    param.currentXY[i] = rmg.spreaderpos[i] -- 当前位置(8,9)
-                    if param[i] - param.initalXY[i] == 0 then -- 目标距离差为0，向量设为0
-                        param.vectorXY[i] = 0
-                    else
-                        param.vectorXY[i] = param[i] - param.initalXY[i] -- 计算初始向量
-                    end
-                end
-
-                -- 判断是否到达目标
-                param.arrivedZ = (param[3] == param.initalZ)
-                param.arrivedXY = {param[1] == param.initalXY[1], param[2] == param.initalXY[2]}
-
-                -- 计算各方向分速度
-                param.speed = {param.vectorXY[1] == 0 and 0 or param.vectorXY[1] / math.abs(param.vectorXY[1]) *
-                    rmg.speed[1],
-                               param.vectorXY[2] == 0 and 0 or param.vectorXY[2] / math.abs(param.vectorXY[2]) *
-                    rmg.speed[2],
-                               param[3] == rmg.zpos and 0 or rmg.zspeed *
-                    ((param[3] - rmg.zpos) / math.abs(param[3] - rmg.zpos))} -- speed[3]:速度乘方向
-            end
-
-            if not param.arrivedZ then -- bay方向没有到达目标
-                dt = math.min(dt, math.abs((param[3] - param.initalZ - param.movedZ) / param.speed[3]))
-            end
-
-            for i = 1, 2 do -- 判断X/Y(col/level)方向有没有到达目标
-                if not param.arrivedXY[i] then -- 如果没有达到目标
-                    if param.vectorXY[i] ~= 0 then
-                        local taskRemainTime = (param[i] - param.currentXY[i]) / param.speed[i] -- 计算本方向任务的剩余时间
-                        if taskRemainTime < 0 then
-                            print('[警告!] rmg:maxstep(): XY方向[', i, ']的剩余时间小于0,已调整为0') -- 如果print了这行，估计是出问题了
-                            taskRemainTime = 0
-                        end
-
-                        dt = math.min(dt, taskRemainTime)
-                    end
-                end
-            end
-        end
-
-        return dt
-    end
+    }
 
     -- 添加任务
     function rmg:addtask(name, param)
