@@ -7,6 +7,7 @@ function AGV()
     agv.speed = 10 -- agv速度
     agv.roty = 0 -- 以y为轴的旋转弧度，默认方向为0
     agv.tasksequence = {} -- 初始化任务队列
+    agv.tasks = {} -- 可用任务列表(数字索引为可用任务，字符索引为任务函数)
     agv.container = nil -- 初始化集装箱
     agv.height = 2.10 -- agv平台高度
 
@@ -44,6 +45,11 @@ function AGV()
         agv.container = nil
     end
 
+    -- 注册任务，添加到任务列表中（主要方便debug）
+    function agv.tasks.register(taskname)
+        table.insert(agv.tasks, taskname)
+    end
+
     function agv:executeTask(dt) -- 执行任务 task: {任务名称,{参数}}
         if agv.tasksequence[1] == nil or #agv.tasksequence == 0 then
             return
@@ -51,12 +57,6 @@ function AGV()
 
         local task = agv.tasksequence[1]
         local taskname, params = task[1], task[2]
-
-        -- -- debug
-        -- if agv.lasttask ~= taskname then
-        --     print('[agv', agv.id, '] 当前任务', taskname)
-        --     agv.lasttask = taskname
-        -- end
 
         -- 判断子任务序列
         if taskname == "queue" then -- {"queue", subtask={...}}
@@ -71,7 +71,78 @@ function AGV()
             params = params.subtask[1][2]
         end
 
-        if taskname == "move2" then -- {"move2",x,z} 移动到指定位置 {x,z, 向量距离*2(3,4), moved*2(5,6), 初始位置*2(7,8)},occupy:当前占用道路位置
+        -- debug
+        if agv.lasttask ~= taskname then
+            print('[agv', agv.id, '] execute', taskname)
+            agv.lasttask = taskname
+        end
+
+        -- 执行任务
+        if agv.tasks[taskname] ~= nil and agv.tasks[taskname].execute ~= nil then
+            agv.tasks[taskname].execute(dt, params)
+        end
+    end
+
+    -- 添加任务
+    function agv:addtask(name, param)
+        local task = {name, param}
+        table.insert(agv.tasksequence, task)
+    end
+
+    -- 删除任务
+    function agv:deltask()
+        -- 判断是否具有子任务序列
+        if agv.tasksequence[1].subtask ~= nil and #agv.tasksequence[1].subtask > 0 then -- 子任务序列不为空，删除子任务中的任务
+            table.remove(agv.tasksequence[1].subtask, 1)
+            return
+        end
+
+        table.remove(agv.tasksequence, 1)
+
+        if (agv.tasksequence[1] ~= nil and agv.tasksequence[1][1] == "attach") then
+            print("[agv", agv.roadAgvId or agv.id, "] task executing: ", agv.tasksequence[1][1])
+        end
+    end
+
+    function agv:maxstep() -- 初始化和计算最大允许步进时间
+        local dt = math.huge -- 初始化步进
+        if agv.tasksequence[1] == nil then -- 对象无任务，直接返回最大值
+            print('此处agv无任务，maxstep直接返回math.huge')
+            return dt
+        end
+
+        local taskname = agv.tasksequence[1][1] -- 任务名称
+        local params = agv.tasksequence[1][2] -- 任务参数
+
+        -- 判断子任务序列
+        if taskname == "queue" then -- {"queue", subtask={...}}
+            if #params.subtask == 0 then -- 子任务序列为空，删除queue任务
+                agv:deltask()
+                return agv:maxstep() -- 重新计算
+            end
+            
+            -- 执行子任务
+            taskname = params.subtask[1][1]
+            params = params.subtask[1][2]
+        end
+        
+        -- debug
+        if agv.lastmaxstep ~= taskname then
+            agv.lastmaxstep = taskname
+            print('[agv'..agv.id..'] maxstep', taskname)
+        end
+
+        -- 计算maxstep
+        if agv.tasks[taskname] ~= nil and agv.tasks[taskname].maxstep ~= nil then
+            dt = agv.tasks[taskname].maxstep(params)
+        end
+
+        return dt
+    end
+
+    -- {"move2",x,z} 移动到指定位置 {x,z, 向量距离*2(3,4), moved*2(5,6), 初始位置*2(7,8)},occupy:当前占用道路位置
+    agv.tasks.move2 = {
+        execute = function(dt, params)
             if params.speed == nil then
                 agv:maxstep() -- 计算最大步进
             end
@@ -91,7 +162,42 @@ function AGV()
 
             -- 设置步进移动
             agv:move2(params.originXZ[1] + params.movedXZ[1], 0, params.originXZ[2] + params.movedXZ[2])
-        elseif taskname == "attach" then
+        end,
+        maxstep = function(params)
+            local dt = math.huge -- 初始化本任务最大步进
+
+            -- 初始判断
+            if params.vectorDistanceXZ == nil then -- 没有计算出向量距离，说明没有初始化
+                local x, _, z = agv:getpos() -- 获取当前位置
+
+                params.vectorDistanceXZ = {params[1] - x, params[2] - z} -- xz方向需要移动的距离
+                if params.vectorDistanceXZ[1] == 0 and params.vectorDistanceXZ[2] == 0 then
+                    print("Exception: agv不需要移动", " currentoccupy=", params.occupy)
+                    agv:deltask()
+                    -- return
+                    return agv:maxstep() -- 重新计算
+                end
+
+                params.movedXZ = {0, 0} -- xz方向已经移动的距离
+                params.originXZ = {x, z} -- xz方向初始位置
+
+                local l = math.sqrt(params.vectorDistanceXZ[1] ^ 2 + params.vectorDistanceXZ[2] ^ 2)
+                params.speed = {params.vectorDistanceXZ[1] / l * agv.speed, params.vectorDistanceXZ[2] / l * agv.speed} -- xz向量速度分量
+            end
+
+            for i = 1, 2 do
+                if params.vectorDistanceXZ[i] ~= 0 then -- 只要分方向移动，就计算最大步进
+                    dt = math.min(dt, math.abs((params[i] - params.originXZ[i] - params.movedXZ[i]) / params.speed[i]))
+                end
+            end
+            return dt
+        end
+    }
+    agv.tasks.register("move2") -- 注册任务
+
+    -- {"attach"}
+    agv.tasks.attach = {
+        execute = function(dt, params)
             -- -- debug
             -- if agv.operator.stash ~= nil then
             --     print("[agv", agv.roadAgvId or agv.id, "] agv.operator.stash.tag=",
@@ -122,7 +228,14 @@ function AGV()
                 agv.container.tag = nil -- 清除集装箱原有的tag信息
                 agv:deltask()
             end
-        elseif taskname == "detach" then
+        end
+        -- 无需maxstep
+    }
+    agv.tasks.register("attach") -- 注册任务
+
+    -- {"detach"}
+    agv.tasks.detach = {
+        execute = function(dt, params)
             -- agv的attach任务:(moveon -> (arrived) -> detach -> waitrmg)
             if agv.taskType == 'unload' then
                 agv.arrived = true
@@ -149,7 +262,14 @@ function AGV()
                     agv.targetContainerPos[2] .. agv.targetContainerPos[3], ") at ", coroutine.qtime())
             agv:detach()
             agv:deltask()
-        elseif taskname == "waitoperator" then -- {"waitoperator",'load'/'unload'} 等待机械响应（agv装/卸货）
+        end
+        -- 无需maxstep
+    }
+    agv.tasks.register("detach") -- 注册任务
+
+    -- {"waitoperator",'load'/'unload'} 等待机械响应（agv装/卸货）
+    agv.tasks.waitoperator = {
+        execute = function(dt, params)
             -- agv的attach任务:(moveon -> (arrived) -> waitrmg -> attach)
             if agv.taskType == 'load' then
                 agv.arrived = true
@@ -172,7 +292,14 @@ function AGV()
                     return
                 end
             end
-        elseif taskname == "moveon" then -- {"moveon",{road=,distance=,targetDistance=,stay=}} 沿着当前道路行驶。注意事项：param可能为nil
+        end
+        -- 无需maxstep
+    }
+    agv.tasks.register("waitoperator") -- 注册任务
+
+    -- {"moveon",{road=,distance=,targetDistance=,stay=}} 沿着当前道路行驶。注意事项：param可能为nil
+    agv.tasks.moveon = {
+        execute = function(dt, params)
             -- 获取道路
             local road = agv.road
             local roadAgvItem = road.agvs[agv.roadAgvId - road.agvLeaveNum]
@@ -190,8 +317,8 @@ function AGV()
                 end
             else
                 -- 是最后一个agv
-                if (params == nil or params.targetDistance == nil or params.targetDistance == road.length) and road.toNode ~=
-                    nil and road.toNode.agv ~= nil and agv:InSafetyDistance(road.toNode.agv) then -- agv目标是道路尽头，且前方节点被堵塞
+                if (params == nil or params.targetDistance == nil or params.targetDistance == road.length) and
+                    road.toNode ~= nil and road.toNode.agv ~= nil and agv:InSafetyDistance(road.toNode.agv) then -- agv目标是道路尽头，且前方节点被堵塞
                     return -- 直接返回
                 end
             end
@@ -238,7 +365,41 @@ function AGV()
 
             -- 步进
             road:setAgvPos(dt, agv.roadAgvId)
-        elseif taskname == "onnode" then -- {"onnode", node, fromRoad, toRoad} 输入通过节点到达的道路id
+        end,
+        maxstep = function(params)
+            local dt = math.huge -- 初始化本任务最大步进
+
+            -- 未注册道路
+            if agv.road == nil or agv.state == 'stay' then
+                if params.road == nil then -- agv未注册道路且没有输入道路参数
+                    print("Exception: agv未注册道路")
+                    agv:deltask()
+                    return agv:maxstep() -- 重新计算
+                end
+
+                -- 注册道路
+                params.road:registerAgv(agv, {
+                    -- 输入参数，并使用registerAgv的nil检测
+                    distance = params.distance,
+                    targetDistance = params.targetDistance,
+                    stay = params.stay
+                })
+            end
+
+            -- 判断agv状态
+            if agv.state == "wait" or (agv.road.toNode ~=nil and agv.road.toNode.occupied) then -- agv状态为等待
+                return dt -- 不做计算
+            end
+
+            dt = agv.road:maxstep(agv.roadAgvId) -- 使用road中的方法计算最大步进
+            return dt
+        end
+    }
+    agv.tasks.register("moveon") -- 注册任务
+
+    -- {"onnode", node, fromRoad, toRoad} 输入通过节点到达的道路id
+    agv.tasks.onnode = {
+        execute = function(dt, params)
             -- 默认已经占用了节点
 
             local function tryExitNode()
@@ -341,108 +502,10 @@ function AGV()
                 -- 应用计算结果
                 agv:move2(x, y, z)
             end
-        end
-    end
+        end,
+        maxstep = function(params)
+            local dt = math.huge -- 初始化本任务最大步进
 
-    -- 添加任务
-    function agv:addtask(name, param)
-        local task = {name, param}
-        table.insert(agv.tasksequence, task)
-    end
-
-    -- 删除任务
-    function agv:deltask()
-        -- 判断是否具有子任务序列
-        if agv.tasksequence[1].subtask ~= nil and #agv.tasksequence[1].subtask > 0 then -- 子任务序列不为空，删除子任务中的任务
-            table.remove(agv.tasksequence[1].subtask, 1)
-            return
-        end
-
-        table.remove(agv.tasksequence, 1)
-
-        if (agv.tasksequence[1] ~= nil and agv.tasksequence[1][1] == "attach") then
-            print("[agv", agv.roadAgvId or agv.id, "] task executing: ", agv.tasksequence[1][1])
-        end
-    end
-
-    function agv:maxstep() -- 初始化和计算最大允许步进时间
-        local dt = math.huge -- 初始化步进
-        if agv.tasksequence[1] == nil then -- 对象无任务，直接返回最大值
-            print('此处agv无任务，maxstep直接返回math.huge')
-            return dt
-        end
-
-        local taskname = agv.tasksequence[1][1] -- 任务名称
-        local params = agv.tasksequence[1][2] -- 任务参数
-
-        -- -- debug
-        -- if agv.lastmaxstep ~= taskname then
-        --     print('[agv', agv.id, '] maxstep', taskname)
-        --     agv.lastmaxstep = taskname
-        -- end
-
-        -- 判断子任务序列
-        if taskname == "queue" then -- {"queue", subtask={...}}
-            if #params.subtask == 0 then -- 子任务序列为空，删除queue任务
-                agv:deltask()
-                return agv:maxstep() -- 重新计算
-            end
-
-            -- 执行子任务
-            taskname = params.subtask[1][1]
-            params = params.subtask[1][2]
-        end
-
-        if taskname == "move2" then -- {"move2",x,z,[occupy=,]} 移动到指定位置 {x,z, 向量距离*2(3,4), moved*2(5,6), 初始位置*2(7,8)},occupy:当前占用道路位置
-            -- 初始判断
-            if params.vectorDistanceXZ == nil then -- 没有计算出向量距离，说明没有初始化
-                local x, _, z = agv:getpos() -- 获取当前位置
-
-                params.vectorDistanceXZ = {params[1] - x, params[2] - z} -- xz方向需要移动的距离
-                if params.vectorDistanceXZ[1] == 0 and params.vectorDistanceXZ[2] == 0 then
-                    print("Exception: agv不需要移动", " currentoccupy=", params.occupy)
-                    agv:deltask()
-                    -- return
-                    return agv:maxstep() -- 重新计算
-                end
-
-                params.movedXZ = {0, 0} -- xz方向已经移动的距离
-                params.originXZ = {x, z} -- xz方向初始位置
-
-                local l = math.sqrt(params.vectorDistanceXZ[1] ^ 2 + params.vectorDistanceXZ[2] ^ 2)
-                params.speed = {params.vectorDistanceXZ[1] / l * agv.speed, params.vectorDistanceXZ[2] / l * agv.speed} -- xz向量速度分量
-            end
-
-            for i = 1, 2 do
-                if params.vectorDistanceXZ[i] ~= 0 then -- 只要分方向移动，就计算最大步进
-                    dt = math.min(dt, math.abs((params[i] - params.originXZ[i] - params.movedXZ[i]) / params.speed[i]))
-                end
-            end
-        elseif taskname == "moveon" then -- {"moveon",{road=,distance=,targetDistance=,stay=}} 沿着当前道路行驶
-            -- 未注册道路
-            if agv.road == nil or agv.state == 'stay' then
-                if params.road == nil then -- agv未注册道路且没有输入道路参数
-                    print("Exception: agv未注册道路")
-                    agv:deltask()
-                    return agv:maxstep() -- 重新计算
-                end
-
-                -- 注册道路
-                params.road:registerAgv(agv, {
-                    -- 输入参数，并使用registerAgv的nil检测
-                    distance = params.distance,
-                    targetDistance = params.targetDistance,
-                    stay = params.stay
-                })
-            end
-
-            -- 判断agv状态
-            if agv.state == "wait" or agv.road.toNode.occupied then -- agv状态为等待
-                return dt -- 不做计算
-            end
-
-            dt = agv.road:maxstep(agv.roadAgvId) -- 使用road中的方法计算最大步进
-        elseif taskname == "onnode" then -- {"onnode", node, fromRoad, toRoad} 输入通过节点到达的道路id
             -- 默认已经占用了节点
             agv.road = nil -- 清空agv道路信息
             local node = params[1]
@@ -491,13 +554,13 @@ function AGV()
                         -- 左转
                         -- 向左旋转90度vecE坐标变为(z,-x)
                         params.center = {fromRoadEndPoint[1] + params.radius * fromRoad.vecE[3], fromRoadEndPoint[2],
-                                        fromRoadEndPoint[3] + params.radius * -fromRoad.vecE[1]}
+                                         fromRoadEndPoint[3] + params.radius * -fromRoad.vecE[1]}
                         params.turnOriginRadian = math.atan(-fromRoad.vecE[3], fromRoad.vecE[1]) -- 转弯圆的起始位置弧度(右转)
                     else
                         -- 右转
                         -- 向右旋转90度vecE坐标变为(-z,x)
                         params.center = {fromRoadEndPoint[1] + params.radius * -fromRoad.vecE[3], fromRoadEndPoint[2],
-                                        fromRoadEndPoint[3] + params.radius * fromRoad.vecE[1]}
+                                         fromRoadEndPoint[3] + params.radius * fromRoad.vecE[1]}
                         params.turnOriginRadian = math.atan(fromRoad.vecE[3], -fromRoad.vecE[1]) -- 转弯圆的起始位置弧度(左转)
                     end
 
@@ -548,7 +611,14 @@ function AGV()
             end
 
             dt = agv.state == nil and timeRemain or dt -- 计算最大步进，跳过agv等待状态的情况
-        elseif taskname == "register" then -- {"register", operator}
+            return dt
+        end
+    }
+    agv.tasks.register("onnode") -- 注册任务
+
+    -- {"register", operator}
+    agv.tasks.register = {
+        maxstep = function(params)
             if params == nil then
                 print('[agv] register错误，没有operator参数')
                 os.exit()
@@ -557,10 +627,10 @@ function AGV()
             params:registerAgv(agv)
 
             agv:deltask() -- 删除任务
-            return math.min(agv:maxstep(), params:maxstep()) -- 重新计算
+            return 0 -- 重新计算
         end
-        return dt
-    end
+    }
+    agv.tasks.register("register") -- 注册任务
 
     function agv:InSafetyDistance(targetAgv)
         local tx, ty, tz = targetAgv:getpos()
