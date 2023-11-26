@@ -58,24 +58,11 @@ function AGV()
         local task = agv.tasksequence[1]
         local taskname, params = task[1], task[2]
 
-        -- 判断子任务序列
-        if taskname == "queue" then -- {"queue", subtask={...}}
-            print("判定为子任务序列(queue)") -- debug
-            if #params.subtask == 0 then -- 子任务序列为空，删除queue任务
-                agv:deltask()
-                return agv:maxstep() -- 重新计算
-            end
-
-            -- 执行子任务
-            taskname = params.subtask[1][1]
-            params = params.subtask[1][2]
-        end
-
-        -- debug
-        if agv.lasttask ~= taskname then
-            print('[agv', agv.id, '] executing', taskname)
-            agv.lasttask = taskname
-        end
+        -- -- debug
+        -- if agv.lasttask ~= taskname then
+        --     print('[agv', agv.id, '] executing', taskname)
+        --     agv.lasttask = taskname
+        -- end
 
         -- 执行任务
         if agv.tasks[taskname] ~= nil and agv.tasks[taskname].execute ~= nil then
@@ -115,23 +102,11 @@ function AGV()
         local taskname = agv.tasksequence[1][1] -- 任务名称
         local params = agv.tasksequence[1][2] -- 任务参数
 
-        -- 判断子任务序列
-        if taskname == "queue" then -- {"queue", subtask={...}}
-            if #params.subtask == 0 then -- 子任务序列为空，删除queue任务
-                agv:deltask()
-                return agv:maxstep() -- 重新计算
-            end
-
-            -- 执行子任务
-            taskname = params.subtask[1][1]
-            params = params.subtask[1][2]
-        end
-
-        -- debug
-        if agv.lastmaxstep ~= taskname then
-            agv.lastmaxstep = taskname
-            print('[agv' .. agv.id .. '] maxstep', taskname)
-        end
+        -- -- debug
+        -- if agv.lastmaxstep ~= taskname then
+        --     agv.lastmaxstep = taskname
+        --     print('[agv' .. agv.id .. '] maxstep', taskname)
+        -- end
 
         -- 计算maxstep
         if agv.tasks[taskname] ~= nil and agv.tasks[taskname].maxstep ~= nil then
@@ -618,6 +593,7 @@ function AGV()
     agv:registerTask("onnode") -- 注册任务
 
     -- {"register", operator}
+    -- todo 引发错误
     agv.tasks.register = {
         maxstep = function(params)
             if params == nil then
@@ -628,7 +604,7 @@ function AGV()
             params:registerAgv(agv)
 
             agv:deltask() -- 删除任务
-            return 0 -- 重新计算
+            return -1 -- maxstep触发重算
         end
     }
     agv:registerTask("register") -- 注册任务
