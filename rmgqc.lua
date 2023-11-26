@@ -16,6 +16,7 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
     rmgqc.ship = {} -- 对应的船
     rmgqc.iox = 0
     rmgqc.tasksequence = {} -- 初始化任务队列
+    rmgqc.tasks = {} -- 可用任务列表(数字索引为可用任务，字符索引为任务函数)
     rmgqc.speed = {8, 5} -- 移动速度
     rmgqc.zspeed = 2 -- 车移动速度
     rmgqc.attached = nil -- 抓取的集装箱
@@ -166,7 +167,59 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
         --     rmgqc.lasttask = taskname
         -- end
 
-        if taskname == "move2" then -- 1:col(x), 2:height(y), 3:bay(z), [4:初始bay, 5:已移动bay距离,向量*2(6,7),当前位置*2(8,9),初始位置*2(10,11),到达(12,13)*2]
+        if rmgqc.tasks[taskname] == nil then
+            print('[rmgqc] 错误，没有找到任务', taskname)
+        end
+
+        if rmgqc.tasks[taskname].execute ~= nil then
+            rmgqc.tasks[taskname].execute(dt, params)
+        end
+    end
+
+    -- interface:计算最大允许步进
+    function rmgqc:maxstep()
+        local dt = math.huge -- 初始化步进
+        if rmgqc.tasksequence[1] == nil then -- 对象无任务，直接返回0
+            return dt
+        end
+
+        local taskname = rmgqc.tasksequence[1][1] -- 任务名称
+        local params = rmgqc.tasksequence[1][2] -- 任务参数
+
+        -- -- debug
+        -- if rmgqc.lastmaxstep ~= taskname then
+        --     print('[rmgqc', rmgqc.id, '] maxstep:', taskname)
+        --     rmgqc.lastmaxstep = taskname
+        -- end
+
+        if rmgqc.tasks[taskname] == nil then
+            print('[rmgqc] 错误，没有找到任务', taskname)
+        end
+
+        if rmgqc.tasks[taskname].maxstep ~= nil then
+            dt = math.min(dt, rmgqc.tasks[taskname].maxstep(params))
+        end
+
+        return dt
+    end
+
+    -- 添加任务
+    function rmgqc:addtask(name, param)
+        local task = {name, param}
+        table.insert(rmgqc.tasksequence, task)
+    end
+
+    -- 删除任务
+    function rmgqc:deltask()
+        table.remove(rmgqc.tasksequence, 1)
+
+        if (rmgqc.tasksequence[1] ~= nil and rmgqc.tasksequence[1][1] == "attach") then
+            print("[rmgqc] task executing: ", rmgqc.tasksequence[1][1], " at ", coroutine.qtime())
+        end
+    end
+
+    rmgqc.tasks.move2 = {
+        execute = function(dt, params)
             -- 计算移动值
             local ds = {}
             for i = 1, 2 do
@@ -207,47 +260,10 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
             if params.arrivedZ and params.arrivedXY[1] and params.arrivedXY[2] then
                 rmgqc:deltask()
             end
-        elseif taskname == "waitagv" then -- {"waitagv", nil}
-            if rmgqc.agvqueue[1] == nil then
-                print("[rmgqc] rmgqc.agvqueue[1]=nil")
-            end
-            if rmgqc.agvqueue[1] ~= nil and rmgqc.agvqueue[1].arrived then -- agv到达
-                rmgqc.currentAgv = rmgqc.agvqueue[1] -- 设置当前agv
-                table.remove(rmgqc.agvqueue, 1) -- 移除等待的agv
-                rmgqc:deltask()
-            end
-        elseif taskname == "attach" then -- {"attach", {row, col, level}}
-            if params == nil then
-                params = {nil, nil, nil}
-            end
-            rmgqc:attach(params[1], params[2], params[3])
-            rmgqc:deltask()
-        elseif taskname == "detach" then -- {"detach", {row, col, level}}
-            if params == nil then
-                params = {nil, nil, nil}
-            end
-            rmgqc:detach(params[1], params[2], params[3])
-            rmgqc:deltask()
-        end
-    end
+        end,
+        maxstep = function(params)
+            local dt = math.huge -- 初始化步进
 
-    -- interface:计算最大允许步进
-    function rmgqc:maxstep()
-        local dt = math.huge -- 初始化步进
-        if rmgqc.tasksequence[1] == nil then -- 对象无任务，直接返回0
-            return dt
-        end
-
-        local taskname = rmgqc.tasksequence[1][1] -- 任务名称
-        local params = rmgqc.tasksequence[1][2] -- 任务参数
-
-        -- -- debug
-        -- if rmgqc.lastmaxstep ~= taskname then
-        --     print('[rmgqc', rmgqc.id, '] maxstep:', taskname)
-        --     rmgqc.lastmaxstep = taskname
-        -- end
-
-        if taskname == "move2" then
             if params.initalZ == nil then
                 params.initalZ = rmgqc.pos -- 初始位置
                 params.movedZ = 0 -- 已经移动的距离
@@ -272,9 +288,9 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
                 -- 计算各方向分速度
                 params.speed = {params.vectorXY[1] == 0 and 0 or params.vectorXY[1] / math.abs(params.vectorXY[1]) *
                     rmgqc.speed[1],
-                               params.vectorXY[2] == 0 and 0 or params.vectorXY[2] / math.abs(params.vectorXY[2]) *
+                                params.vectorXY[2] == 0 and 0 or params.vectorXY[2] / math.abs(params.vectorXY[2]) *
                     rmgqc.speed[2],
-                               params[3] == rmgqc.pos and 0 or rmgqc.zspeed *
+                                params[3] == rmgqc.pos and 0 or rmgqc.zspeed *
                     ((params[3] - rmgqc.pos) / math.abs(params[3] - rmgqc.pos))} -- speed[3]:速度乘方向
                 -- print('[rmgqc] speed:', param.speed[1], param.speed[2], param.speed[3])
             end
@@ -297,23 +313,40 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
                 end
             end
         end
-        return dt
-    end
+    }
 
-    -- 添加任务
-    function rmgqc:addtask(name, param)
-        local task = {name, param}
-        table.insert(rmgqc.tasksequence, task)
-    end
-
-    -- 删除任务
-    function rmgqc:deltask()
-        table.remove(rmgqc.tasksequence, 1)
-
-        if (rmgqc.tasksequence[1] ~= nil and rmgqc.tasksequence[1][1] == "attach") then
-            print("[rmgqc] task executing: ", rmgqc.tasksequence[1][1], " at ", coroutine.qtime())
+    rmgqc.tasks.waitagv = {
+        execute = function(dt, params)
+            if rmgqc.agvqueue[1] == nil then
+                print("[rmgqc] rmgqc.agvqueue[1]=nil")
+            end
+            if rmgqc.agvqueue[1] ~= nil and rmgqc.agvqueue[1].arrived then -- agv到达
+                rmgqc.currentAgv = rmgqc.agvqueue[1] -- 设置当前agv
+                table.remove(rmgqc.agvqueue, 1) -- 移除等待的agv
+                rmgqc:deltask()
+            end
         end
-    end
+    }
+
+    rmgqc.tasks.attach = {
+        execute = function(dt, params)
+            if params == nil then
+                params = {nil, nil, nil}
+            end
+            rmgqc:attach(params[1], params[2], params[3])
+            rmgqc:deltask()
+        end
+    }
+
+    rmgqc.tasks.detach = {
+        execute = function(dt, params)
+            if params == nil then
+                params = {nil, nil, nil}
+            end
+            rmgqc:detach(params[1], params[2], params[3])
+            rmgqc:deltask()
+        end
+    }
 
     -- 获取爪子移动坐标（x,y)
     function rmgqc:getcontainercoord(bay, row, level)
