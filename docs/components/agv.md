@@ -57,3 +57,7 @@
 - `param.center` 转弯中心(圆心)
 - `param.turnOriginRadian` 转弯起始弧度，旋转90度方向与转弯方向相反
 - `param.angularSpeed` 角速度
+
+## 问题
+agv前方堵塞时休眠问题
+只有当前方agv在安全距离外时才会继续前进。
