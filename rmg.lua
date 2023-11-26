@@ -27,6 +27,7 @@ function RMG(cy, actionObjs)
     rmg.spreaderpos = {0, rmg.level[2], 0} -- 初始位置(x,y)
     rmg.zpos = 0 -- 初始位置z
     rmg.tasksequence = {} -- 初始化任务队列
+    rmg.tasks = {} -- 可用任务列表(数字索引为可用任务，字符索引为任务函数)
     rmg.speed = {8, 4} -- x,y方向的移动速度
     rmg.zspeed = 2 -- 车移动速度
     rmg.attached = nil -- 抓取的集装箱
@@ -178,7 +179,43 @@ function RMG(cy, actionObjs)
         --     print('[rmg] 当前任务', taskname)
         --     rmg.lasttask = taskname
         -- end
-        if taskname == "move2" then -- 1:col(x), 2:height(y), 3:bay(z), [4:初始bay, 5:已移动bay距离,向量*2(6,7),当前位置*2(8,9),初始位置*2(10,11),到达(12,13)*2]
+
+        if rmg.tasks[taskname] == nil then
+            print('[rmg] 错误，没有找到任务', taskname)
+        end
+
+        if rmg.tasks[taskname].execute ~= nil then
+            rmg.tasks[taskname].execute(dt, params)
+        end
+    end
+
+    -- interface:计算最大允许步进
+    function rmg:maxstep()
+        local dt = math.huge -- 初始化步进
+        if rmg.tasksequence[1] == nil then -- 对象无任务，直接返回0
+            return dt
+        end
+
+        local taskname = rmg.tasksequence[1][1] -- 任务名称
+        local params = rmg.tasksequence[1][2] -- 任务参数
+
+        -- print('[rmg] maxstep task', taskname) -- debug
+
+        if rmg.tasks[taskname] == nil then
+            print('[rmg] 错误，没有找到任务', taskname)
+        end
+
+        if rmg.tasks[taskname].maxstep ~= nil then
+            dt = math.min(dt, rmg.tasks[taskname].maxstep(params))
+        end
+
+        return dt
+    end
+
+    -- {'move2', {col, level, bay}}
+    -- 1:col(x), 2:height(y), 3:bay(z), [4:初始bay, 5:已移动bay距离,向量*2(6,7),当前位置*2(8,9),初始位置*2(10,11),到达(12,13)*2]
+    rmg.tasks.move2 = {
+        execute = function (dt, params)
             -- 计算移动值
             local ds = {}
             for i = 1, 2 do
@@ -219,48 +256,10 @@ function RMG(cy, actionObjs)
             if params.arrivedZ and params.arrivedXY[1] and params.arrivedXY[2] then
                 rmg:deltask()
             end
-        elseif taskname == "waitagv" then -- {"waitagv", nil}
-            -- print('[rmg] waitagv: agvqueue[1]=', rmg.agvqueue[1], ', rmg.agvqueue[1].arrived=', rmg.agvqueue[1].arrived,
-            --     '(agv', rmg.agvqueue[1].id, ')') -- debug
+        end,
+        maxstep = function (params)
+            local dt = math.huge -- 初始化步进
 
-            if rmg.agvqueue[1] == nil then
-                print("rmg: rmg.agvqueue[1]=nil, #rmg.agvqueue=", #rmg.agvqueue)
-                return
-            end
-
-            if rmg.agvqueue[1] ~= nil and rmg.agvqueue[1].arrived then -- agv到达
-                rmg.currentAgv = rmg.agvqueue[1] -- 设置当前agv
-                -- print('[rmg] set current agv to agv', rmg.currentAgv.id) -- debug
-                table.remove(rmg.agvqueue, 1) -- 移除等待的agv
-                rmg:deltask()
-            end
-        elseif taskname == "attach" then -- {"attach", {row, col, level}}
-            if params == nil then
-                params = {nil, nil, nil}
-            end
-            rmg:attach(params[1], params[2], params[3])
-            rmg:deltask()
-        elseif taskname == "detach" then -- {"detach", {row, col, level}}
-            if params == nil then
-                params = {nil, nil, nil}
-            end
-            rmg:detach(params[1], params[2], params[3])
-            rmg:deltask()
-        end
-    end
-
-    -- interface:计算最大允许步进
-    function rmg:maxstep()
-        local dt = math.huge -- 初始化步进
-        if rmg.tasksequence[1] == nil then -- 对象无任务，直接返回0
-            return dt
-        end
-
-        local taskname = rmg.tasksequence[1][1] -- 任务名称
-        local params = rmg.tasksequence[1][2] -- 任务参数
-
-        -- print('[rmg] maxstep task', taskname) -- debug
-        if taskname == "move2" then
             if params.initalZ == nil then
                 params.initalZ = rmg.zpos -- 初始位置
                 params.movedZ = 0 -- 已经移动的距离
@@ -308,10 +307,52 @@ function RMG(cy, actionObjs)
                     end
                 end
             end
-        end
 
-        return dt
-    end
+            return dt
+        end
+    }
+
+    -- {'waitagv'}
+    rmg.tasks.waitagv = {
+        execute = function (dt, params)
+            -- print('[rmg] waitagv: agvqueue[1]=', rmg.agvqueue[1], ', rmg.agvqueue[1].arrived=', rmg.agvqueue[1].arrived,
+            --     '(agv', rmg.agvqueue[1].id, ')') -- debug
+
+            if rmg.agvqueue[1] == nil then
+                print("rmg: rmg.agvqueue[1]=nil, #rmg.agvqueue=", #rmg.agvqueue)
+                return
+            end
+
+            if rmg.agvqueue[1] ~= nil and rmg.agvqueue[1].arrived then -- agv到达
+                rmg.currentAgv = rmg.agvqueue[1] -- 设置当前agv
+                -- print('[rmg] set current agv to agv', rmg.currentAgv.id) -- debug
+                table.remove(rmg.agvqueue, 1) -- 移除等待的agv
+                rmg:deltask()
+            end
+        end
+    }
+
+    -- {'attach', {row, col, level}}
+    rmg.tasks.attach = {
+        execute = function (dt, params)
+            if params == nil then
+                params = {nil, nil, nil}
+            end
+            rmg:attach(params[1], params[2], params[3])
+            rmg:deltask()
+        end
+    }
+
+    -- {'detach', {row, col, level}}
+    rmg.tasks.detach = {
+        execute = function (dt, params)
+            if params == nil then
+                params = {nil, nil, nil}
+            end
+            rmg:detach(params[1], params[2], params[3])
+            rmg:deltask()
+        end
+    }
 
     -- 添加任务
     function rmg:addtask(name, param)
