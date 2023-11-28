@@ -99,7 +99,7 @@ function Road(originPt, destPt, roadList)
             --     road.agvs[agvId - road.agvLeaveNum].agv.targetContainerPos[1],
             --     road.agvs[agvId - road.agvLeaveNum].agv.targetContainerPos[2],
             --     road.agvs[agvId - road.agvLeaveNum].agv.targetContainerPos[3], ')')
-            
+
             roadAgvItem.agv.state = 'stay' -- 设置agv状态
             return -- 如果agv需要停留在道路上，则不删除
         end

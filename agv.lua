@@ -408,11 +408,11 @@ function AGV()
             local fromRoad = params[2]
             local toRoad = params[3]
 
-            -- 在本节点终止任务
-            if toRoad == nil then
-                agv:deltask()
-                return
-            end
+            -- -- 在本节点终止任务
+            -- if toRoad == nil then
+            --     agv:deltask()
+            --     return
+            -- end
 
             -- 判断与前面的agv是否保持安全距离(不需要判断toRoad因为maxstep已经判断过了)
             if #toRoad.agvs > 0 and agv:InSafetyDistance(toRoad.agvs[#toRoad.agvs].agv) then
@@ -500,8 +500,9 @@ function AGV()
                     -- 在本节点终止
                     node.occupied = false -- 解除节点占用
                     node.agv = nil -- 清空节点agv信息
+                    agv:deltask()
 
-                    return 0 -- 可能触发删除实体，需要空转一次
+                    return -1 -- 需要空转到execute删除任务，可能触发删除实体
                 end
 
                 -- 获取fromRoad的终点坐标。由于已知角度，toRoad的起点坐标就不需要了

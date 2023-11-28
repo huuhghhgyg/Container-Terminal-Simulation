@@ -12,15 +12,7 @@ function WatchDog(simv, ActionObjs)
         watchdog.runcommand = scene.render()
 
         -- 回收
-        for i = 1, #ActionObjs do
-            local obj = ActionObjs[i]
-
-            if obj.type == "agv" and #obj.tasksequence == 0 then
-                watchdog:recycle(obj)
-                table.remove(ActionObjs, i)
-                break -- 假设每次同时只能到达一个，因此可以中止
-            end
-        end
+        watchdog:scanRecycle()
 
         -- 检测暂停指令
         if not watchdog.runcommand then
@@ -51,13 +43,19 @@ function WatchDog(simv, ActionObjs)
                     --         maxstep, ' ----------------------------------------------------------')
                     -- end
                     -- laststep = maxstep
+
+                    if maxstep < 0 then
+                        break -- 立刻跳出循环
+                    end
                 end
             end
 
-            -- debug 显示触发maxstep重新运行
-            if maxstep < 0 then
-                print('[watchdog] maxstep < 0 触发maxstep重新运行, ObjCount=', #ActionObjs)
+            -- 如果正常可以直接跳出循环
+            if maxstep > 0 then
+                break
             end
+            print('[watchdog] maxstep < 0 触发maxstep重新运行并删除实体, ObjCount=', #ActionObjs) -- debug 显示触发maxstep重新运行
+            watchdog:scanRecycle() -- 检查回收
 
         until maxstep >= 0
 
@@ -84,6 +82,20 @@ function WatchDog(simv, ActionObjs)
         coroutine.queue(dt, watchdog.update)
     end
 
+    -- 检测是否需要回收
+    function watchdog:scanRecycle()
+        for i = 1, #ActionObjs do
+            local obj = ActionObjs[i]
+
+            if obj.type == "agv" and #obj.tasksequence == 0 then
+                watchdog:recycle(obj)
+                table.remove(ActionObjs, i)
+                break -- 假设每次同时只能到达一个，因此可以中止
+            end
+        end
+    end
+
+    -- 回收某个对象
     function watchdog:recycle(obj)
         if obj.type == "agv" then
             if obj.container ~= nil then
