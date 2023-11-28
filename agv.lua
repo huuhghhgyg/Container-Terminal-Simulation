@@ -288,19 +288,25 @@ function AGV()
             local agvAhead = road:getAgvAhead(agv.roadAgvId)
             if agvAhead ~= nil then
                 -- 不是最后一个agv
-                local d = agvAhead.distance - roadAgvItem.distance
+                -- local d = agvAhead.distance - roadAgvItem.distance
+                -- print('agv' .. agv.id, '与前方agv距离为', d, 't0=', coroutine.qtime())
+                -- if d <= agv.safetyDistance then -- 前方被堵塞
+                --     agv.state = "wait" -- 设置agv状态为等待
+                --     print('agv' .. agv.id, '状态设置为等待')
+                --     return -- 直接返回
+                -- end
 
-                if d < agv.safetyDistance then -- 前方被堵塞
-                    agv.state = "wait" -- 设置agv状态为等待
-                    return -- 直接返回
+                -- -- 前方没有被堵塞
+                -- agv.state = nil -- 解除agv前方堵塞的wait占用状态
+                if agv.state == "wait" then
+                    -- print('agv' .. agv.id, '应用wait状态')
+                    return
                 end
-
-                -- 前方没有被堵塞
-                agv.state = nil -- 解除agv前方堵塞的wait占用状态
             else
                 -- 是最后一个agv
                 if (params == nil or params.targetDistance == nil or params.targetDistance == road.length) and
                     road.toNode ~= nil and road.toNode.agv ~= nil and agv:InSafetyDistance(road.toNode.agv) then -- agv目标是道路尽头，且前方节点被堵塞
+                    agv.state = "wait" -- 设置agv状态为等待
                     return -- 直接返回
                 end
             end
@@ -319,6 +325,7 @@ function AGV()
 
                 -- 判断是否连接节点，节点是否可用
                 -- 如果节点可用，则删除本任务，否则阻塞
+                -- todo 是否需要判断节点是否可用？前面已经返回
                 if road.toNode ~= nil then
                     -- print('[agv', agv.id, '] road.toNode==', road.toNode, '. road', road.id, '.toNode.occupied=',
                     --     road.toNode.occupied, '\t param.targetDist=', param.targetDistance, ' ,road.length=', road.length)
@@ -369,7 +376,8 @@ function AGV()
             end
 
             -- 判断agv状态
-            if agv.state == "wait" or (agv.road.toNode ~= nil and agv.road.toNode.occupied) then -- agv状态为等待
+            -- if agv.state == "wait" or (agv.road.toNode ~= nil and agv.road.toNode.occupied) then -- agv状态为等待
+            if agv.road.toNode ~= nil and agv.road.toNode.occupied then -- agv状态为等待
                 return dt -- 不做计算
             end
 

@@ -152,6 +152,58 @@ function Road(originPt, destPt, roadList)
         local roadAgv = road.agvs[agvId - road.agvLeaveNum] -- 获取道路agv对象
         local distanceRemain = roadAgv.targetDistance - roadAgv.distance -- 计算剩余距离
         local timeRemain = distanceRemain / roadAgv.agv.speed -- 计算最大步进时间
+        -- print('agv' .. roadAgv.agv.id .. '最大步进时间为', timeRemain)
+
+        local roadAgvAhead = road:getAgvAhead(agvId) -- 获取前方agv
+        -- print('roadAgvAhead.agv=', roadAgvAhead.agv, 'id=', roadAgvAhead.agv.id) -- debug
+        -- debug
+        -- print('agvAhead=', roadAgvAhead)
+        -- if roadAgvAhead ~= nil then
+        --     print('agvAhead state=', roadAgvAhead.agv.state, 'agv state=', roadAgv.agv.state)
+        -- end
+
+        -- 如果前方有agv，前后方agv的状态不同，且前方agv位置小于道路目标距离位置则需要判断
+        if roadAgvAhead ~= nil and roadAgvAhead.distance < roadAgv.targetDistance then
+            -- print('触发road判断')
+            local d = roadAgvAhead.distance - roadAgv.distance -- 计算与前面agv之间的距离
+            local dRemain = d - roadAgv.agv.safetyDistance
+            -- 根据剩余距离设置状态
+            if dRemain < 0 then
+                roadAgv.agv.state = 'wait' -- 设置为等待状态
+            else
+                roadAgv.agv.state = nil -- 设置为正常状态
+            end
+            -- print('agv' .. roadAgv.agv.id,
+            --     '设置为' .. (roadAgv.agv.state == nil and '正常' or '等待') .. '状态')
+            -- print('前后agv状态，agvAhead.state=', roadAgvAhead.agv.state, 'agv.state=', roadAgv.agv.state)
+            if roadAgvAhead.agv.state ~= roadAgv.agv.state then
+                -- 如果前后方agv的状态不同，则需要判断
+
+                local time -- 计算需要的时间
+                if dRemain < 0 then
+                    -- dRemain小于0，说明在安全范围内，前方agv正在离开
+                    time = -dRemain / roadAgvAhead.agv.speed -- 计算前方agv离开需要的时间
+                else
+                    -- dRemain大于0，说明在安全范围外，后方agv正在靠近
+                    time = dRemain / roadAgv.agv.speed -- 计算后方agv到达需要的时间
+                end
+                if timeRemain > time and time > 10e-1 then
+                    -- print('成功更新maxstep时间为', time, 't=', coroutine.qtime())
+                    -- coroutine.queue(time, function()
+                    --     debug.pause()
+                    -- end) -- debug
+                    return time -- 如果需要的时间小于最大步进时间(且在一定范围内)，则更新为最大步进时间
+                end
+            end
+        else
+            -- 临时：
+            -- 没有考虑完，这部分适用于前面没有agv的情况
+            roadAgv.agv.state = nil -- 设置为正常状态
+            -- print('agv' .. roadAgv.agv.id,
+            --     '设置为' .. (roadAgv.agv.state == nil and '正常' or '等待') .. '状态 t=', coroutine.qtime())
+        end
+
+        -- print('agv' .. roadAgv.agv.id .. '最大步进时间仍为', timeRemain, 'distanceRemain=', distanceRemain)
         return timeRemain >= 0 and timeRemain or 0 -- 返回最大步进时间
     end
 
