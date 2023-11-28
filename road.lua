@@ -117,7 +117,7 @@ function Road(originPt, destPt, roadList)
     function road:getAgvAhead(agvId)
         if agvId - road.agvLeaveNum - 1 > 0 then
             -- print("找到前方agv,序号为",id - road.agvLeaveNum - 1) --debug
-            return road.agvs[agvId - road.agvLeaveNum - 1].agv
+            return road.agvs[agvId - road.agvLeaveNum - 1]
         end
         -- print("没有找到前方agv") --debug
         return nil -- 没有找到前方的agv

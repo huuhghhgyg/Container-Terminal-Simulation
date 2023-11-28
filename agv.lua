@@ -288,13 +288,17 @@ function AGV()
             local agvAhead = road:getAgvAhead(agv.roadAgvId)
             if agvAhead ~= nil then
                 -- 不是最后一个agv
-                local ax, _, az = agvAhead:getpos()
+                local ax, _, az = agvAhead.agv:getpos()
                 local x, _, z = agv:getpos()
                 local d = math.sqrt((ax - x) ^ 2 + (az - z) ^ 2)
 
                 if d < agv.safetyDistance then -- 前方被堵塞
+                    agv.state = "wait" -- 设置agv状态为等待
                     return -- 直接返回
                 end
+
+                -- 前方没有被堵塞
+                agv.state = nil -- 解除agv前方堵塞的wait占用状态
             else
                 -- 是最后一个agv
                 if (params == nil or params.targetDistance == nil or params.targetDistance == road.length) and
@@ -327,7 +331,7 @@ function AGV()
                         return
                     end
 
-                    agv.state = nil -- 解除agv占用状态
+                    agv.state = nil -- 解除agv前方节点导致的占用状态
                     -- 节点没有被占用且agv到达了道路尽头，才能设置节点占用
                     if params.targetDistance == nil or road.targetDistance == road.length then
                         -- if road.targetDistance == road.length then

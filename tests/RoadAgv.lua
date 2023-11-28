@@ -36,7 +36,7 @@ print('agv2 rd1 target distance:', rd1.agvs[agv2Rd1Id].targetDistance)
 local agv1 = AGV()
 local agv1Rd1Id = rd1:registerAgv(agv1)
 print('agv1 rd1 id:', agv1Rd1Id)
-print('agv1 rd1 agv ahead:', rd1:getAgvAhead(agv1Rd1Id))
+print('agv1 rd1 agv ahead:', rd1:getAgvAhead(agv1Rd1Id).agv)
 
 agv1:addtask("move2", {0, 10})
 agv1:addtask("moveon")
