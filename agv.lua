@@ -288,9 +288,7 @@ function AGV()
             local agvAhead = road:getAgvAhead(agv.roadAgvId)
             if agvAhead ~= nil then
                 -- 不是最后一个agv
-                local ax, _, az = agvAhead.agv:getpos()
-                local x, _, z = agv:getpos()
-                local d = math.sqrt((ax - x) ^ 2 + (az - z) ^ 2)
+                local d = agvAhead.distance - roadAgvItem.distance
 
                 if d < agv.safetyDistance then -- 前方被堵塞
                     agv.state = "wait" -- 设置agv状态为等待
