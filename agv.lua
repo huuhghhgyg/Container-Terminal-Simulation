@@ -281,67 +281,15 @@ function AGV()
             local road = agv.road
             local roadAgvItem = road.agvs[agv.roadAgvId - road.agvLeaveNum]
 
-            -- 判断前方是否被堵塞
-            local agvAhead = road:getAgvAhead(agv.roadAgvId)
-            if agvAhead ~= nil then
-                -- 不是最后一个agv
-                -- local d = agvAhead.distance - roadAgvItem.distance
-                -- print('agv' .. agv.id, '与前方agv距离为', d, 't0=', coroutine.qtime())
-                -- if d <= agv.safetyDistance then -- 前方被堵塞
-                --     agv.state = "wait" -- 设置agv状态为等待
-                --     print('agv' .. agv.id, '状态设置为等待')
-                --     return -- 直接返回
-                -- end
-
-                -- -- 前方没有被堵塞
-                -- agv.state = nil -- 解除agv前方堵塞的wait占用状态
-                if agv.state == "wait" then
-                    -- print('agv' .. agv.id, '应用wait状态')
-                    return
-                end
-            else
-                -- 是最后一个agv
-                if (params == nil or params.targetDistance == nil or params.targetDistance == road.length) and
-                    road.toNode ~= nil and road.toNode.agv ~= nil and agv:InSafetyDistance(road.toNode.agv) then -- agv目标是道路尽头，且前方节点被堵塞
-                    agv.state = "wait" -- 设置agv状态为等待
-                    return -- 直接返回
-                end
+            -- 判断maxstep是否放行
+            if agv.state == 'wait' then
+                return -- maxstep判断为等待，直接返回
             end
 
             -- 判断是否到达目标
-
-            -- -- debug
-            -- if dt < 0.00000001 then
-            --     print('[agv', agv.id, '] moveon road=', agv.road.id, ' ,+dt=', dt, ', distance=',
-            --         roadAgvItem.distance + dt * agv.speed, '>=targetDistance=', roadAgvItem.targetDistance, '?',
-            --         roadAgvItem.distance + dt * agv.speed >= roadAgvItem.targetDistance)
-            -- end
             if roadAgvItem.distance + dt * agv.speed >= roadAgvItem.targetDistance then
                 -- 到达目标
                 road:setAgvDistance(roadAgvItem.targetDistance, agv.roadAgvId) -- 设置agv位置为终点位置
-
-                -- 判断是否连接节点，节点是否可用
-                -- 如果节点可用，则删除本任务，否则阻塞
-                -- todo 是否需要判断节点是否可用？前面已经返回
-                if road.toNode ~= nil then
-                    -- 连接节点
-
-                    -- 判断节点是否被占用
-                    if road.toNode.occupied then
-                        -- 节点被占用，本轮等待
-                        agv.state = "wait" -- 设置agv状态为等待
-                        return
-                    end
-
-                    agv.state = nil -- 解除agv前方节点导致的占用状态
-
-                    -- 节点没有被占用且agv到达了道路尽头，才能设置节点占用
-                    if params.targetDistance == nil or road.targetDistance == road.length then
-                        -- if road.targetDistance == road.length then
-                        road.toNode.occupied = agv -- 设置节点占用
-                        road.toNode.agv = agv -- 设置节点agv信息
-                    end
-                end
 
                 -- 结束任务
                 agv.state = nil -- 设置agv状态为空(正常)
@@ -371,12 +319,6 @@ function AGV()
                     targetDistance = params.targetDistance,
                     stay = params.stay
                 })
-            end
-
-            -- 判断agv状态
-            -- if agv.state == "wait" or (agv.road.toNode ~= nil and agv.road.toNode.occupied) then -- agv状态为等待
-            if agv.road.toNode ~= nil and agv.road.toNode.occupied then -- agv状态为等待
-                return dt -- 不做计算
             end
 
             dt = agv.road:maxstep(agv.roadAgvId) -- 使用road中的方法计算最大步进

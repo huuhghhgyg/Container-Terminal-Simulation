@@ -185,11 +185,22 @@ function Road(originPt, destPt, roadList)
             end
 
         else
-            -- 前方无agv，考虑前方节点是否堵塞。
+            -- 本道路前方无agv，考虑前方节点是否堵塞。
             -- 如果前方节点不堵塞，在安全距离足够的情况下占用节点。
+            -- print('agv' .. roadAgv.agv.id, '前方无agv，道路连接到节点')
             if road.toNode ~= nil then
-                if distanceRemain <= roadAgv.agv.safetyDistance then
-                    -- 道路剩余距离小于安全距离，判断前方节点是否占用。
+                -- 道路连接到节点
+                -- 道路剩余距离小于安全距离，判断前方节点是否占用。
+                if roadAgv.targetDistance == road.length and distanceRemain <= roadAgv.agv.safetyDistance then
+                    -- 前方节点被占用，但不是本agv占用
+                    if road.toNode.occupied and road.toNode.occupied ~= roadAgv.agv then
+                        roadAgv.agv.state = 'wait'
+                        return math.huge -- 不参与计算maxstep
+                    end
+
+                    -- 前方节点没有被占用
+                    road.toNode.occupied = roadAgv.agv -- 占用节点
+                    -- 恢复状态并返回timeRemain（相当于直接往下，不需要其他操作。相当于提早返回）
                 end
             end
 

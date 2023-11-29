@@ -36,6 +36,18 @@
 ```
 沿着当前道路行驶。要么先在road中register，或者通过设置`road`和`distance`参数在任务运行时register
 
+#### 说明
+moveon的maxstep实现在road中。主要判断了
+- 前方有无agv，判断前方agv状态
+- 前方节点状态，节点占用
+- 设置agv状态（关系到execute是否执行）
+
+任务周期
+```mermaid
+graph
+this_cycle(本次循环)-->maxstep(maxstep 静态判断)-->execute(execute 执行)-->next_cycle(下一次循环)
+```
+
 ### onnode
 ```lua
 {"onnode", node, fromRoad, toRoad}
