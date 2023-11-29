@@ -45,3 +45,7 @@ Lua版本：5.4
 agv:addtask('moveon', {road=,}) -- 参数键值列表，记得param加大括号
 agv:addtask('onnode', {node, fromRoad, toRoad}) -- 参数列表，顺序参数，记得param加大括号
 ```
+
+## table
+表之间的等值判断使用地址进行判断
+使用if判断table变量的时候，只要table不是nil则返回true

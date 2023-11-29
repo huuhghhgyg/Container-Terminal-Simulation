@@ -123,9 +123,6 @@ function AGV()
     -- {"move2",x,z} 移动到指定位置 {x,z, 向量距离*2(3,4), moved*2(5,6), 初始位置*2(7,8)},occupy:当前占用道路位置
     agv.tasks.move2 = {
         execute = function(dt, params)
-            if params.speed == nil then
-                agv:maxstep() -- 计算最大步进
-            end
 
             local ds = {params.speed[1] * dt, params.speed[2] * dt} -- xz方向移动距离
             params.movedXZ[1], params.movedXZ[2] = params.movedXZ[1] + ds[1], params.movedXZ[2] + ds[2] -- xz方向已经移动的距离
@@ -327,20 +324,21 @@ function AGV()
                 -- 如果节点可用，则删除本任务，否则阻塞
                 -- todo 是否需要判断节点是否可用？前面已经返回
                 if road.toNode ~= nil then
-                    -- print('[agv', agv.id, '] road.toNode==', road.toNode, '. road', road.id, '.toNode.occupied=',
-                    --     road.toNode.occupied, '\t param.targetDist=', param.targetDistance, ' ,road.length=', road.length)
+                    -- 连接节点
+
+                    -- 判断节点是否被占用
                     if road.toNode.occupied then
                         -- 节点被占用，本轮等待
                         agv.state = "wait" -- 设置agv状态为等待
-                        -- print('agv', agv.id, '前方节点(', road.toNode.id, ')被堵塞，正在等待') -- debug
                         return
                     end
 
                     agv.state = nil -- 解除agv前方节点导致的占用状态
+
                     -- 节点没有被占用且agv到达了道路尽头，才能设置节点占用
                     if params.targetDistance == nil or road.targetDistance == road.length then
                         -- if road.targetDistance == road.length then
-                        road.toNode.occupied = true -- 设置节点占用
+                        road.toNode.occupied = agv -- 设置节点占用
                         road.toNode.agv = agv -- 设置节点agv信息
                     end
                 end
@@ -409,7 +407,7 @@ function AGV()
 
                 -- 满足退出条件，删除本任务
                 agv.state = nil -- 设置agv状态为空(正常)
-                params[1].occupied = false -- 解除节点占用
+                params[1].occupied = nil -- 解除节点占用
                 params[1].agv = nil -- 清空节点agv信息
                 agv:deltask() -- 删除任务
                 return true -- 本轮任务完成
@@ -508,7 +506,7 @@ function AGV()
                 -- 判断是否在本节点终止
                 if toRoad == nil then
                     -- 在本节点终止
-                    node.occupied = false -- 解除节点占用
+                    node.occupied = nil -- 解除节点占用
                     node.agv = nil -- 清空节点agv信息
                     agv:deltask()
 
