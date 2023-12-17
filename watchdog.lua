@@ -26,7 +26,7 @@ function WatchDog(simv, ActionObjs)
         watchdog.dt = (os.clock() - watchdog.t) * simv
         watchdog.t = os.clock() -- 刷新update时间
 
-        print('[watchdog] maxstep at ', coroutine.qtime(), '===========================================================')
+        -- print('[watchdog] maxstep at ', coroutine.qtime(), '===========================================================')
         local maxstep
         repeat
             maxstep = watchdog.dt
@@ -38,7 +38,7 @@ function WatchDog(simv, ActionObjs)
             for i = 1, #ActionObjs do
                 if #ActionObjs[i].tasksequence > 0 then
                     local objectMaxstep = ActionObjs[i]:maxstep()
-                    print('[' .. ActionObjs[i].type .. ActionObjs[i].id .. '] maxstep=', objectMaxstep)
+                    -- print('[' .. ActionObjs[i].type .. ActionObjs[i].id .. '] maxstep=', objectMaxstep)
                     maxstep = math.min(maxstep, objectMaxstep)
                     -- debug
                     -- if ActionObjs[i].tasksequence[1] ~= nil then
@@ -70,12 +70,12 @@ function WatchDog(simv, ActionObjs)
 
         watchdog.dt = maxstep -- 修正dt(严格模式)
         -- watchdog.dt = maxstep > 0 and maxstep or watchdog.dt -- 修正dt
-        print('[watchdog] maxstep=', watchdog.dt)
+        -- print('[watchdog] maxstep=', watchdog.dt)
 
         -- debug.pause()
 
-        print('[watchdog] executeTask at ', coroutine.qtime(),
-            ' ===========================================================')
+        -- print('[watchdog] executeTask at ', coroutine.qtime(),
+        --     ' ===========================================================')
         -- 执行更新
         for i = 1, #ActionObjs do
             -- print('[' .. ActionObjs[i].type .. ActionObjs[i].id .. '] executeTask at ', coroutine.qtime())
@@ -91,6 +91,7 @@ function WatchDog(simv, ActionObjs)
 
         -- 防止无限推进
         if #ActionObjs == 0 then
+            scene.render()
             print('无实体，仿真停止')
             return
         end
