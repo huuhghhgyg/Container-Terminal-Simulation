@@ -83,6 +83,11 @@ function AGV()
 
     -- 删除任务
     function agv:deltask()
+        -- debug
+        if agv.tasksequence[1][1] == 'onnode' then
+            print('agv' .. agv.id .. '完成onnode node' .. agv.tasksequence[1][2][1].id)
+        end
+
         -- 判断是否具有子任务序列
         if agv.tasksequence[1].subtask ~= nil and #agv.tasksequence[1].subtask > 0 then -- 子任务序列不为空，删除子任务中的任务
             table.remove(agv.tasksequence[1].subtask, 1)
@@ -291,8 +296,18 @@ function AGV()
                 -- 到达目标
                 road:setAgvDistance(roadAgvItem.targetDistance, agv.roadAgvId) -- 设置agv位置为终点位置
 
+                print('agv' .. agv.id .. '完成moveon road=' .. road.id)
+
                 -- 结束任务
                 agv.state = nil -- 设置agv状态为空(正常)
+                -- 如果存在目标节点，则设置目标节点占用(如果推进太多可能会造成maxstep漏占用)
+                if road.toNode and not road.toNode.occupied then
+                    local distanceRemain = roadAgvItem.targetDistance - roadAgvItem.distance
+                    if roadAgvItem.targetDistance == road.length and distanceRemain <= roadAgvItem.agv.safetyDistance then
+                        road.toNode.occupied = agv -- 设置节点占用
+                        print('agv' .. agv.id .. '在moveon.execute设置节点' .. road.toNode.id .. '的占用')
+                    end
+                end
                 road:removeAgv(agv.roadAgvId) -- 从道路中移除agv
                 agv:deltask()
                 return
@@ -331,7 +346,6 @@ function AGV()
     agv.tasks.onnode = {
         execute = function(dt, params)
             -- 默认已经占用了节点
-
             local function tryExitNode()
                 local x, y, z = table.unpack(params[3].originPt)
                 local radian = math.atan(params[3].vecE[1], params[3].vecE[3]) - math.atan(0, 1)
@@ -350,6 +364,7 @@ function AGV()
                 -- 满足退出条件，删除本任务
                 agv.state = nil -- 设置agv状态为空(正常)
                 params[1].occupied = nil -- 解除节点占用
+                print('agv' .. agv.id, '离开节点', params[1].id, '并解除占用(occupied=nil)') -- debug
                 params[1].agv = nil -- 清空节点agv信息
                 agv:deltask() -- 删除任务
                 return true -- 本轮任务完成

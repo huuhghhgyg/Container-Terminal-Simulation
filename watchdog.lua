@@ -16,6 +16,7 @@ function WatchDog(simv, ActionObjs)
 
         -- 检测暂停指令
         if not watchdog.runcommand then
+            watchdog:beforeStop()
             scene.render() -- 最后一次绘图
             print('仿真推进停止')
             return
@@ -37,8 +38,10 @@ function WatchDog(simv, ActionObjs)
             for i = 1, #ActionObjs do
                 if #ActionObjs[i].tasksequence > 0 then
                     maxstep = math.min(maxstep, ActionObjs[i]:maxstep())
-                    -- print('[' .. ActionObjs[i].type .. ActionObjs[i].id .. ']', ActionObjs[i].tasksequence[1][1],
-                    --     'maxstep=', maxstep)
+                    -- if ActionObjs[i].tasksequence[1] ~= nil then
+                    --     print(ActionObjs[i].type .. ActionObjs[i].id, ActionObjs[i].tasksequence[1][1],
+                    --         'maxstep updated to', maxstep)
+                    -- end
                     -- 严格模式debug
                     -- if maxstep ~= laststep and maxstep < 0.000001 and ActionObjs[i].tasksequence[1][1]~='onnode' then
                     --     print(ActionObjs[i].type, ActionObjs[i].id, ActionObjs[i].tasksequence[1][1], 'set maxstep=',
@@ -47,7 +50,7 @@ function WatchDog(simv, ActionObjs)
                     -- laststep = maxstep
 
                     if maxstep < 0 then
-                        print('maxstep < 0，跳出actionobjs循环')
+                        -- print('maxstep < 0，跳出actionobjs循环')
                         break -- 立刻跳出循环
                     end
                 end
@@ -57,7 +60,7 @@ function WatchDog(simv, ActionObjs)
             if maxstep > 0 then
                 break
             end
-            print('[watchdog] maxstep < 0 触发maxstep重新运行并删除实体, ObjCount=', #ActionObjs) -- debug 显示触发maxstep重新运行
+            -- print('[watchdog] maxstep < 0 触发maxstep删除实体并重新运行, ObjCount=', #ActionObjs) -- debug 显示触发maxstep重新运行
             watchdog:scanRecycle() -- 检查回收
 
         until maxstep >= 0
@@ -66,7 +69,10 @@ function WatchDog(simv, ActionObjs)
         -- watchdog.dt = maxstep > 0 and maxstep or watchdog.dt -- 修正dt
         -- print('[watchdog] maxstep=', watchdog.dt)
 
-        -- print('[watchdog] executeTask at ', coroutine.qtime(), ' ===========================================================')
+        -- debug.pause()
+
+        -- print('[watchdog] executeTask at ', coroutine.qtime(),
+        --     ' ===========================================================')
         -- 执行更新
         for i = 1, #ActionObjs do
             -- print('[' .. ActionObjs[i].type .. ActionObjs[i].id .. '] executeTask')
@@ -79,6 +85,12 @@ function WatchDog(simv, ActionObjs)
         --     print('dt < 0.0001, dt=', watchdog.dt,
         --         ' =================================================================')
         -- end
+
+        -- 防止无限推进
+        if #ActionObjs == 0 then
+            print('无实体，仿真停止')
+            return
+        end
 
         -- 下一次更新
         coroutine.queue(watchdog.dt, watchdog.update)
@@ -109,6 +121,25 @@ function WatchDog(simv, ActionObjs)
             end
             print('agv', obj.id, 'leave at ', coroutine.qtime())
             obj:delete()
+        end
+    end
+
+    function watchdog:beforeStop()
+        for i = 1, #ActionObjs do
+            local obj = ActionObjs[i]
+            if obj.type == "agv" then
+                local x, y, z = obj:getpos()
+                local label = scene.addobj('label', {
+                    text = 'agv' .. obj.id
+                })
+                label:setpos(x, y + 5, z)
+            elseif obj.type == "node" and obj.occupied then
+                local x, y, z = obj:getpos()
+                local label = scene.addobj('label', {
+                    text = 'occupied by agv' .. obj.occupied.id
+                })
+                label:setpos(x, y - 1, z)
+            end
         end
     end
 
