@@ -26,7 +26,7 @@ function WatchDog(simv, ActionObjs)
         watchdog.dt = (os.clock() - watchdog.t) * simv
         watchdog.t = os.clock() -- 刷新update时间
 
-        -- print('[watchdog] maxstep at ', coroutine.qtime(), '===========================================================')
+        print('[watchdog] maxstep at ', coroutine.qtime(), '===========================================================')
         local maxstep
         repeat
             maxstep = watchdog.dt
@@ -37,7 +37,10 @@ function WatchDog(simv, ActionObjs)
             -- print('[watchdog] maxstep, ObjCount=', #ActionObjs)
             for i = 1, #ActionObjs do
                 if #ActionObjs[i].tasksequence > 0 then
-                    maxstep = math.min(maxstep, ActionObjs[i]:maxstep())
+                    local objectMaxstep = ActionObjs[i]:maxstep()
+                    print('[' .. ActionObjs[i].type .. ActionObjs[i].id .. '] maxstep=', objectMaxstep)
+                    maxstep = math.min(maxstep, objectMaxstep)
+                    -- debug
                     -- if ActionObjs[i].tasksequence[1] ~= nil then
                     --     print(ActionObjs[i].type .. ActionObjs[i].id, ActionObjs[i].tasksequence[1][1],
                     --         'maxstep updated to', maxstep)
@@ -67,15 +70,15 @@ function WatchDog(simv, ActionObjs)
 
         watchdog.dt = maxstep -- 修正dt(严格模式)
         -- watchdog.dt = maxstep > 0 and maxstep or watchdog.dt -- 修正dt
-        -- print('[watchdog] maxstep=', watchdog.dt)
+        print('[watchdog] maxstep=', watchdog.dt)
 
         -- debug.pause()
 
-        -- print('[watchdog] executeTask at ', coroutine.qtime(),
-        --     ' ===========================================================')
+        print('[watchdog] executeTask at ', coroutine.qtime(),
+            ' ===========================================================')
         -- 执行更新
         for i = 1, #ActionObjs do
-            -- print('[' .. ActionObjs[i].type .. ActionObjs[i].id .. '] executeTask')
+            -- print('[' .. ActionObjs[i].type .. ActionObjs[i].id .. '] executeTask at ', coroutine.qtime())
             ActionObjs[i]:executeTask(watchdog.dt)
         end
         -- debug.pause()

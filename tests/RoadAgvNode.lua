@@ -3,6 +3,8 @@ scene.setenv({
     grid = 'plane'
 })
 
+print()
+
 -- 参数设置
 local simv = 4 -- 仿真速度
 local actionobj = {} -- 动作队列声明

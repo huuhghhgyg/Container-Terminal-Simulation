@@ -150,6 +150,7 @@ function Road(originPt, destPt, roadList)
     ---@param agvId number 道路对象中指定的agv的id
     function road:maxstep(agvId)
         local roadAgv = road.agvs[agvId - road.agvLeaveNum] -- 获取道路agv对象
+        -- print('agvId=', agvId, 'road.agvLeaveNum=', road.agvLeaveNum)
         local distanceRemain = roadAgv.targetDistance - roadAgv.distance -- 计算剩余距离
         local timeRemain = distanceRemain / roadAgv.agv.speed -- 计算最大步进时间
         -- print('agv' .. roadAgv.agv.id, 'distance=', roadAgv.distance)
@@ -180,7 +181,8 @@ function Road(originPt, destPt, roadList)
                     time = dRemain / roadAgv.agv.speed -- 计算后方agv到达需要的时间
                 end
 
-                if timeRemain > time and time > 10e-3 then
+                -- if timeRemain > time and time > 10e-3 then
+                if timeRemain > time and time > 10e-6 then
                     return time -- 如果需要的时间小于最大步进时间(且在一定范围内)，则更新为最大步进时间
                 end
             end
