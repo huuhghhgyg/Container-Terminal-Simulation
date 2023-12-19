@@ -85,7 +85,8 @@ function AGV()
     function agv:deltask()
         -- debug
         print('agv' .. agv.id, 'deltask', agv.tasksequence[1][1], 'at', coroutine.qtime())
-        debug.pause()
+        agv.isDeletedTask = true -- watchdog标记
+        -- debug.pause()
 
         -- 判断是否具有子任务序列
         if agv.tasksequence[1].subtask ~= nil and #agv.tasksequence[1].subtask > 0 then -- 子任务序列不为空，删除子任务中的任务
@@ -334,7 +335,10 @@ function AGV()
                 print('agv' .. agv.id .. '注册得到roadAgvId=' .. agv.roadAgvId)
             end
 
-            print('agv='..agv.id,'agv.roadAgvId=', agv.roadAgvId, 'moveon param road.id=', params.road.id) -- debug
+            -- debug
+            -- local roadAgvItem = params.road.agvs[agv.roadAgvId - params.road.agvLeaveNum]
+            -- print('agv=' .. agv.id, 'agv.roadAgvId=', agv.roadAgvId, 'moveon param road.id=', params.road.id,
+            --     'distance=', roadAgvItem.distance .. '/' .. roadAgvItem.targetDistance) -- debug
             dt = agv.road:maxstep(agv.roadAgvId) -- 使用road中的方法计算最大步进
             return dt
         end
@@ -354,9 +358,13 @@ function AGV()
                 -- 判断出口是否占用，如果占用则在Node中等待，阻止其他agv进入Node
                 if #params[3].agvs > 0 then -- 目标道路是否有agv
                     local roadAgvList = params[3].agvs
-                    if agv:InSafetyDistance(roadAgvList[#roadAgvList].agv) then
-                        agv.state = "wait" -- 设置agv状态为等待
-                        return false -- 本轮等待
+                    -- if agv:InSafetyDistance(roadAgvList[#roadAgvList].agv) then
+                    -- if roadAgvList[#roadAgvList].distance < agv.safetyDistance then
+                    --     agv.state = "wait" -- 设置agv状态为等待
+                    --     return false -- 本轮等待
+                    -- end
+                    if agv.state == 'wait' then
+                        return -- 如果maxstep设为等待状态，则等待
                     end
                 end
 
@@ -378,12 +386,10 @@ function AGV()
             --     return
             -- end
 
-            -- 判断与前面的agv是否保持安全距离(不需要判断toRoad因为maxstep已经判断过了)
-            if #toRoad.agvs > 0 and agv:InSafetyDistance(toRoad.agvs[#toRoad.agvs].agv) then
-                agv.state = "wait" -- 设置agv状态为等待
-                return -- 本轮等待
+            -- 如果maxstep设为等待状态，则等待
+            if agv.state == 'wait' then
+                return
             end
-            agv.state = nil -- 设置agv状态为空(正常)
 
             -- 判断是转弯还是直行的情况
             if params.angularSpeed == nil then
@@ -395,7 +401,7 @@ function AGV()
                 if params.arrived or math.abs(ds + params.walked) >= params[1].radius * 2 then
                     params.arrived = true
                     if tryExitNode() then
-                        -- 显示轨迹
+                        -- 正常退出，显示轨迹
                         scene.addobj('polyline', {
                             vertices = {fromRoad.destPt[1], fromRoad.destPt[2], fromRoad.destPt[3], toRoad.originPt[1],
                                         toRoad.originPt[2], toRoad.originPt[3]}
@@ -422,7 +428,7 @@ function AGV()
                 if params.walked / params.deltaRadian >= 1 then
                     params.arrived = true
                     if tryExitNode() then
-                        -- 显示轨迹
+                        -- 正常退出，显示轨迹
                         scene.addobj('polyline', {
                             vertices = params.trail
                         })
@@ -543,6 +549,22 @@ function AGV()
                 end
             end
 
+            -- 判断前方道路是否有agv
+            if #toRoad.agvs > 0 and toRoad.agvs[#toRoad.agvs].distance < agv.safetyDistance then
+                agv.state = "wait" -- 设置agv状态为等待
+
+                -- 返回前方agv预计脱离的时间
+                local agvItemAhead = toRoad.agvs[#toRoad.agvs]
+                local agvAheadRemainDistance = agv.safetyDistance - agvItemAhead.distance
+                local t = agvAheadRemainDistance / agvItemAhead.agv.speed -- 前方agv离起点为安全距离时所需的时间
+
+                -- print('agv' .. agv.id, '前方的agv' .. agvItemAhead.agv.id, 'distance=', agvItemAhead.distance,
+                --     '预计在', t, 's后脱离') -- debug
+
+                return t
+            end
+            agv.state = nil -- 设置agv状态为空(正常)
+
             -- 计算最大步进
             local timeRemain
             if params.deltaRadian == 0 then
@@ -583,6 +605,11 @@ function AGV()
         local x, y, z = agv:getpos()
         local d = math.sqrt((tx - x) ^ 2 + (tz - z) ^ 2)
         return d < agv.safetyDistance
+    end
+
+    -- 计算圆弧长度
+    function agv:arcLength(radian, radius)
+        return math.abs(radian) * radius
     end
 
     function agv.isSameContainerPosition(pos1, pos2)
