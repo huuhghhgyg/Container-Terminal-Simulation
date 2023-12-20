@@ -84,8 +84,8 @@ function AGV()
     -- 删除任务
     function agv:deltask()
         -- debug
-        print('agv' .. agv.id, 'deltask', agv.tasksequence[1][1], 'at', coroutine.qtime())
-        agv.isDeletedTask = true -- watchdog标记
+        -- print('agv' .. agv.id, 'deltask', agv.tasksequence[1][1], 'at', coroutine.qtime())
+        -- agv.isDeletedTask = true -- watchdog标记
         -- debug.pause()
 
         -- 判断是否具有子任务序列
@@ -332,7 +332,7 @@ function AGV()
                     targetDistance = params.targetDistance,
                     stay = params.stay
                 })
-                print('agv' .. agv.id .. '注册得到roadAgvId=' .. agv.roadAgvId)
+                -- print('agv' .. agv.id .. '注册得到roadAgvId=' .. agv.roadAgvId)
             end
 
             -- debug

@@ -111,9 +111,9 @@ function Road(originPt, destPt, roadList)
         -- print("road", road.id, "删除agv，id为", agvId) -- debug
     end
 
-    --- 获取指定id的agv前方的agv
+    --- 获取指定id的agv前方的agvItem
     ---@param agvId number 道路对象中指定的agv的id
-    ---@return number agv对象或nil
+    ---@return agv agv对象或nil
     function road:getAgvAhead(agvId)
         if agvId - road.agvLeaveNum - 1 > 0 then
             -- print("找到前方agv,序号为",id - road.agvLeaveNum - 1) --debug
@@ -155,7 +155,9 @@ function Road(originPt, destPt, roadList)
         local timeRemain = distanceRemain / roadAgv.agv.speed -- 计算最大步进时间
         -- print('agv' .. roadAgv.agv.id, 'distance=', roadAgv.distance)
 
-        local roadAgvAhead = road:getAgvAhead(agvId) -- 获取前方agv
+        local roadAgvAhead = road:getAgvAhead(agvId) -- 获取前方agvItem
+        -- print('agv' .. roadAgv.agv.id, 'roadAgvAhead=',
+        --     roadAgvAhead ~= nil and roadAgvAhead.agv.id .. " agv" .. roadAgv.agv.id .. ".dist=" .. roadAgv.distance)
 
         -- 判断前方有无agv，且前方agv位置是否小于agv的目标位置
         if roadAgvAhead ~= nil and roadAgvAhead.distance < roadAgv.targetDistance then
@@ -169,9 +171,10 @@ function Road(originPt, destPt, roadList)
                 roadAgv.agv.state = nil -- 设置为正常状态
             end
 
+            local time -- 计算需要的时间
+
             -- 如果前后方agv的状态不同，则需要计算并判断剩余时间
             if roadAgvAhead.agv.state ~= roadAgv.agv.state then
-                local time -- 计算需要的时间
 
                 if dRemain < 0 then
                     -- dRemain小于0，说明在安全范围内，前方agv正在离开
@@ -181,20 +184,31 @@ function Road(originPt, destPt, roadList)
                     time = dRemain / roadAgv.agv.speed -- 计算后方agv到达需要的时间
                 end
 
-                -- if timeRemain > time and time > 10e-3 then
-                if timeRemain > time and time > 10e-6 then
-                    return time -- 如果需要的时间小于最大步进时间(且在一定范围内)，则更新为最大步进时间
-                end
+            elseif roadAgvAhead.agv.speed > roadAgv.agv.speed then
+                -- 前后方agv状态相同，如果后方agv速度较大
+                time = dRemain / (roadAgvAhead.agv.speed - roadAgv.agv.speed) -- 计算后方agv到达需要的时间
             end
 
+            -- 判断计算的时间是否符合最小时间范围
+            -- if timeRemain > time and time > 10e-3 then
+            if time ~= nil and timeRemain > time and time > 10e-6 then
+                return time -- 如果需要的时间小于最大步进时间(且在一定范围内)，则更新为最大步进时间
+            end
         else
             -- 本道路前方无agv，考虑前方节点是否堵塞。
             -- 如果前方节点不堵塞，在安全距离足够的情况下占用节点。
             -- print('agv' .. roadAgv.agv.id, '前方无agv，道路连接到节点')
             if road.toNode ~= nil then
                 -- 道路连接到节点
-                -- 道路剩余距离小于安全距离，判断前方节点是否占用。
-                if roadAgv.targetDistance == road.length and distanceRemain <= roadAgv.agv.safetyDistance then
+                if roadAgv.targetDistance == road.length then
+                    if distanceRemain > roadAgv.agv.safetyDistance then
+                        local checkTimeRemain = (distanceRemain - roadAgv.agv.safetyDistance) / roadAgv.agv.speed -- 计算离开点到安全距离点最大步进时间
+                        -- print('agv' .. roadAgv.agv.id, 'checkTimeRemain=', checkTimeRemain)
+                        return checkTimeRemain -- 返回最大步进时间
+                    end
+
+                    -- 道路剩余距离小于安全距离，判断前方节点是否占用。
+                    -- if distanceRemain <= roadAgv.agv.safetyDistance then
                     -- 前方节点被占用，但不是本agv占用
                     if road.toNode.occupied and road.toNode.occupied ~= roadAgv.agv then
                         roadAgv.agv.state = 'wait'
@@ -209,6 +223,7 @@ function Road(originPt, destPt, roadList)
                     end
                     -- 在推进时间过大的情况下，可能由于越过了安全距离导致无法占用，需要在execute中根据dt判断并占用
                     -- 恢复状态并返回timeRemain（相当于直接往下，不需要其他操作。相当于提早返回）
+                    -- end
                 end
             end
 

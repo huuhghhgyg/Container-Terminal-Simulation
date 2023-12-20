@@ -96,12 +96,46 @@ function WatchDog(simv, ActionObjs)
             return
         end
 
+        -- -- debug 检测是否有删除任务
+        -- local isItemDeletedTask = false
+        -- for k, v in ipairs(ActionObjs) do
+        --     if v.isDeletedTask then
+        --         isItemDeletedTask = true -- 标记flag
+        --         v.isDeletedTask = false -- 恢复标记
+        --         print("watchdog debug 检测到"..v.type..v.id.."有删除任务，已暂停==")
+        --         break
+        --     end
+        -- end
+        -- -- 打印所有组件任务列表
+        -- if isItemDeletedTask then
+        --     watchdog:printTasks(ActionObjs)
+        --     scene.render()
+        --     -- debug.pause()
+        -- end
+
         -- 下一次更新
         coroutine.queue(watchdog.dt, watchdog.update)
     end
 
     function watchdog:queueAt(dt)
         coroutine.queue(dt, watchdog.update)
+    end
+
+    -- 打印所有组件任务列表
+    function watchdog:printTasks(objs)
+        print('watchdog debug printTasks at ', coroutine.qtime())
+        for k, obj in ipairs(objs) do
+            print(obj.type..obj.id,'executing',obj.tasksequence[1][1])
+            -- 打标签
+            if obj.label == nil then
+                obj.label = scene.addobj('label', {
+                    text = obj.type..obj.id
+                })
+            end
+            local x, y, z = obj:getpos()
+            obj.label:setpos(x, y + 5, z)
+        end
+        print('===================================')
     end
 
     -- 检测是否需要回收
