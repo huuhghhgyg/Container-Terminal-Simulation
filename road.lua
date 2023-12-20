@@ -74,8 +74,6 @@ function Road(originPt, destPt, roadList)
             targetDistance = params.targetDistance or road.length, -- agv在道路上移动的目标距离，初始为道路长度（走完道路）
             stay = params.stay or false -- agv到达目标位置后是否停留在道路上，默认不停留
         })
-        -- print('road', road.id, '注册agv',agv.id,' {distance=', road.agvs[#road.agvs].distance, ',targetDistance=',
-        --     road.agvs[#road.agvs].targetDistance, '}') --debug
 
         -- 设置agv朝向和道路相同
         agv.roty = math.atan(road.vecE[1], road.vecE[3]) - math.atan(0, 1)
@@ -93,13 +91,6 @@ function Road(originPt, destPt, roadList)
     function road:removeAgv(agvId)
         local roadAgvItem = road.agvs[agvId - road.agvLeaveNum]
         if roadAgvItem.stay == true then
-            -- debug
-            -- print('[road] 由于agv', agvId, '启用了stay，因此不实质性删除\t#road.agvs=', #road.agvs,
-            --     ' road.agvLeaveNum=', road.agvLeaveNum, '\t目标(',
-            --     road.agvs[agvId - road.agvLeaveNum].agv.targetContainerPos[1],
-            --     road.agvs[agvId - road.agvLeaveNum].agv.targetContainerPos[2],
-            --     road.agvs[agvId - road.agvLeaveNum].agv.targetContainerPos[3], ')')
-
             roadAgvItem.agv.state = 'stay' -- 设置agv状态
             return -- 如果agv需要停留在道路上，则不删除
         end
@@ -108,7 +99,6 @@ function Road(originPt, destPt, roadList)
         -- 删除agv上的道路信息
         roadAgvItem.agv.road = nil
         roadAgvItem.agv.roadAgvId = nil
-        -- print("road", road.id, "删除agv，id为", agvId) -- debug
     end
 
     --- 获取指定id的agv前方的agvItem
@@ -116,10 +106,8 @@ function Road(originPt, destPt, roadList)
     ---@return agv agv对象或nil
     function road:getAgvAhead(agvId)
         if agvId - road.agvLeaveNum - 1 > 0 then
-            -- print("找到前方agv,序号为",id - road.agvLeaveNum - 1) --debug
             return road.agvs[agvId - road.agvLeaveNum - 1]
         end
-        -- print("没有找到前方agv") --debug
         return nil -- 没有找到前方的agv
     end
 
@@ -240,10 +228,6 @@ function Road(originPt, destPt, roadList)
 
         -- 道路剩余距离小于安全距离，判断前方节点是否占用。
         if roadAgv.targetDistance == road.length and distanceRemain <= roadAgv.agv.safetyDistance then
-            -- debug
-            if road.toNode.occupied and road.toNode.occupied ~= roadAgv.agv then
-                print('占用节点' .. road.toNode.id .. '的agvid为' .. road.toNode.occupied.id)
-            end
             -- 前方节点被占用，但不是本agv占用
             if road.toNode.occupied and road.toNode.occupied ~= roadAgv.agv then
                 roadAgv.agv.state = 'wait'

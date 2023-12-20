@@ -26,31 +26,16 @@ function WatchDog(simv, ActionObjs)
         watchdog.dt = (os.clock() - watchdog.t) * simv
         watchdog.t = os.clock() -- 刷新update时间
 
-        -- print('[watchdog] maxstep at ', coroutine.qtime(), '===========================================================')
         local maxstep
         repeat
             maxstep = watchdog.dt
 
             -- 计算最大更新时间
-            -- local laststep = watchdog.dt -- debug 严格模式
-
-            -- print('[watchdog] maxstep, ObjCount=', #ActionObjs)
             for i = 1, #ActionObjs do
                 if #ActionObjs[i].tasksequence > 0 then
                     local objectMaxstep = ActionObjs[i]:maxstep()
                     -- print('[' .. ActionObjs[i].type .. ActionObjs[i].id .. '] maxstep=', objectMaxstep)
                     maxstep = math.min(maxstep, objectMaxstep)
-                    -- debug
-                    -- if ActionObjs[i].tasksequence[1] ~= nil then
-                    --     print(ActionObjs[i].type .. ActionObjs[i].id, ActionObjs[i].tasksequence[1][1],
-                    --         'maxstep updated to', maxstep)
-                    -- end
-                    -- 严格模式debug
-                    -- if maxstep ~= laststep and maxstep < 0.000001 and ActionObjs[i].tasksequence[1][1]~='onnode' then
-                    --     print(ActionObjs[i].type, ActionObjs[i].id, ActionObjs[i].tasksequence[1][1], 'set maxstep=',
-                    --         maxstep, ' ----------------------------------------------------------')
-                    -- end
-                    -- laststep = maxstep
 
                     if maxstep < 0 then
                         -- print('maxstep < 0，跳出actionobjs循环')
@@ -63,31 +48,17 @@ function WatchDog(simv, ActionObjs)
             if maxstep > 0 then
                 break
             end
-            -- print('[watchdog] maxstep < 0 触发maxstep删除实体并重新运行, ObjCount=', #ActionObjs) -- debug 显示触发maxstep重新运行
             watchdog:scanRecycle() -- 检查回收
 
         until maxstep >= 0
 
         watchdog.dt = maxstep -- 修正dt(严格模式)
-        -- watchdog.dt = maxstep > 0 and maxstep or watchdog.dt -- 修正dt
-        -- print('[watchdog] maxstep=', watchdog.dt)
 
-        -- debug.pause()
-
-        -- print('[watchdog] executeTask at ', coroutine.qtime(),
-        --     ' ===========================================================')
         -- 执行更新
         for i = 1, #ActionObjs do
             -- print('[' .. ActionObjs[i].type .. ActionObjs[i].id .. '] executeTask at ', coroutine.qtime())
             ActionObjs[i]:executeTask(watchdog.dt)
         end
-        -- debug.pause()
-
-        -- debug 唤醒时间间隔监测
-        -- if watchdog.dt < 0.0001 then
-        --     print('dt < 0.0001, dt=', watchdog.dt,
-        --         ' =================================================================')
-        -- end
 
         -- 防止无限推进
         if #ActionObjs == 0 then

@@ -180,14 +180,6 @@ function AGV()
     -- {"attach"}
     agv.tasks.attach = {
         execute = function(dt, params)
-            -- -- debug
-            -- if agv.operator.stash ~= nil then
-            --     print("[agv", agv.roadAgvId or agv.id, "] agv.operator.stash.tag=",
-            --         agv.operator.stash ~= nil and agv.operator.stash.tag ~= nil and agv.operator.stash.tag[1] ..
-            --             agv.operator.stash.tag[2] .. agv.operator.stash.tag[3], " isSameContainerPos=", agv.operator
-            --             .stash ~= nil and agv.isSameContainerPosition(agv.targetContainerPos, agv.operator.stash.tag)) -- debug
-            -- end
-
             if agv.operator.currentAgv ~= nil and agv.operator.currentAgv ~= agv then
                 -- print('[agv', agv.roadAgvId or agv.id, '] detected operator currentAgv is not self') -- debug
                 return
@@ -335,10 +327,6 @@ function AGV()
                 -- print('agv' .. agv.id .. '注册得到roadAgvId=' .. agv.roadAgvId)
             end
 
-            -- debug
-            -- local roadAgvItem = params.road.agvs[agv.roadAgvId - params.road.agvLeaveNum]
-            -- print('agv=' .. agv.id, 'agv.roadAgvId=', agv.roadAgvId, 'moveon param road.id=', params.road.id,
-            --     'distance=', roadAgvItem.distance .. '/' .. roadAgvItem.targetDistance) -- debug
             dt = agv.road:maxstep(agv.roadAgvId) -- 使用road中的方法计算最大步进
             return dt
         end
@@ -371,7 +359,6 @@ function AGV()
                 -- 满足退出条件，删除本任务
                 agv.state = nil -- 设置agv状态为空(正常)
                 params[1].occupied = nil -- 解除节点占用
-                -- print('agv' .. agv.id, '离开节点', params[1].id, '并解除占用(occupied=nil)') -- debug
                 params[1].agv = nil -- 清空节点agv信息
                 agv:deltask() -- 删除任务
                 return true -- 本轮任务完成
@@ -379,12 +366,6 @@ function AGV()
 
             local fromRoad = params[2]
             local toRoad = params[3]
-
-            -- -- 在本节点终止任务
-            -- if toRoad == nil then
-            --     agv:deltask()
-            --     return
-            -- end
 
             -- 如果maxstep设为等待状态，则等待
             if agv.state == 'wait' then
@@ -423,8 +404,6 @@ function AGV()
                 end
 
                 -- 判断是否到达目标
-                -- print('dRadian=', dRadian, 'param.walked=', param.walked, 'param.deltaRadian=', param.deltaRadian,'dt=', dt) -- debug
-                -- if (dRadian + param.walked) / param.deltaRadian >= 1 then
                 if params.walked / params.deltaRadian >= 1 then
                     params.arrived = true
                     if tryExitNode() then
@@ -492,10 +471,6 @@ function AGV()
                 -- 判断是否需要转弯（可能存在直线通过的情况）
                 if params.deltaRadian % math.pi ~= 0 then
                     params.radius = node.radius / math.tan(math.abs(params.deltaRadian) / 2) -- 转弯半径
-                    -- debug
-                    -- print('node radius:', node.radius, 'param deltaRadian:', param.deltaRadian)
-                    -- print('radius:', param.radius)
-
                     -- 计算圆心
                     -- 判断左转/右转，左转deltaRadian > 0，右转deltaRadian < 0
                     params.direction = params.deltaRadian / math.abs(params.deltaRadian) -- 用于设置步进方向
@@ -514,11 +489,6 @@ function AGV()
                                          fromRoadEndPoint[3] + params.radius * fromRoad.vecE[1]}
                         params.turnOriginRadian = math.atan(fromRoad.vecE[3], -fromRoad.vecE[1]) -- 转弯圆的起始位置弧度(左转)
                     end
-
-                    -- debug
-                    -- print('agv', agv.id, '在node', node.id, (param.deltaRadian > 0 and '左' or '右'),
-                    --     '转 (deltaRadian=', param.deltaRadian, '):fromRadian', param.fromRadian, ', toRadian',
-                    --     param.toRadian)
 
                     -- 显示转弯圆心
                     scene.addobj('points', {
@@ -540,7 +510,6 @@ function AGV()
                     local l2 = math.sqrt((toRoad.originPt[1] - params.center[1]) ^ 2 +
                                              (toRoad.originPt[2] - params.center[2]) ^ 2 +
                                              (toRoad.originPt[3] - params.center[3]) ^ 2)
-                    -- print('Rfrom:', l1, '\tRto:', l2) --debug
                     -- 初始化轨迹
                     params.trail = {fromRoadEndPoint[1], fromRoadEndPoint[2], fromRoadEndPoint[3]}
 
@@ -557,9 +526,6 @@ function AGV()
                 local agvItemAhead = toRoad.agvs[#toRoad.agvs]
                 local agvAheadRemainDistance = agv.safetyDistance - agvItemAhead.distance
                 local t = agvAheadRemainDistance / agvItemAhead.agv.speed -- 前方agv离起点为安全距离时所需的时间
-
-                -- print('agv' .. agv.id, '前方的agv' .. agvItemAhead.agv.id, 'distance=', agvItemAhead.distance,
-                --     '预计在', t, 's后脱离') -- debug
 
                 return t
             end
