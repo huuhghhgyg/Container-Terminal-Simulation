@@ -137,84 +137,24 @@ function Road(originPt, destPt, roadList)
     --- 获取指定id的agv的最大推进时间
     ---@param agvId number 道路对象中指定的agv的id
     function road:maxstep(agvId)
+        if agvId - road.agvLeaveNum == 0 then
+            print("错误，agvId==road.agvLeaveNum，agvId为" .. agvId .. "的agv已经离开了道路")
+        end
         local roadAgv = road.agvs[agvId - road.agvLeaveNum] -- 获取道路agv对象
         -- print('agvId=', agvId, 'road.agvLeaveNum=', road.agvLeaveNum)
         local distanceRemain = roadAgv.targetDistance - roadAgv.distance -- 计算剩余距离
         local timeRemain = distanceRemain / roadAgv.agv.speed -- 计算最大步进时间
         -- print('agv' .. roadAgv.agv.id, 'distance=', roadAgv.distance)
 
-        local roadAgvAhead = road:getAgvAhead(agvId) -- 获取前方agvItem
-        -- print('agv' .. roadAgv.agv.id, 'roadAgvAhead=',
-        --     roadAgvAhead ~= nil and roadAgvAhead.agv.id .. " agv" .. roadAgv.agv.id .. ".dist=" .. roadAgv.distance)
-
-        -- 判断前方有无agv，且前方agv位置是否小于agv的目标位置
-        if roadAgvAhead ~= nil and roadAgvAhead.distance < roadAgv.targetDistance then
-            -- 前方有agv，前方agv位置小于道路目标距离位置
-            local d = roadAgvAhead.distance - roadAgv.distance -- 计算与前面agv之间的距离
-            local dRemain = d - roadAgv.agv.safetyDistance
-            -- 根据剩余距离设置状态
-            if dRemain < 0 then
-                roadAgv.agv.state = 'wait' -- 设置为等待状态
-            else
-                roadAgv.agv.state = nil -- 设置为正常状态
-            end
-
-            local time -- 计算需要的时间
-
-            -- 如果前后方agv的状态不同，则需要计算并判断剩余时间
-            if roadAgvAhead.agv.state ~= roadAgv.agv.state then
-
-                if dRemain < 0 then
-                    -- dRemain小于0，说明在安全范围内，前方agv正在离开
-                    time = -dRemain / roadAgvAhead.agv.speed -- 计算前方agv离开需要的时间
-                else
-                    -- dRemain大于0，说明在安全范围外，后方agv正在靠近
-                    time = dRemain / roadAgv.agv.speed -- 计算后方agv到达需要的时间
-                end
-
-            elseif roadAgvAhead.agv.speed > roadAgv.agv.speed then
-                -- 前后方agv状态相同，如果后方agv速度较大
-                time = dRemain / (roadAgvAhead.agv.speed - roadAgv.agv.speed) -- 计算后方agv到达需要的时间
-            end
-
-            -- 判断计算的时间是否符合最小时间范围
-            -- if timeRemain > time and time > 10e-3 then
-            if time ~= nil and timeRemain > time and time > 10e-6 then
-                return time -- 如果需要的时间小于最大步进时间(且在一定范围内)，则更新为最大步进时间
-            end
-        else
-            -- 本道路前方无agv，考虑前方节点是否堵塞。
-            -- 如果前方节点不堵塞，在安全距离足够的情况下占用节点。
-            -- print('agv' .. roadAgv.agv.id, '前方无agv，道路连接到节点')
-            if road.toNode ~= nil then
-                -- 道路连接到节点
-                if roadAgv.targetDistance == road.length then
-                    if distanceRemain > roadAgv.agv.safetyDistance then
-                        local checkTimeRemain = (distanceRemain - roadAgv.agv.safetyDistance) / roadAgv.agv.speed -- 计算离开点到安全距离点最大步进时间
-                        -- print('agv' .. roadAgv.agv.id, 'checkTimeRemain=', checkTimeRemain)
-                        return checkTimeRemain -- 返回最大步进时间
-                    end
-
-                    -- 道路剩余距离小于安全距离，判断前方节点是否占用。
-                    -- if distanceRemain <= roadAgv.agv.safetyDistance then
-                    -- 前方节点被占用，但不是本agv占用
-                    if road.toNode.occupied and road.toNode.occupied ~= roadAgv.agv then
-                        roadAgv.agv.state = 'wait'
-                        return math.huge -- 不参与计算maxstep
-                    end
-
-                    -- 前方节点没有被占用/前方节点被本agv占用
-
-                    -- 前方节点没有被占用，则占用节点
-                    if not road.toNode.occupied then
-                        road.toNode.occupied = roadAgv.agv -- 占用节点
-                    end
-                    -- 在推进时间过大的情况下，可能由于越过了安全距离导致无法占用，需要在execute中根据dt判断并占用
-                    -- 恢复状态并返回timeRemain（相当于直接往下，不需要其他操作。相当于提早返回）
-                    -- end
+        if road.toNode ~= nil then
+            -- 道路连接到节点
+            if roadAgv.targetDistance == road.length then
+                if distanceRemain > roadAgv.agv.safetyDistance then
+                    local checkTimeRemain = (distanceRemain - roadAgv.agv.safetyDistance) / roadAgv.agv.speed -- 计算离开点到安全距离点最大步进时间
+                    -- print('agv' .. roadAgv.agv.id, 'checkTimeRemain=', checkTimeRemain)
+                    return checkTimeRemain -- 返回最大步进时间
                 end
             end
-
             -- road没有连接到节点
             roadAgv.agv.state = nil -- 设置为正常状态
         end
@@ -223,37 +163,13 @@ function Road(originPt, destPt, roadList)
         return timeRemain >= 0 and timeRemain or 0 -- 返回最大步进时间
     end
 
-    function road:tryOccupyNextNode(roadAgv, occupyMethodText)
-        local distanceRemain = roadAgv.targetDistance - roadAgv.distance -- 计算剩余距离
-
-        -- 道路剩余距离小于安全距离，判断前方节点是否占用。
-        if roadAgv.targetDistance == road.length and distanceRemain <= roadAgv.agv.safetyDistance then
-            -- 前方节点被占用，但不是本agv占用
-            if road.toNode.occupied and road.toNode.occupied ~= roadAgv.agv then
-                roadAgv.agv.state = 'wait'
-                return math.huge -- 不参与计算maxstep
-            end
-
-            -- 前方节点没有被占用，则占用节点
-            -- 如果已经占用了且走到这里，说明为本agv占用节点
-            if not road.toNode.occupied then
-                print(
-                    'agv' .. roadAgv.agv.id .. '在road的' .. occupyMethodText .. '中设置节点' .. road.toNode.id ..
-                        '占用, distanceRemain=' .. distanceRemain, 'node' .. road.toNode.id .. '.occupied=',
-                    road.toNode.occupied)
-                road.toNode.occupied = roadAgv.agv -- 占用节点
-            end
-        end
-
-        -- 在推进时间过大的情况下，可能由于越过了安全距离导致无法占用，需要在execute中根据dt判断并占用
-    end
-
     --- 注册道路，返回注册id
     --- @return integer 道路id
     function road:register()
         roadList[#roadList + 1] = road
         return #roadList
     end
+
     road.id = road:register() -- 注册道路并获取道路id
 
     --- 获取点在道路方向上投影的距离

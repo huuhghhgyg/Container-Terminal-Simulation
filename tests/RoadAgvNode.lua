@@ -58,7 +58,7 @@ table.insert(actionobj, agv2)
 
 -- 测试onnode任务的出口阻塞等待
 local agv3 = AGV()
-agv3.speed = 1.5 --设置agv低速阻塞，测试onnode任务的阻塞等待
+-- agv3.speed = 1.5 --设置agv低速阻塞，测试onnode任务的阻塞等待 -- 仿真中暂时不考虑agv速度不同
 agv3:addtask("moveon",{road = roadAuto3})
 agv3:addtask("onnode",{node4,roadAuto3})
 table.insert(actionobj, agv3)
