@@ -53,3 +53,6 @@ agv:addtask('onnode', {node, fromRoad, toRoad}) -- 参数列表，顺序参数�
 ## table
 表之间的等值判断使用地址进行判断
 使用if判断table变量的时候，只要table不是nil则返回true
+
+# 分支说明
+feat/agv-autowait: agv自动检测前方避碰。但是由于判断范围大、推进不准确、实际情况中可能不太需要考虑而搁置。
