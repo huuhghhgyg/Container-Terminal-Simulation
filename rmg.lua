@@ -174,11 +174,11 @@ function RMG(cy, actionObjs)
         local task = rmg.tasksequence[1]
         local taskname, params = task[1], task[2]
 
-        -- -- debug
-        -- if rmg.lasttask ~= taskname then
-        --     print('[rmg] 当前任务', taskname)
-        --     rmg.lasttask = taskname
-        -- end
+        -- debug
+        if rmg.lasttask ~= taskname then
+            print('[rmg] 当前任务', taskname, 'at', coroutine.qtime())
+            rmg.lasttask = taskname
+        end
 
         if rmg.tasks[taskname] == nil then
             print('[rmg] 错误，没有找到任务', taskname)
@@ -212,10 +212,10 @@ function RMG(cy, actionObjs)
         return dt
     end
 
-    -- {'move2', {col, level, bay}}
+    -- {'move2', {x, y, z}}
     -- 1:col(x), 2:height(y), 3:bay(z), [4:初始bay, 5:已移动bay距离,向量*2(6,7),当前位置*2(8,9),初始位置*2(10,11),到达(12,13)*2]
     rmg.tasks.move2 = {
-        execute = function (dt, params)
+        execute = function(dt, params)
             -- 计算移动值
             local ds = {}
             for i = 1, 2 do
@@ -257,8 +257,8 @@ function RMG(cy, actionObjs)
                 rmg:deltask()
             end
         end,
-        maxstep = function (params)
-            local dt = math.huge -- 初始化步进
+        maxstep = function(params)
+            local dt = 0 -- 初始化步进
 
             if params.initalZ == nil then
                 params.initalZ = rmg.zpos -- 初始位置
@@ -284,14 +284,14 @@ function RMG(cy, actionObjs)
                 -- 计算各方向分速度
                 params.speed = {params.vectorXY[1] == 0 and 0 or params.vectorXY[1] / math.abs(params.vectorXY[1]) *
                     rmg.speed[1],
-                               params.vectorXY[2] == 0 and 0 or params.vectorXY[2] / math.abs(params.vectorXY[2]) *
+                                params.vectorXY[2] == 0 and 0 or params.vectorXY[2] / math.abs(params.vectorXY[2]) *
                     rmg.speed[2],
-                               params[3] == rmg.zpos and 0 or rmg.zspeed *
+                                params[3] == rmg.zpos and 0 or rmg.zspeed *
                     ((params[3] - rmg.zpos) / math.abs(params[3] - rmg.zpos))} -- speed[3]:速度乘方向
             end
 
             if not params.arrivedZ then -- bay方向没有到达目标
-                dt = math.min(dt, math.abs((params[3] - params.initalZ - params.movedZ) / params.speed[3]))
+                dt = math.max(dt, math.abs((params[3] - params.initalZ - params.movedZ) / params.speed[3]))
             end
 
             for i = 1, 2 do -- 判断X/Y(col/level)方向有没有到达目标
@@ -303,7 +303,7 @@ function RMG(cy, actionObjs)
                             taskRemainTime = 0
                         end
 
-                        dt = math.min(dt, taskRemainTime)
+                        dt = math.max(dt, taskRemainTime)
                     end
                 end
             end
@@ -314,7 +314,7 @@ function RMG(cy, actionObjs)
 
     -- {'waitagv'}
     rmg.tasks.waitagv = {
-        execute = function (dt, params)
+        execute = function(dt, params)
             -- print('[rmg] waitagv: agvqueue[1]=', rmg.agvqueue[1], ', rmg.agvqueue[1].arrived=', rmg.agvqueue[1].arrived,
             --     '(agv', rmg.agvqueue[1].id, ')') -- debug
 
@@ -334,23 +334,29 @@ function RMG(cy, actionObjs)
 
     -- {'attach', {row, col, level}}
     rmg.tasks.attach = {
-        execute = function (dt, params)
+        execute = function(dt, params)
             if params == nil then
                 params = {nil, nil, nil}
             end
             rmg:attach(params[1], params[2], params[3])
             rmg:deltask()
+        end,
+        maxstep = function(params)
+            return 0
         end
     }
 
     -- {'detach', {row, col, level}}
     rmg.tasks.detach = {
-        execute = function (dt, params)
+        execute = function(dt, params)
             if params == nil then
                 params = {nil, nil, nil}
             end
             rmg:detach(params[1], params[2], params[3])
             rmg:deltask()
+        end,
+        maxstep = function(params)
+            return 0
         end
     }
 
@@ -362,12 +368,15 @@ function RMG(cy, actionObjs)
 
     -- 删除任务
     function rmg:deltask()
+        -- debug
+        -- print('delete task', rmg.tasksequence[1][1], 'at', coroutine.qtime())
         table.remove(rmg.tasksequence, 1)
+        rmg.lasttask = nil -- 重置debug记录的上一个任务
 
         -- debug
-        if (rmg.tasksequence[1] ~= nil) then
-            print("[rmg] task executing: ", rmg.tasksequence[1][1])
-        end
+        -- if (rmg.tasksequence[1] ~= nil) then
+        --     print("[rmg] task executing: ", rmg.tasksequence[1][1], 'at', coroutine.qtime())
+        -- end
     end
 
     -- 获取集装箱坐标{x,y,z}

@@ -12,7 +12,12 @@
 
 ## 任务
 ### move2
-移动到指定位置
+```lua
+{'move2', {x, y, z}}
+```
+移动到指定坐标位置。
+
+如果只有集装箱位置，可以使用 [getContainerCoord()]() 函数进行转换
 
 #### 参数
 1:col(x), 2:height(y), 3:bay(z)
@@ -54,3 +59,13 @@ detach中的参数是目标位置。如果没有指定位置，则将集装箱�
 - lift2Agv(bay, row, level): 将集装箱从目标位置移动到agv，默认在移动层。这个函数会标记当前rmg任务目标位置
 - move2TargetPos(bay, row): 移动到目标位置，默认在移动层
 - move2Agv(bay): 移动到agv上方，默认在移动层
+- getContainerCoord(bar, row, level): 获取堆场中(bay, row, level)对应{x,y,z}的位置
+
+### getContainerCoord()
+```lua
+coordTable = rmg:getContainerCoord(bay, row, level)
+-- coordTable: {x, y, z}
+```
+
+- 当 `row` 为-1时，获取的坐标为对应bay的道路位置。
+- 当 `row` 为-1且 `col` 为1时，获取的坐标位置为道路上AGV集装箱高度的位置。

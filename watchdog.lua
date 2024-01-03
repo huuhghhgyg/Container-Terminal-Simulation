@@ -4,7 +4,8 @@ function WatchDog(simv, ActionObjs)
         t = os.clock(),
         dt = 0,
         -- 程序控制
-        runcommand = true
+        runcommand = true,
+        isImmediateStop = true -- 没有任务的时候立刻停止
     }
 
     function watchdog:update()
@@ -27,12 +28,15 @@ function WatchDog(simv, ActionObjs)
         watchdog.t = os.clock() -- 刷新update时间
 
         local maxstep
+        local maxstepItem = 0 -- 作用于isImmediateStop
         repeat
             maxstep = watchdog.dt
 
             -- 计算最大更新时间
             for i = 1, #ActionObjs do
                 if #ActionObjs[i].tasksequence > 0 then
+                    maxstepItem = maxstepItem + 1 -- 记录起作用的item
+
                     local objectMaxstep = ActionObjs[i]:maxstep()
                     -- print('[' .. ActionObjs[i].type .. ActionObjs[i].id .. '] maxstep=', objectMaxstep)
                     maxstep = math.min(maxstep, objectMaxstep)
@@ -56,14 +60,15 @@ function WatchDog(simv, ActionObjs)
 
         -- 执行更新
         for i = 1, #ActionObjs do
-            -- print('[' .. ActionObjs[i].type .. ActionObjs[i].id .. '] executeTask at ', coroutine.qtime())
+            -- print('[' .. ActionObjs[i].type .. ActionObjs[i].id .. '] executeTask', ActionObjs[i].tasksequence[1][1],
+            --     'at ', coroutine.qtime())
             ActionObjs[i]:executeTask(watchdog.dt)
         end
 
         -- 防止无限推进
-        if #ActionObjs == 0 then
+        if #ActionObjs == 0 or watchdog.isImmediateStop and maxstepItem == 0 then
             scene.render()
-            print('无实体，仿真停止')
+            print('无实体，仿真停止 t=', coroutine.qtime())
             return
         end
 
@@ -96,11 +101,11 @@ function WatchDog(simv, ActionObjs)
     function watchdog:printTasks(objs)
         print('watchdog debug printTasks at ', coroutine.qtime())
         for k, obj in ipairs(objs) do
-            print(obj.type..obj.id,'executing',obj.tasksequence[1][1])
+            print(obj.type .. obj.id, 'executing', obj.tasksequence[1][1])
             -- 打标签
             if obj.label == nil then
                 obj.label = scene.addobj('label', {
-                    text = obj.type..obj.id
+                    text = obj.type .. obj.id
                 })
             end
             local x, y, z = obj:getpos()
