@@ -30,13 +30,26 @@ rmgqc:bindShip(ship)
 local target1 = {3, 4, 2}
 rmgqc:addtask("move2", rmgqc:getcontainercoord(target1[1], -1, rmgqc.toplevel)) -- 初始化位置
 
+-- 单个任务
+local bay, row, level = 3, 4, 2
 -- 取下1
-rmgqc:move2TargetPos(table.unpack(target1))
-rmgqc:lift2Agv(table.unpack(target1))
+rmgqc:addtask("move2", rmgqc:getcontainercoord(bay, row, rmgqc.toplevel))
+rmgqc:addtask("move2", rmgqc:getcontainercoord(bay, row, level)) -- 移动爪子到指定位置
+rmgqc:addtask("attach", {bay, row, level}) -- 抓取
+rmgqc:addtask("move2", rmgqc:getcontainercoord(bay, row, rmgqc.toplevel)) -- 吊具提升到移动层
+rmgqc:addtask("move2", rmgqc:getcontainercoord(bay, -1, rmgqc.toplevel)) -- 移动爪子到agv上方
+-- rmgqc:addtask("waitagv") -- 等待agv到达
+rmgqc:addtask("move2", rmgqc:getcontainercoord(bay, -1, 1)) -- 移动爪子到agv
+rmgqc:addtask("detach", nil) -- 放下指定箱
+rmgqc:addtask("move2", rmgqc:getcontainercoord(bay, -1, rmgqc.toplevel)) -- 爪子抬起到移动层
 
--- 装载1
-rmgqc:move2Agv(target1[1])
-rmgqc:lift2TargetPos(table.unpack(target1))
+-- 集成任务
+-- -- 取下
+-- rmgqc:move2TargetPos(table.unpack(target1))
+-- rmgqc:lift2Agv(table.unpack(target1))
+-- -- 装载
+-- rmgqc:move2Agv(target1[1])
+-- rmgqc:lift2TargetPos(table.unpack(target1))
 
 -- 开始仿真
 local watchdog = WatchDog(simv, ActionObjs)

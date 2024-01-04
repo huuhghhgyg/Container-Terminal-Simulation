@@ -161,11 +161,11 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
         local task = rmgqc.tasksequence[1]
         local taskname, params = task[1], task[2]
 
-        -- -- debug
-        -- if rmgqc.lasttask ~= taskname then
-        --     print('[rmgqc', rmgqc.id, '] 当前任务', taskname)
-        --     rmgqc.lasttask = taskname
-        -- end
+        -- debug
+        if rmgqc.lasttask ~= taskname then
+            print('[rmg] 当前任务', taskname, 'at', coroutine.qtime())
+            rmgqc.lasttask = taskname
+        end
 
         if rmgqc.tasks[taskname] == nil then
             print('[rmgqc] 错误，没有找到任务', taskname)
@@ -186,11 +186,11 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
         local taskname = rmgqc.tasksequence[1][1] -- 任务名称
         local params = rmgqc.tasksequence[1][2] -- 任务参数
 
-        -- -- debug
-        -- if rmgqc.lastmaxstep ~= taskname then
-        --     print('[rmgqc', rmgqc.id, '] maxstep:', taskname)
-        --     rmgqc.lastmaxstep = taskname
-        -- end
+        -- debug
+        if rmgqc.lastmaxstep ~= taskname then
+            print('[rmgqc', rmgqc.id, '] maxstep:', taskname)
+            rmgqc.lastmaxstep = taskname
+        end
 
         if rmgqc.tasks[taskname] == nil then
             print('[rmgqc] 错误，没有找到任务', taskname)
@@ -212,6 +212,7 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
     -- 删除任务
     function rmgqc:deltask()
         table.remove(rmgqc.tasksequence, 1)
+        rmgqc.lasttask = nil -- 重置debug记录的上一个任务
 
         if (rmgqc.tasksequence[1] ~= nil and rmgqc.tasksequence[1][1] == "attach") then
             print("[rmgqc] task executing: ", rmgqc.tasksequence[1][1], " at ", coroutine.qtime())
@@ -262,7 +263,7 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
             end
         end,
         maxstep = function(params)
-            local dt = math.huge -- 初始化步进
+            local dt = 0 -- 初始化步进
 
             if params.initalZ == nil then
                 params.initalZ = rmgqc.pos -- 初始位置
@@ -296,7 +297,7 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
             end
 
             if not params.arrivedZ then -- bay方向没有到达目标
-                dt = math.min(dt, math.abs((params[3] - params.initalZ - params.movedZ) / params.speed[3]))
+                dt = math.max(dt, math.abs((params[3] - params.initalZ - params.movedZ) / params.speed[3]))
             end
 
             for i = 1, 2 do -- 判断X/Y(col/level)方向有没有到达目标
@@ -308,10 +309,13 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
                             taskRemainTime = 0
                         end
 
-                        dt = math.min(dt, taskRemainTime)
+                        dt = math.max(dt, taskRemainTime)
                     end
                 end
             end
+
+            -- print('[rmgqc] maxstep:', dt)
+            return dt
         end
     }
 
@@ -335,6 +339,9 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
             end
             rmgqc:attach(params[1], params[2], params[3])
             rmgqc:deltask()
+        end,
+        maxstep = function(params)
+            return 0
         end
     }
 
@@ -345,6 +352,9 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
             end
             rmgqc:detach(params[1], params[2], params[3])
             rmgqc:deltask()
+        end,
+        maxstep = function(params)
+            return 0
         end
     }
 
