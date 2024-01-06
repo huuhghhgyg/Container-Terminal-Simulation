@@ -53,3 +53,45 @@ tasks表结构
 ### 删除任务
 todo: 从任务删除改为索引推进，能够保留历史执行的任务。
 > 使用索引推进其实也不难管理。`table.insert(table, pos, value)`中的pos是table的索引位置。感觉存储的内容也不会太占用资源，所以可行。还可以在必要的时候导出分析。
+
+# 交互
+Agent之间通过任务相互等待进行交互。
+
+属性
+`agent.occpuier`：占用者，显示当前agent被谁占用。如果没有被占用则为nil。
+
+## 示例
+此处以AGV和RMG的交互为例。
+
+```mermaid
+flowchart LR
+RMG(RMG: Agent, Operator)-->|操作|AGV(AGV: Agent)
+```
+
+AGV
+- `waitoperator`: 等待另一个agent对agv的占用和操作。将操作的agent视为operator
+
+RMG
+- `waitagent`: 等待被操作的agent就绪
+- `operateagent`: 占用、操作agent
+
+AGV和RMG各自的流程：
+```mermaid
+flowchart TD
+  subgraph AGV
+    agv_arrive(AGV到达)-->waitoperator-->|收到完成信号|agv_leave(AGV继续任务)
+  end
+  subgraph RMG
+    rmg_arrive(RMG到达)-->waitagent-->|收到到达信号|operateagent-->|操作完成，释放完成信号|rmg_done(RMG继续任务)
+  end
+```
+
+AGV与RMG的通信流程，以RMG先到达目标位置等待为例：
+```mermaid
+sequenceDiagram
+RMG-->>AGV: waitagent，到达指定位置，等待agent到达
+AGV-->>RMG: waitoperator，到达指定位置，被Agent占用，等待操作
+activate AGV
+RMG->>AGV: operateagent，占用AGV，并进行必要的操作，完成后发出结束占用信号
+deactivate AGV
+```
