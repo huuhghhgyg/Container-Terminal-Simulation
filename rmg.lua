@@ -358,11 +358,9 @@ function RMG(cy, actionObjs)
     -- {'unwaitagent', agentqueue_pos} -- 解除agent的阻塞，使agent继续执行其他任务
     rmg.tasks.unwaitagent = {
         maxstep = function(params)
-            print('rmg unwaitagent', params) -- debug
             rmg.agentqueue[params].occupier = nil -- 解除阻塞
-            print('unwaitagent 解除'..rmg.agentqueue[params].type..rmg.agentqueue[params].id..'的阻塞')
+            -- print('unwaitagent 解除'..rmg.agentqueue[params].type..rmg.agentqueue[params].id..'的阻塞')
             table.remove(rmg.agentqueue, params)
-            print('rmg unwaitagent finished, #agentqueue=', #rmg.agentqueue, '#1:', rmg.agentqueue[1]) -- debug
             rmg:deltask()
             return rmg:maxstep() -- 本任务不影响其他agent，因此可以直接递归调用，消除本任务的影响
         end
