@@ -47,6 +47,19 @@ rmg:addtask('move2', rmg:getContainerCoord(6, -1, 1))
 rmg:addtask('detach', nil)
 rmg:addtask('move2', rmg:getContainerCoord(6, -1, rmg.toplevel)) -- t=17.42, end t=19.315
 
+-- test1.5
+-- 添加agv作为测试agent
+local agentPosition = rmg:getContainerCoord(6, -1, 1)
+agentPosition[2] = 0 -- 修正高度
+agentPosition[1], agentPosition[3] = rmg.origin[1] + agentPosition[1], rmg.origin[3] + agentPosition[3] -- 修正坐标系
+print('agentPosition', table.unpack(agentPosition))
+local agv = AGV()
+agv:setpos(table.unpack(agentPosition))
+-- 设置占用
+agv.occupier = rmg
+agv.state = 'wait'
+rmg.occupier = agv
+
 -- test2
 -- rmg:addtask('move2', {10,10,10}) -- t=0
 -- rmg:addtask('move2', {10,10,30}) -- t=5 
