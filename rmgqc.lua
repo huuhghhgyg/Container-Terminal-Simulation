@@ -325,7 +325,7 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
                 print("[rmgqc] rmgqc.agvqueue[1]=nil")
             end
             if rmgqc.agvqueue[1] ~= nil and rmgqc.agvqueue[1].arrived then -- agv到达
-                rmgqc.currentAgv = rmgqc.agvqueue[1] -- 设置当前agv
+                rmgqc.currentAgent = rmgqc.agvqueue[1] -- 设置当前agv
                 table.remove(rmgqc.agvqueue, 1) -- 移除等待的agv
                 rmgqc:deltask()
             end
@@ -358,7 +358,7 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
         end
     }
 
-    -- 获取爪子移动坐标（x,y)
+    -- 获取集装箱位置相对origin的坐标{x,y,z}
     function rmgqc:getcontainercoord(bay, row, level)
         local x
         if row == -1 then

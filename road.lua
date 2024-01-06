@@ -90,7 +90,7 @@ function Road(originPt, destPt, roadList)
     ---@param agvId 道路对象中指定的agv的id
     function road:removeAgv(agvId)
         local roadAgvItem = road.agvs[agvId - road.agvLeaveNum]
-        if roadAgvItem.stay == true then
+        if roadAgvItem.stay then
             roadAgvItem.agv.state = 'stay' -- 设置agv状态
             return -- 如果agv需要停留在道路上，则不删除
         end
@@ -144,7 +144,8 @@ function Road(originPt, destPt, roadList)
         -- print('agvId=', agvId, 'road.agvLeaveNum=', road.agvLeaveNum)
         local distanceRemain = roadAgv.targetDistance - roadAgv.distance -- 计算剩余距离
         local timeRemain = distanceRemain / roadAgv.agv.speed -- 计算最大步进时间
-        -- print('agv' .. roadAgv.agv.id, 'distance=', roadAgv.distance)
+        -- print('agv' .. roadAgv.agv.id, 'distance=', roadAgv.distance, 'distanceRemain=', distanceRemain, 'timeRemain=',
+        --     timeRemain)
 
         if road.toNode ~= nil then
             -- 道路连接到节点

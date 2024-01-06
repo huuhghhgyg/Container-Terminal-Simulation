@@ -177,97 +177,29 @@ function AGV()
     }
     agv:registerTask("move2") -- 注册任务
 
-    -- {"attach"}
-    agv.tasks.attach = {
-        execute = function(dt, params)
-            if agv.operator.currentAgv ~= nil and agv.operator.currentAgv ~= agv then
-                -- print('[agv', agv.roadAgvId or agv.id, '] detected operator currentAgv is not self') -- debug
-                return
-            end
-
-            if agv.operator.stash == nil then
-                print('[agv', agv.roadAgvId or agv.id, '] detected operator stash is nil') -- debug
-                return
-            end
-
-            -- if agv.operator.currentAgv == self then
-            --     print('[agv', agv.roadAgvId or agv.id, '] detected operator currentAgv is self(agv', self.id, ')') -- debug
-            -- end
-
-            if agv.isSameContainerPosition(agv.targetContainerPos, agv.operator.stash.tag) then -- agv装货(判断交换区是否有集装箱&集装箱所有权)
-                agv:attach()
-                print("[agv", agv.roadAgvId or agv.id, "] attached container(", agv.container.tag[1],
-                    agv.container.tag[2], agv.container.tag[3], ") at ", coroutine.qtime(), ', agv target=',
-                    agv.targetContainerPos[1], agv.targetContainerPos[2], agv.targetContainerPos[3])
-                agv.container.tag = nil -- 清除集装箱原有的tag信息
-                agv:deltask()
-            end
-        end
-        -- 无需maxstep
-    }
-    agv:registerTask("attach") -- 注册任务
-
-    -- {"detach"}
-    agv.tasks.detach = {
-        execute = function(dt, params)
-            -- agv的attach任务:(moveon -> (arrived) -> detach -> waitrmg)
-            if agv.taskType == 'unload' then
-                agv.arrived = true
-            end
-
-            if agv.operator.currentAgv ~= nil and agv.operator.currentAgv ~= agv then
-                -- print('[agv', agv.roadAgvId or agv.id, '] detected operator currentAgv is not self, is agv',
-                --     agv.operator.currentAgv.id) -- debug
-                return
-            end
-
-            if agv.operator.stash ~= nil then
-                print('[agv', agv.roadAgvId or agv.id, '] detected operator stash not nil') -- debug
-                return
-            end
-
-            -- if agv.operator.currentAgv == self then
-            --     print('[agv', agv.roadAgvId or agv.id, '] detected operator currentAgv is self(agv', self.id, ')') -- debug
-            -- end
-
-            -- print("[agv", agv.roadAgvId or agv.id, "] operator stash not nil") -- debug
-            print("[agv", agv.roadAgvId or agv.id, "] detached container(",
-                agv.targetContainerPos == nil and 'targetPos=nil' or agv.targetContainerPos[1] ..
-                    agv.targetContainerPos[2] .. agv.targetContainerPos[3], ") at ", coroutine.qtime())
-            agv:detach()
-            agv:deltask()
-        end
-        -- 无需maxstep
-    }
-    agv:registerTask("detach") -- 注册任务
-
-    -- {"waitoperator",'load'/'unload'} 等待机械响应（agv装/卸货）
+    -- {"waitoperator", {operator=agent}} 等待operator改变自身状态。当自身状态为nil时，删除任务；wait则继续等待。
     agv.tasks.waitoperator = {
-        execute = function(dt, params)
-            -- agv的attach任务:(moveon -> (arrived) -> waitrmg -> attach)
-            if agv.taskType == 'load' then
-                agv.arrived = true
+        maxstep = function(params)
+            -- 初始化
+            if not params.init then
+                agv.occupier = params.operator -- 设置当前agv被哪个agent占用
+                print('#params, params.operator', #params, params.operator)
+                print('agv.occupier=', agv.occupier)
+                print('agv' .. agv.id .. 'waitoperator 任务初始化，occupier=', agv.occupier.type, agv.occupier.id)
+                params.init = true -- 设置初始化标记
             end
 
-            if agv.operator.currentAgv ~= nil and agv.operator.currentAgv ~= agv then
-                return -- 如果当前operator操作的对象不是本身，则不需要继续判断，直接返回
+            -- 检测状态，能否结束任务
+            if agv.occupier == nil then
+                print('agv' .. agv.id .. 'waitoperator 任务结束 at' .. coroutine.qtime())
+                agv:deltask()
+                return -1
             end
 
-            -- 检测rmg.stash是否为空，如果为空则等待；否则完成任务
-            if params[1] == 'load' then -- attach
-                -- agv装货
-                if agv.operator.stash ~= nil then -- operator已经将货物放到stash中
-                    agv:deltask()
-                end
-            elseif params[1] == 'unload' then -- detach
-                -- agv卸货
-                if agv.operator.stash == nil then -- operator已经将货物取走
-                    agv:deltask()
-                    return
-                end
-            end
+            -- print('agv' .. agv.id, 'waitoperator', agv.operator.type, agv.operator.id)
+
+            return math.huge
         end
-        -- 无需maxstep
     }
     agv:registerTask("waitoperator") -- 注册任务
 
@@ -285,14 +217,16 @@ function AGV()
 
                 -- 结束任务
                 agv.state = nil -- 设置agv状态为空(正常)
-                -- 如果存在目标节点，则设置目标节点占用(如果推进太多可能会造成maxstep漏占用)
-                if road.toNode and not road.toNode.occupied then
-                    local distanceRemain = roadAgvItem.targetDistance - roadAgvItem.distance
-                    if roadAgvItem.targetDistance == road.length and distanceRemain <= roadAgvItem.agv.safetyDistance then
-                        road.toNode.occupied = agv -- 设置节点占用
-                        -- print('agv' .. agv.id .. '在moveon.execute设置节点' .. road.toNode.id .. '的占用')
-                    end
-                end
+
+                -- -- 如果存在目标节点，则设置目标节点占用(如果推进太多可能会造成maxstep漏占用)
+                -- if road.toNode and not road.toNode.occupied then
+                --     local distanceRemain = roadAgvItem.targetDistance - roadAgvItem.distance
+                --     if roadAgvItem.targetDistance == road.length and distanceRemain <= roadAgvItem.agv.safetyDistance then
+                --         road.toNode.occupied = agv -- 设置节点占用
+                --         -- print('agv' .. agv.id .. '在moveon.execute设置节点' .. road.toNode.id .. '的占用')
+                --     end
+                -- end
+
                 road:removeAgv(agv.roadAgvId) -- 从道路中移除agv
                 agv:deltask()
                 return

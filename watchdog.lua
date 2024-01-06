@@ -37,8 +37,9 @@ function WatchDog(simv, ActionObjs)
                 if #ActionObjs[i].tasksequence > 0 then
                     maxstepItem = maxstepItem + 1 -- 记录起作用的item
 
+                    local objectTask = ActionObjs[i].tasksequence[1][1]
                     local objectMaxstep = ActionObjs[i]:maxstep()
-                    -- print('[' .. ActionObjs[i].type .. ActionObjs[i].id .. '] maxstep=', objectMaxstep)
+                    -- print('[' .. ActionObjs[i].type .. ActionObjs[i].id .. ']', objectTask, 'maxstep=', objectMaxstep)
                     maxstep = math.min(maxstep, objectMaxstep)
 
                     if maxstep < 0 then
@@ -68,7 +69,7 @@ function WatchDog(simv, ActionObjs)
         -- 防止无限推进
         if #ActionObjs == 0 or watchdog.isImmediateStop and maxstepItem == 0 then
             scene.render()
-            print('无实体，仿真停止 t=', coroutine.qtime())
+            print('无任务实体，仿真停止 t=', coroutine.qtime())
             return
         end
 
