@@ -21,11 +21,9 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
     rmgqc.zspeed = 2 -- 车移动速度
     rmgqc.attached = nil -- 抓取的集装箱
     rmgqc.stash = nil -- io物品暂存
-    rmgqc.agvqueue = {} -- agv服务队列
+    rmgqc.agentqueue = {} -- agent服务队列
     rmgqc.bindingRoad = nil -- 绑定的道路
     rmgqc.parkingSpaces = {} -- 停车位对象(使用bay位置索引)
-    -- rmgqc.queuelen = 11 -- 服务队列长度（额外）
-    rmgqc.outerActionObjs = actionObjs -- 外部动作队列
 
     -- 初始化集装箱船高度
     for i = 1, 4 do
@@ -42,35 +40,50 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
     rmgqc:setpos(rmgqc.origin[1], rmgqc.origin[2], rmgqc.origin[3])
     -- print("初始化：spreader z = ", rmgqc.origin[3]) --debug
 
-    function rmgqc:registerAgv(agv)
+    -- rmgqc注册agent。agent已经设置agent.taskType和agent.targetContainerPos
+    function rmgqc:registerAgent(agent)
         -- rmg添加任务
-        if agv.taskType == 'unload' then
+        local bay, row, level = table.unpack(agent.targetContainerPos)
+
+        if agent.taskType == 'unload' then
             -- print('[rmg] agv:unload, targetPos=(', agv.targetContainerPos[1], agv.targetContainerPos[2], agv.targetContainerPos[3], ')') -- debug
-            rmgqc:move2Agv(agv.targetContainerPos[1])
+            rmgqc:move2Agent(bay)
             -- print('[rmgqc] move2Agv()完成') -- debug
-            rmgqc:lift2TargetPos(table.unpack(agv.targetContainerPos))
+            rmgqc:lift2TargetPos(bay, row, level, agent)
             -- print('[rmgqc] lift2TargetPos()完成') -- debug
-        elseif agv.taskType == 'load' then
+        elseif agent.taskType == 'load' then
             -- print('[rmgqc] agv:load') -- debug
-            rmgqc:move2TargetPos(agv.targetContainerPos[1], agv.targetContainerPos[2])
+            rmgqc:move2TargetPos(bay, row)
             -- print('[rmgqc] move2TargetPos()完成') -- debug
-            rmgqc:lift2Agv(table.unpack(agv.targetContainerPos))
-            -- print('[rmgqc] lift2Agv()完成') -- debug
+            rmgqc:lift2Agent(bay, row, level, agent)
+            -- print('[rmgqc] lift2Agent()完成') -- debug
         else
             print('[rmgqc] 错误，没有检测到agv的任务类型，注册失败。')
             return
         end
 
         -- 注册agv
-        table.insert(rmgqc.agvqueue, agv) -- 加入agv队列
+        table.insert(rmgqc.agentqueue, agent) -- 加入agv队列
     end
 
     -- 放箱子
     function rmgqc:detach(bay, row, level)
+        -- 判断是否指定位置
         if bay == nil then
-            -- 如果没有指定位置，则将集装箱放置到对应bay位置的agv位置上
-            rmgqc.stash = rmgqc.attached
-            rmgqc.attached = nil
+            if rmgqc.agentqueue[1] ~= nil and rmgqc.agentqueue[1].container == nil then
+                print('rmgqc: detach到agent处') -- debug
+                -- 将集装箱放置到对应agv上
+                rmgqc.agentqueue[1].container = rmgqc.attached
+                rmgqc.attached = nil
+            elseif rmgqc.stash == nil then
+                print('rmgqc: detach到stash处') -- debug
+                -- 将集装箱放置到对应bay位置的agv位置上
+                rmgqc.stash = rmgqc.attached
+                rmgqc.attached = nil
+            else
+                print('rmgqc: agent,stash均不为nil')
+            end
+
             return
         end
 
@@ -80,18 +93,28 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
     end
 
     -- 抓箱子
+    -- bay:堆场位置，row:行，level:层
+    -- 如果bay为nil，则抓取agv上的集装箱(stash)
     function rmgqc:attach(bay, row, level)
         if bay == nil then -- 如果没有指定位置，则为抓取agv上的集装箱
             -- 判断agv上的集装箱是否为空
-            if rmgqc.stash == nil then
-                print('[rmgqc] 错误，抓取agv上的集装箱为空')
+            if rmgqc.agentqueue[1] ~= nil and rmgqc.agentqueue[1].container ~= nil then
+                print('rmgqc: 从agent处attach') -- debug
+                -- 从agv上取出集装箱
+                rmgqc.attached = rmgqc.agentqueue[1].container
+                rmgqc.agentqueue[1].container = nil
+            elseif rmgqc.stash ~= nil then
+                print('rmgqc: 从stash处attach') -- debug
+                -- 从暂存中取出集装箱
+                rmgqc.attached = rmgqc.stash
+                rmgqc.stash = nil
+            else
+                print('[rmgqc] 错误，agent,stash均为nil')
+                print('[rmgqc] rmgqc.agentqueue[1]=', rmgqc.agentqueue[1])
                 -- debug
                 os.exit()
             end
 
-            -- 从暂存中取出集装箱
-            rmgqc.attached = rmgqc.stash
-            rmgqc.stash = nil
             return
         end
 
@@ -163,7 +186,7 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
 
         -- debug
         if rmgqc.lasttask ~= taskname then
-            print('[rmg] 当前任务', taskname, 'at', coroutine.qtime())
+            print('[rmgqc] 当前任务', taskname, 'at', coroutine.qtime())
             rmgqc.lasttask = taskname
         end
 
@@ -319,16 +342,32 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
         end
     }
 
-    rmgqc.tasks.waitagv = {
-        execute = function(dt, params)
-            if rmgqc.agvqueue[1] == nil then
-                print("[rmgqc] rmgqc.agvqueue[1]=nil")
+    -- {'waitagent', agent} -- rmg等待agent到达
+    rmgqc.tasks.waitagent = {
+        maxstep = function(params)
+            local agent = params
+            -- 判断agent是否被当前rmg有效占用
+            if #rmgqc.agentqueue > 0 and agent.occupier == rmgqc then
+                print('[rmgqc]', agent.type .. agent.id .. '已经被' .. rmgqc.type .. rmgqc.id ..
+                    '占用，rmgqc删除waitagent任务 at', coroutine.qtime())
+
+                rmgqc:deltask() -- 删除本任务，解除阻塞（避免相互等待），继续执行下一个任务
+                return rmgqc:maxstep() -- 本任务不影响其他agent，因此可以直接递归调用，消除本任务的影响
             end
-            if rmgqc.agvqueue[1] ~= nil and rmgqc.agvqueue[1].arrived then -- agv到达
-                rmgqc.currentAgent = rmgqc.agvqueue[1] -- 设置当前agv
-                table.remove(rmgqc.agvqueue, 1) -- 移除等待的agv
-                rmgqc:deltask()
-            end
+
+            -- print('rmgqc' .. rmgqc.id, 'waitagent', agent.type .. agent.id) -- debug
+            return math.huge
+        end
+    }
+
+    -- {'unwaitagent', agentqueue_pos} -- 解除agent的阻塞，使agent继续执行其他任务
+    rmgqc.tasks.unwaitagent = {
+        maxstep = function(params)
+            rmgqc.agentqueue[params].occupier = nil -- 解除阻塞
+            -- print('unwaitagent 解除'..rmgqc.agentqueue[params].type..rmgqc.agentqueue[params].id..'的阻塞')
+            table.remove(rmgqc.agentqueue, params)
+            rmgqc:deltask()
+            return rmgqc:maxstep() -- 本任务不影响其他agent，因此可以直接递归调用，消除本任务的影响
         end
     }
 
@@ -359,7 +398,7 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
     }
 
     -- 获取集装箱位置相对origin的坐标{x,y,z}
-    function rmgqc:getcontainercoord(bay, row, level)
+    function rmgqc:getContainerCoord(bay, row, level)
         local x
         if row == -1 then
             x = rmgqc.iox
@@ -379,38 +418,40 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
         return {x, y, z}
     end
 
-    -- 将集装箱从agv抓取到目标位置，默认在移动层
-    function rmgqc:lift2TargetPos(bay, row, level)
-        rmgqc:addtask("waitagv") -- 等待agv到达
-        rmgqc:addtask("move2", rmgqc:getcontainercoord(bay, -1, 1)) -- 抓取agv上的箱子
+    -- 将集装箱从agent抓取到目标位置，默认在移动层。这个函数会标记当前rmg任务目标位置
+    function rmgqc:lift2TargetPos(bay, row, level, operatedAgent)
+        rmgqc:addtask("waitagent", operatedAgent) -- 等待agent到达
+        rmgqc:addtask("move2", rmgqc:getContainerCoord(bay, -1, 1)) -- 抓取agent上的箱子
         rmgqc:addtask("attach", nil) -- 抓取
-        rmgqc:addtask("move2", rmgqc:getcontainercoord(bay, -1, rmgqc.toplevel)) -- 吊具提升到移动层
-        rmgqc:addtask("move2", rmgqc:getcontainercoord(bay, row, rmgqc.toplevel)) -- 移动爪子到指定位置
-        rmgqc:addtask("move2", rmgqc:getcontainercoord(bay, row, level)) -- 移动爪子到指定位置
+        rmgqc:addtask("unwaitagent", 1) -- 发送信号，解除agent的阻塞
+        rmgqc:addtask("move2", rmgqc:getContainerCoord(bay, -1, rmgqc.toplevel)) -- 吊具提升到移动层
+        rmgqc:addtask("move2", rmgqc:getContainerCoord(bay, row, rmgqc.toplevel)) -- 移动爪子到指定位置
+        rmgqc:addtask("move2", rmgqc:getContainerCoord(bay, row, level)) -- 移动爪子到指定位置
         rmgqc:addtask("detach", {bay, row, level}) -- 放下指定箱
-        rmgqc:addtask("move2", rmgqc:getcontainercoord(bay, row, rmgqc.toplevel)) -- 爪子抬起到移动层
+        rmgqc:addtask("move2", rmgqc:getContainerCoord(bay, row, rmgqc.toplevel)) -- 爪子抬起到移动层
     end
 
-    -- 将集装箱从目标位置移动到agv，默认在移动层
-    function rmgqc:lift2Agv(bay, row, level)
-        rmgqc:addtask("move2", rmgqc:getcontainercoord(bay, row, level)) -- 移动爪子到指定位置
+    -- 将集装箱从目标位置移动到agent，默认在移动层。这个函数会标记当前rmgqc任务目标位置
+    function rmgqc:lift2Agent(bay, row, level, operatedAgent)
+        rmgqc:addtask("move2", rmgqc:getContainerCoord(bay, row, level)) -- 移动爪子到指定位置
         rmgqc:addtask("attach", {bay, row, level}) -- 抓取
-        rmgqc:addtask("move2", rmgqc:getcontainercoord(bay, row, rmgqc.toplevel)) -- 吊具提升到移动层
-        rmgqc:addtask("move2", rmgqc:getcontainercoord(bay, -1, rmgqc.toplevel)) -- 移动爪子到agv上方
-        rmgqc:addtask("waitagv") -- 等待agv到达
-        rmgqc:addtask("move2", rmgqc:getcontainercoord(bay, -1, 1)) -- 移动爪子到agv
+        rmgqc:addtask("move2", rmgqc:getContainerCoord(bay, row, rmgqc.toplevel)) -- 吊具提升到移动层
+        rmgqc:addtask("move2", rmgqc:getContainerCoord(bay, -1, rmgqc.toplevel)) -- 移动爪子到agent上方
+        rmgqc:addtask("waitagent", operatedAgent) -- 等待agent到达
+        rmgqc:addtask("move2", rmgqc:getContainerCoord(bay, -1, 1)) -- 移动爪子到agent
         rmgqc:addtask("detach", nil) -- 放下指定箱
-        rmgqc:addtask("move2", rmgqc:getcontainercoord(bay, -1, rmgqc.toplevel)) -- 爪子抬起到移动层
+        rmgqc:addtask("unwaitagent", 1) -- 发送信号，解除agent的阻塞
+        rmgqc:addtask("move2", rmgqc:getContainerCoord(bay, -1, rmgqc.toplevel)) -- 爪子抬起到移动层
     end
 
     -- 移动到目标位置，默认在移动层
     function rmgqc:move2TargetPos(bay, row)
-        rmgqc:addtask("move2", rmgqc:getcontainercoord(bay, row, rmgqc.toplevel))
+        rmgqc:addtask("move2", rmgqc:getContainerCoord(bay, row, rmgqc.toplevel))
     end
 
     -- 移动到agv上方，默认在移动层
-    function rmgqc:move2Agv(bay)
-        rmgqc:addtask("move2", rmgqc:getcontainercoord(bay, -1, rmgqc.toplevel))
+    function rmgqc:move2Agent(bay)
+        rmgqc:addtask("move2", rmgqc:getContainerCoord(bay, -1, rmgqc.toplevel))
     end
 
     function rmgqc:bindShip(ship)

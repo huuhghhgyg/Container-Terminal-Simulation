@@ -34,8 +34,6 @@ function RMG(cy, actionObjs)
     rmg.stash = nil -- io物品暂存
     rmg.agentqueue = {} -- agv服务队列，用于堆存需要服务的agv对象
 
-    rmg.outerActionObjs = actionObjs -- 注入的外部动作队列
-
     -- 初始化位置
     rmg.origin = cy.origin -- 原点
     rmg:setpos(table.unpack(rmg.origin)) -- 设置车的位置
@@ -221,10 +219,10 @@ function RMG(cy, actionObjs)
         local taskname = rmg.tasksequence[1][1] -- 任务名称
         local params = rmg.tasksequence[1][2] -- 任务参数
 
-        -- -- debug
-        -- if taskname ~= rmg.lasttask then
-        --     print('[rmg] maxstep task', taskname)
-        -- end
+        -- debug
+        if taskname ~= rmg.lasttask then
+            print('[rmg] maxstep task', taskname)
+        end
 
         if rmg.tasks[taskname] == nil then
             print('[rmg] 错误，没有找到任务', taskname)
@@ -338,19 +336,19 @@ function RMG(cy, actionObjs)
     }
 
     -- {'waitagent', agent} -- rmg等待agent到达
-    -- 发现问题：rmg.agentqueue 添加重复了！！！！
     rmg.tasks.waitagent = {
         maxstep = function(params)
             local agent = params
             -- 判断agent是否被当前rmg有效占用
             if #rmg.agentqueue > 0 and agent.occupier == rmg then
-                print(agent.type .. agent.id .. '已经被' .. rmg.type .. rmg.id .. '占用，rmg删除waitagent任务')
+                print('[rmg]', agent.type .. agent.id .. '已经被' .. rmg.type .. rmg.id ..
+                    '占用，rmg删除waitagent任务 at', coroutine.qtime())
 
                 rmg:deltask() -- 删除本任务，解除阻塞（避免相互等待），继续执行下一个任务
                 return rmg:maxstep() -- 本任务不影响其他agent，因此可以直接递归调用，消除本任务的影响
             end
 
-            print('rmg'..rmg.id,'waitagent', agent.type..agent.id) -- debug
+            print('rmg' .. rmg.id, 'waitagent', agent.type .. agent.id) -- debug
             return math.huge
         end
     }
@@ -442,29 +440,29 @@ function RMG(cy, actionObjs)
         return {dx, dy, dz}
     end
 
-    -- 将集装箱从agv抓取到目标位置，默认在移动层。这个函数会标记当前rmg任务目标位置
+    -- 将集装箱从agent抓取到目标位置，默认在移动层。这个函数会标记当前rmg任务目标位置
     function rmg:lift2TargetPos(bay, row, level, operatedAgent)
-        rmg:addtask("waitagent", operatedAgent) -- 等待agv到达
-        rmg:addtask("move2", rmg:getContainerCoord(bay, -1, 1)) -- 抓取agv上的箱子
+        rmg:addtask("waitagent", operatedAgent) -- 等待agent到达
+        rmg:addtask("move2", rmg:getContainerCoord(bay, -1, 1)) -- 抓取agent上的箱子
         rmg:addtask("attach", nil) -- 抓取
+        rmg:addtask("unwaitagent", 1) -- 发送信号，解除agent的阻塞
         rmg:addtask("move2", rmg:getContainerCoord(bay, -1, rmg.toplevel)) -- 吊具提升到移动层
         rmg:addtask("move2", rmg:getContainerCoord(bay, row, rmg.toplevel)) -- 移动爪子到指定位置
         rmg:addtask("move2", rmg:getContainerCoord(bay, row, level)) -- 移动爪子到指定位置
         rmg:addtask("detach", {bay, row, level}) -- 放下指定箱
-        rmg:addtask("unwaitagent", 1) -- 发送信号，解除agv的阻塞
         rmg:addtask("move2", rmg:getContainerCoord(bay, row, rmg.toplevel)) -- 爪子抬起到移动层
     end
 
-    -- 将集装箱从目标位置移动到agv，默认在移动层。这个函数会标记当前rmg任务目标位置
+    -- 将集装箱从目标位置移动到agent，默认在移动层。这个函数会标记当前rmg任务目标位置
     function rmg:lift2Agent(bay, row, level, operatedAgent)
         rmg:addtask("move2", rmg:getContainerCoord(bay, row, level)) -- 移动爪子到指定位置
         rmg:addtask("attach", {bay, row, level}) -- 抓取
         rmg:addtask("move2", rmg:getContainerCoord(bay, row, rmg.toplevel)) -- 吊具提升到移动层
-        rmg:addtask("move2", rmg:getContainerCoord(bay, -1, rmg.toplevel)) -- 移动爪子到agv上方
-        rmg:addtask("waitagent", operatedAgent) -- 等待agv到达
-        rmg:addtask("move2", rmg:getContainerCoord(bay, -1, 1)) -- 移动爪子到agv
+        rmg:addtask("move2", rmg:getContainerCoord(bay, -1, rmg.toplevel)) -- 移动爪子到agent上方
+        rmg:addtask("waitagent", operatedAgent) -- 等待agent到达
+        rmg:addtask("move2", rmg:getContainerCoord(bay, -1, 1)) -- 移动爪子到agent
         rmg:addtask("detach", nil) -- 放下指定箱
-        rmg:addtask("unwaitagent", 1) -- 发送信号，解除agv的阻塞
+        rmg:addtask("unwaitagent", 1) -- 发送信号，解除agent的阻塞
         rmg:addtask("move2", rmg:getContainerCoord(bay, -1, rmg.toplevel)) -- 爪子抬起到移动层
     end
 

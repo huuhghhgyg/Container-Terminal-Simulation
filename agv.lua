@@ -65,7 +65,7 @@ function AGV()
         -- end
 
         if agv.tasks[taskname] == nil then
-            print('[rmg] 错误，没有找到任务', taskname)
+            print('[agv] 错误，没有找到任务', taskname)
         end
 
         -- 执行任务
@@ -114,7 +114,7 @@ function AGV()
         -- -- debug
         -- if agv.lastmaxstep ~= taskname then
         --     agv.lastmaxstep = taskname
-        --     print('[agv' .. agv.id .. '] maxstep', taskname)
+        --     print('[agv' .. agv.id .. '] maxstep', taskname, 'at', coroutine.qtime())
         -- end
 
         -- 计算maxstep
@@ -183,17 +183,17 @@ function AGV()
             -- 初始化
             if not params.init then
                 agv.occupier = params.operator -- 设置当前agv被哪个agent占用
-                print('#params, params.operator', #params, params.operator)
-                print('agv.occupier=', agv.occupier)
-                print('agv' .. agv.id .. 'waitoperator 任务初始化，occupier=', agv.occupier.type, agv.occupier.id)
+                -- print('[agv' .. agv.id .. '] waitoperator 任务初始化，occupier=', agv.occupier.type,
+                --     agv.occupier.id, 'at', coroutine.qtime())
                 params.init = true -- 设置初始化标记
+                return -1
             end
 
             -- 检测状态，能否结束任务
             if agv.occupier == nil then
-                print('agv' .. agv.id .. 'waitoperator 任务结束 at' .. coroutine.qtime())
+                -- print('[agv' .. agv.id .. '] waitoperator 任务结束 at' .. coroutine.qtime())
                 agv:deltask()
-                return -1
+                return agv:maxstep() -- 结束占用任务，maxstep自调用
             end
 
             -- print('agv' .. agv.id, 'waitoperator', agv.operator.type, agv.operator.id)
