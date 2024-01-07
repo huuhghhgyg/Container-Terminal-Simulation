@@ -1,28 +1,29 @@
 # 总体待办事项
 - [x] 排队车辆延迟问题
 - [x] 将各组件提取模块
-- [ ] 检查/重写RMGQC
-- [ ] 多场桥排队线路
+- [x] 多场桥排队线路
+- [ ] 提取crane作为RMG和RMGQC的父类，减少修改逻辑的工作量
 - [ ] 码头堆场整体自动布局
 
 ## AGV
-- [x] [move2任务param参数](./document.md#move2)规划及落实
-- [ ] 修改当前排队动态创建任务流程，创建排队任务子任务，不要影响后续任务
-- [ ] 车辆转弯
-- [ ] AGV代码优化
+- [x] [move2任务param参数](./components/agv.md#move2)规划及落实
+- [x] 车辆转弯
 
 ## RMG
-- [ ] 需要修改，作业中直接把rmgqc设置为rmg的下一个了，现实中可能不太合理，可能需要一个调度器
+- [x] 需要修改，作业中直接把rmgqc设置为rmg的下一个了，现实中可能不太合理，可能需要一个调度器
 
 # 当前任务 RoadMap
 - [x] 移动闭塞排队，创建道路对象，修改AGV排队代码（方便后续道路的设计）
 - [x] 对象原点应该在靠近(x,y,z)=(0,0,0)的位置，而不是在中心位置。方便后续进行旋转(已经通过`anchorPoint`解决,`origin`负责对象对齐)
-- [ ] AGV道路注册应该放到moveon任务中进行
-- [ ] 新建一个Controller负责道路规划
+- [x] AGV道路注册应该放到moveon任务中进行
+- [x] 新建一个Controller负责道路规划
 
-# 分支开发
-- [ ] 旋转支持
-- [ ] maxstep自调用为什么不可行？
+## Agent交互
+- [x] 解释maxstep return 0，maxstep return -1，maxstep return maxstep的区别
 
 # Bug修复
-- [ ] 怀疑waitoperator任务会导致时间推进不准确问题
+- [x] 怀疑waitoperator任务会导致时间推进不准确问题
+
+# 分支开发
+- 旋转支持
+- agv道路阻塞探测并保证时间推进准确
