@@ -62,7 +62,7 @@ local containerUrls = {'/res/ct/container.glb', '/res/ct/container_brown.glb', '
 
 local generateConfig = {
     ship = ship,
-    summonNum = 50,
+    summonNum = 0,
     averageSummonSpan = 15
 }
 -- 生成具有任务的agv(ship)
@@ -88,15 +88,15 @@ function generateagv()
     end
 
     -- 生成agv任务类型
-    local agvTaskType = math.random(2) == 1 and 'unload' or 'load' -- 1:agv卸货，2:agv装货
-    print('生成AGV，taskType=', agvTaskType)
+    local tasktype = math.random(2) == 1 and 'unload' or 'load' -- 1:agv卸货，2:agv装货
+    print('生成AGV，taskType=', tasktype)
 
     -- 识别任务类型并生成可用位置列表
     local availablePos = {} -- 可用位置
     for i = 1, ship.bay do
         for j = 1, ship.row do
             local containerLevel = ship.positionLevels[i][j] -- 获取堆叠层数
-            if agvTaskType == 'unload' then
+            if tasktype == 'unload' then
                 -- agv卸货，找到所有可用的存货位置(availableNum < ship.level)
                 if containerLevel < ship.level then
                     table.insert(availablePos, {i, j, containerLevel + 1}) -- 记录可用位置{bay, row}
@@ -113,15 +113,14 @@ function generateagv()
     local targetPos = availablePos[math.random(#availablePos)] -- 抽取可用位置
     -- 记录抽取位置的影响
     local trow, tcol = targetPos[1], targetPos[2]
-    ship.positionLevels[trow][tcol] = ship.positionLevels[trow][tcol] + (agvTaskType == 'unload' and 1 or -1)
+    ship.positionLevels[trow][tcol] = ship.positionLevels[trow][tcol] + (tasktype == 'unload' and 1 or -1)
 
     -- 生成agv
     local agv = AGV()
-    agv.taskType = agvTaskType -- 设置agv任务类型(unload/load)
+    agv.taskType = tasktype -- 设置agv任务类型(unload/load)
     if agv.taskType == 'unload' then -- agv卸货，生成集装箱
         agv.container = scene.addobj(containerUrls[1]) -- 生成agv携带的集装箱
     end
-    agv:move2(10, 0, -10)
     agv.targetContainerPos = targetPos -- 设置agv目标位置{bay,row,col}
     agv:bindCrane(ship, targetPos) -- 绑定agv和船
     table.insert(ActionObjs, agv)
@@ -145,13 +144,7 @@ function generateagv()
         targetDistance = rmgqc.parkingSpaces[targetPos[1]].relativeDist,
         stay = true
     })
-    if agv.taskType == 'unload' then
-        agv:addtask('detach', nil)
-        agv:addtask('waitoperator', {agv.taskType})
-    else
-        agv:addtask('waitoperator', {agv.taskType})
-        agv:addtask('attach', nil)
-    end
+    agv:addtask('waitoperator', {operator = rmgqc})
     agv:addtask('moveon', {
         road = rd7,
         distance = rmgqc.parkingSpaces[targetPos[1]].relativeDist,
@@ -167,7 +160,7 @@ function generateagv()
     })
     agv:addtask('onnode', {node9, rd10, nil})
 
-    rmgqc:registerAgv(agv)
+    rmgqc:registerAgent(agv)
     print('[main] agv target=', agv.targetContainerPos[1], agv.targetContainerPos[2], agv.targetContainerPos[3],
         ', agv taskType=', agv.taskType)
 
