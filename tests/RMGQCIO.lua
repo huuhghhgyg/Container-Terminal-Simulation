@@ -11,7 +11,7 @@ require('ship')
 require('rmgqc')
 
 -- 参数设置
-local simv = 4 -- 仿真速度
+local simv = 8 -- 仿真速度
 local ActionObjs = {} -- 动作队列声明
 
 -- 仿真控制
@@ -62,7 +62,7 @@ local containerUrls = {'/res/ct/container.glb', '/res/ct/container_brown.glb', '
 
 local generateConfig = {
     ship = ship,
-    summonNum = 0,
+    summonNum = 1,
     averageSummonSpan = 15
 }
 -- 生成具有任务的agv(ship)
