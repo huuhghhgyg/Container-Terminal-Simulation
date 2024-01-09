@@ -139,6 +139,7 @@ function Road(originPt, destPt, roadList)
     function road:maxstep(agvId)
         if agvId - road.agvLeaveNum == 0 then
             print("错误，agvId==road.agvLeaveNum，agvId为" .. agvId .. "的agv已经离开了道路")
+            print(debug.traceback())
         end
         local roadAgv = road.agvs[agvId - road.agvLeaveNum] -- 获取道路agv对象
         -- print('agvId=', agvId, 'road.agvLeaveNum=', road.agvLeaveNum)

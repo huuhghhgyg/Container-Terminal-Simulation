@@ -184,11 +184,11 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
         local task = rmgqc.tasksequence[1]
         local taskname, params = task[1], task[2]
 
-        -- debug
-        if rmgqc.lasttask ~= taskname then
-            print('[rmgqc] 当前任务', taskname, 'at', coroutine.qtime())
-            rmgqc.lasttask = taskname
-        end
+        -- -- debug
+        -- if rmgqc.lasttask ~= taskname then
+        --     print('[rmgqc] 当前任务', taskname, 'at', coroutine.qtime())
+        --     rmgqc.lasttask = taskname
+        -- end
 
         if rmgqc.tasks[taskname] == nil then
             print('[rmgqc] 错误，没有找到任务', taskname)
@@ -209,11 +209,11 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
         local taskname = rmgqc.tasksequence[1][1] -- 任务名称
         local params = rmgqc.tasksequence[1][2] -- 任务参数
 
-        -- debug
-        if rmgqc.lastmaxstep ~= taskname then
-            print('[rmgqc', rmgqc.id, '] maxstep:', taskname)
-            rmgqc.lastmaxstep = taskname
-        end
+        -- -- debug
+        -- if rmgqc.lastmaxstep ~= taskname then
+        --     print('[rmgqc', rmgqc.id, '] maxstep:', taskname)
+        --     rmgqc.lastmaxstep = taskname
+        -- end
 
         if rmgqc.tasks[taskname] == nil then
             print('[rmgqc] 错误，没有找到任务', taskname)
@@ -237,9 +237,9 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
         table.remove(rmgqc.tasksequence, 1)
         rmgqc.lasttask = nil -- 重置debug记录的上一个任务
 
-        if (rmgqc.tasksequence[1] ~= nil and rmgqc.tasksequence[1][1] == "attach") then
-            print("[rmgqc] task executing: ", rmgqc.tasksequence[1][1], " at ", coroutine.qtime())
-        end
+        -- if (rmgqc.tasksequence[1] ~= nil and rmgqc.tasksequence[1][1] == "attach") then
+        --     print("[rmgqc] task executing: ", rmgqc.tasksequence[1][1], " at ", coroutine.qtime())
+        -- end
     end
 
     rmgqc.tasks.move2 = {
@@ -346,10 +346,18 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
     rmgqc.tasks.waitagent = {
         maxstep = function(params)
             local agent = params
+
+            -- 临时debug，判断是否第一次进入waitagent
+            if agent.waitagentft == nil then
+                agent.waitagentft = false
+                -- print('[rmgqc' .. rmgqc.id .. '] waitagent', agent.type .. agent.id, ' at', coroutine.qtime())
+            end
+
             -- 判断agent是否被当前rmg有效占用
             if #rmgqc.agentqueue > 0 and agent.occupier == rmgqc then
-                print('[rmgqc]', agent.type .. agent.id .. '已经被' .. rmgqc.type .. rmgqc.id ..
-                    '占用，rmgqc删除waitagent任务 at', coroutine.qtime())
+                -- print('[rmgqc]', agent.type .. agent.id .. '已经被' .. rmgqc.type .. rmgqc.id ..
+                --     '占用，rmgqc删除waitagent任务 at', coroutine.qtime())
+                agent.waitagentft = nil -- 重置waitagentft
 
                 rmgqc:deltask() -- 删除本任务，解除阻塞（避免相互等待），继续执行下一个任务
                 return rmgqc:maxstep() -- 本任务不影响其他agent，因此可以直接递归调用，消除本任务的影响

@@ -182,6 +182,12 @@ function AGV()
         maxstep = function(params)
             -- 初始化
             if not params.init then
+                -- 判断operator是否为空
+                if params.operator == nil then
+                    print('[agv' .. agv.id .. '] waitoperator错误，没有输入operator参数')
+                    os.exit()
+                end
+
                 agv.occupier = params.operator -- 设置当前agv被哪个agent占用
                 -- print('[agv' .. agv.id .. '] waitoperator 任务初始化，occupier=', agv.occupier.type,
                 --     agv.occupier.id, 'at', coroutine.qtime())
@@ -454,7 +460,7 @@ function AGV()
                 os.exit()
             end
 
-            params:registerAgv(agv)
+            params:registerAgent(agv)
 
             agv:deltask() -- 删除任务
             return -1 -- maxstep触发重算

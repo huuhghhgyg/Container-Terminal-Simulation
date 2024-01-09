@@ -194,11 +194,11 @@ function RMG(cy, actionObjs)
         local task = rmg.tasksequence[1]
         local taskname, params = task[1], task[2]
 
-        -- debug
-        if rmg.lasttask ~= taskname then
-            print('[rmg] 当前任务', taskname, 'at', coroutine.qtime())
-            rmg.lasttask = taskname
-        end
+        -- -- debug
+        -- if rmg.lasttask ~= taskname then
+        --     print('[rmg] 当前任务', taskname, 'at', coroutine.qtime())
+        --     rmg.lasttask = taskname
+        -- end
 
         if rmg.tasks[taskname] == nil then
             print('[rmg] 错误，没有找到任务', taskname)
@@ -219,10 +219,10 @@ function RMG(cy, actionObjs)
         local taskname = rmg.tasksequence[1][1] -- 任务名称
         local params = rmg.tasksequence[1][2] -- 任务参数
 
-        -- debug
-        if taskname ~= rmg.lasttask then
-            print('[rmg] maxstep task', taskname)
-        end
+        -- -- debug
+        -- if taskname ~= rmg.lasttask then
+        --     print('[rmg] maxstep task', taskname)
+        -- end
 
         if rmg.tasks[taskname] == nil then
             print('[rmg] 错误，没有找到任务', taskname)
@@ -341,14 +341,14 @@ function RMG(cy, actionObjs)
             local agent = params
             -- 判断agent是否被当前rmg有效占用
             if #rmg.agentqueue > 0 and agent.occupier == rmg then
-                print('[rmg]', agent.type .. agent.id .. '已经被' .. rmg.type .. rmg.id ..
-                    '占用，rmg删除waitagent任务 at', coroutine.qtime())
+                -- print('[rmg]', agent.type .. agent.id .. '已经被' .. rmg.type .. rmg.id ..
+                --     '占用，rmg删除waitagent任务 at', coroutine.qtime())
 
                 rmg:deltask() -- 删除本任务，解除阻塞（避免相互等待），继续执行下一个任务
                 return rmg:maxstep() -- 本任务不影响其他agent，因此可以直接递归调用，消除本任务的影响
             end
 
-            print('rmg' .. rmg.id, 'waitagent', agent.type .. agent.id) -- debug
+            -- print('rmg' .. rmg.id, 'waitagent', agent.type .. agent.id) -- debug
             return math.huge
         end
     }

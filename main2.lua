@@ -3,6 +3,8 @@ scene.setenv({
     grid = 'plane'
 })
 
+print()
+
 -- 引用组件
 require('cy')
 require('rmg')
@@ -206,8 +208,8 @@ end
 -- 生成具有任务的agv(ship)
 function generateagv()
     -- 抽取生成agv任务类型
-    local operator, dataModel, agvTaskType = generateTaskType()
-    print('生成AGV，taskType=', agvTaskType, ', operatorType=', operator.type, 'operator.id=', operator.id)
+    local operatorAgent, dataModel, agvTaskType = generateTaskType()
+    print('生成AGV，taskType=', agvTaskType, ', operatorType=', operatorAgent.type, 'operator.id=', operatorAgent.id)
 
     -- 获取位置可用箱数信息，如果没有则注入
     -- 只有generateagv函数中能存取集装箱，因此只有此处设置positionLevels
@@ -280,11 +282,11 @@ function generateagv()
 
     -- print('[main] agv target=', agv.targetContainerPos[1], agv.targetContainerPos[2], agv.targetContainerPos[3],
     --     ', agv taskType=', agv.taskType)
-    agv:addtask('register', operator)
+    agv:addtask('register', operatorAgent)
     agv:addtask('moveon', {
         road = controller.Roads[1]
     })
-    if operator.type == 'rmg' then
+    if operatorAgent.type == 'rmg' then
         -- operator类型为rmg
         local toRoad = dataModel.bindingRoad
         local stpTargetNode = toRoad.fromNode
@@ -295,43 +297,31 @@ function generateagv()
         })
         print('目标road.id=', toRoad.id, '目标node.id=', stpTargetNode.id, '目标停车位=', targetPos[1], '(',
             dataModel.parkingSpaces[targetPos[1]].relativeDist, ')')
-        if agv.taskType == 'unload' then
-            agv:addtask('detach', nil)
-            agv:addtask('waitoperator', {agv.taskType})
-        else
-            agv:addtask('waitoperator', {agv.taskType})
-            agv:addtask('attach', nil)
-        end
+        agv:addtask('waitoperator', {operator = operatorAgent})
         agv:addtask('moveon', {
             road = dataModel.bindingRoad,
             distance = dataModel.parkingSpaces[targetPos[1]].relativeDist,
             stay = false
         })
         controller:addAgvNaviTask(agv, dataModel.bindingRoad.toNode.id, 15, toRoad, {road=controller.Roads[18]})
-    elseif operator.type == 'rmgqc' then
+    elseif operatorAgent.type == 'rmgqc' then
         -- operator类型为rmgqc
-        local toRoad = operator.bindingRoad
+        local toRoad = operatorAgent.bindingRoad
         local stpTargetNode = toRoad.fromNode
         controller:addAgvNaviTask(agv, 2, stpTargetNode.id, controller.Roads[1], {
-            road = operator.bindingRoad,
-            targetDistance = operator.parkingSpaces[targetPos[1]].relativeDist,
+            road = operatorAgent.bindingRoad,
+            targetDistance = operatorAgent.parkingSpaces[targetPos[1]].relativeDist,
             stay = true
         })
-        if agv.taskType == 'unload' then
-            agv:addtask('detach', nil)
-            agv:addtask('waitoperator', {agv.taskType})
-        else
-            agv:addtask('waitoperator', {agv.taskType})
-            agv:addtask('attach', nil)
-        end
+        agv:addtask('waitoperator', {operator = operatorAgent})
         agv:addtask('moveon', {
-            road = operator.bindingRoad,
-            distance = operator.parkingSpaces[targetPos[1]].relativeDist,
+            road = operatorAgent.bindingRoad,
+            distance = operatorAgent.parkingSpaces[targetPos[1]].relativeDist,
             stay = false
         })
-        controller:addAgvNaviTask(agv, operator.bindingRoad.toNode.id, 15, toRoad, {road=controller.Roads[18]})
+        controller:addAgvNaviTask(agv, operatorAgent.bindingRoad.toNode.id, 15, toRoad, {road=controller.Roads[18]})
     else
-        print('[main] error: unknown operator type', operator.type, '. stopped.')
+        print('[main] error: unknown operator type', operatorAgent.type, '. stopped.')
         os.exit()
     end
     -- 添加delete前的任务
