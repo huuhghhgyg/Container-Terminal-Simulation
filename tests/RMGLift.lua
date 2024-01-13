@@ -29,7 +29,7 @@ local node2 = Node({0, 0, 80}, NodeList)
 local rd1 = node1:createRoad(node2, RoadList)
 
 -- 创建堆场
-local cy = CY({30, 50}, {10, 0}, 3)
+local cy = CY(5, 10, 3, {origin = {10, 0, 0}})
 cy:bindRoad(rd1)
 cy:showBindingPoint()
 -- cy:fillRandomContainerPositions(50, {'/res/ct/container_blue.glb'})

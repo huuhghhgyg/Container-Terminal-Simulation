@@ -16,7 +16,7 @@ local RoadList = {} -- 道路列表
 -- 创建对象
 -- local rmgqc = RMGQC({-16, 0, 130})
 local rmgqc = RMGQC({0, 0, 0}, ActionObjs)
-local ship = Ship({8, 9, 2}, rmgqc.berthPosition)
+local ship = Ship({anchorPoint = rmgqc.berthPosition})
 local road = Road({0,0,-60}, {0,0,60}, RoadList)
 rmgqc:bindRoad(road)
 

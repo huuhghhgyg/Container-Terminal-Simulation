@@ -66,6 +66,10 @@ function Node(point, nodeList, params)
         color = 'orange',
         size = 8
     })
+    local label = scene.addobj('label', {
+        text = '('..node.center[1]..','..node.center[3]..')'
+    })
+    label:setpos(table.unpack(node.center))
 
     return node
 end

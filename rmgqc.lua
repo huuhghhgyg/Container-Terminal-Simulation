@@ -251,6 +251,9 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
             end
             ds[3] = params.speed[3] * dt -- rmg向量速度*时间
 
+            print('[rmgqc] move2:', params[1], params[2], params[3], ' now:', params.currentXY[1], params.currentXY[2],
+                params.movedZ + params.initalZ)
+
             -- 判断bay方向是否已经到达目标
             if not params.arrivedZ then
                 -- bay方向没有到达目标
@@ -407,23 +410,36 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
 
     -- 获取集装箱位置相对origin的坐标{x,y,z}
     function rmgqc:getContainerCoord(bay, row, level)
-        local x
+        local x, rx
         if row == -1 then
-            x = rmgqc.iox
+            rx = rmgqc.iox
+            x = rx + rmgqc.ship.origin[1]
         else
-            x = rmgqc.ship.containerPositions[1][row][1][1] - rmgqc.origin[1]
+            x = rmgqc.ship.containerPositions[1][row][1][1]
+            rx = x - rmgqc.origin[1]
         end
 
-        local ry = 0 -- 相对高度
+        local y = 0 -- 相对高度
         if row == -1 and level == 1 then -- 如果是要放下，则设置到移动到agv上
-            ry = ry + rmgqc.level.agv -- 加上agv高度
+            y = rmgqc.level.agv -- 加上agv高度
         else
-            ry = ry + rmgqc.level[level] -- 加上层高
+            y = rmgqc.level[level] -- 加上层高
         end
-        local y = ry - rmgqc.origin[2]
-        local z = rmgqc.ship.bayPosition[bay] -- 通过车移动解决z
+        local ry = y - rmgqc.origin[2]
+        local z = rmgqc.ship.bayPosition[bay]
+        local rz = z - rmgqc.ship.origin[3] -- 通过车移动解决z
 
-        return {x, y, z}
+        local point = scene.addobj('points', {
+            vertices = {x, y, z},
+            color = 'red',
+            size = 5
+        })
+        local label = scene.addobj('label', {
+            text = bay .. ',' .. row .. ',' .. level..'('..rx..','..y..','..rz..')'
+        })
+        label:setpos(x, y, z)
+
+        return {rx, ry, rz}
     end
 
     -- 将集装箱从agent抓取到目标位置，默认在移动层。这个函数会标记当前rmg任务目标位置
@@ -488,7 +504,7 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
         for i = 1, #bayPos do
             rmgqc.parkingSpaces[i] = {}
             rmgqc.parkingSpaces[i].relativeDist = rmgqc.bindingRoad:getVectorRelativeDist(bayPos[i][1], bayPos[i][2],
-                math.cos(ship.rotradian - math.pi / 2), math.sin(ship.rotradian - math.pi / 2) * -1)
+                math.cos(ship.rot - math.pi / 2), math.sin(ship.rot - math.pi / 2) * -1)
             -- print('cy debug: parking space', i, ' relative distance = ', rmgqc.parkingSpaces[i].relativeDist)
         end
 

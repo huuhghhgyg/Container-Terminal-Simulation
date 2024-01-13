@@ -46,7 +46,7 @@ local rd10 = node8:createRoad(node9, RoadList)
 
 -- 创建堆场和rmg
 local rmgqc = RMGQC({-30, 0, 210}, ActionObjs)
-local ship = Ship({8, 9, 2}, rmgqc.berthPosition)
+local ship = Ship({anchorPoint = rmgqc.berthPosition})
 
 rmgqc:bindRoad(rd7) -- 绑定road
 rmgqc:bindShip(ship) -- 绑定Ship

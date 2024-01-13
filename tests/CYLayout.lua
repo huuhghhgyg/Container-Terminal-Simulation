@@ -4,7 +4,7 @@ scene.setenv({
 
 require('cy')
 
-local cy = CY({19.66 / 2, 51.49 / 2}, {-19.66 / 2, -51.49 / 2}, 3)
+local cy = CY(5, 10, 3)
 
 -- 绘制锚点
 scene.addobj('points', {

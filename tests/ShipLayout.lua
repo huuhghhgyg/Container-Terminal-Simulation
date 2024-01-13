@@ -3,24 +3,25 @@ scene.setenv({
 })
 
 require('ship')
+local ship = Ship({origin = {10,0,-20}})
 
-local shipSize = {8, 9, 2}
-local shipOrigin = {0, 0, 0}
-
-local ship = Ship(shipSize, shipOrigin)
+local originPoint = scene.addobj('points', {
+    vertices = {table.unpack(ship.origin)},
+    size = 10,
+    color = 'blue'
+})
+local acrPoint = scene.addobj('points', {
+    vertices = {table.unpack(ship.anchorPoint)},
+    size = 10,
+    color = 'red'
+})
 
 scene.render()
 
--- 填充集装箱(使用IdlePosition)
-local shipIdleContainerPosition = ship:getIdlePosition()
-while shipIdleContainerPosition do
-    -- 填充集装箱
-    ship:fillWithContainer(table.unpack(shipIdleContainerPosition))
-    -- 获取空闲集装箱位置
-    shipIdleContainerPosition = ship:getIdlePosition()
-end
-
 -- 填充集装箱(使用fillAllContainerPositions)
 -- ship:fillAllContainerPositions()
+ship:fillRandomContainerPositions(60)
+
+print('getIdlePosition:', table.unpack(ship:getIdlePosition()))
 
 scene.render()

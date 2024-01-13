@@ -19,8 +19,8 @@ function RMG(cy, actionObjs)
     rmg.cy = cy -- 初始化对应堆场
     rmg.cy.operator = rmg -- 堆场对应rmg(控制反转)
     rmg.level = {}
-    for i = 1, #cy.levels do
-        rmg.level[i] = cy.levels[i] + cy.cheight
+    for i = 1, #cy.levelPos do
+        rmg.level[i] = cy.levelPos[i] + cy.cheight
     end
     rmg.toplevel = #rmg.level -- 最高层(吊具行走层)
     rmg.level.agv = 2.1 -- agv高度
@@ -35,7 +35,7 @@ function RMG(cy, actionObjs)
     rmg.agentqueue = {} -- agv服务队列，用于堆存需要服务的agv对象
 
     -- 初始化位置
-    rmg.origin = cy.origin -- 原点
+    rmg.origin = cy.anchorPoint -- 原点
     rmg:setpos(table.unpack(rmg.origin)) -- 设置车的位置
     trolley:setpos(table.unpack(rmg.origin)) -- 设置trolley的位置
     wirerope:setscale(1, rmg.origin[2] + 17.57 - rmg.spreaderpos[2], 1) -- trolly离地面高度17.57，wirerope长宽设为1
@@ -412,6 +412,7 @@ function RMG(cy, actionObjs)
     end
 
     -- 获取集装箱相对origin的坐标{x,y,z}
+    -- 获取集装箱的坐标{x,y,z}
     function rmg:getContainerCoord(bay, row, level)
         local x
         if row == -1 then
@@ -426,7 +427,7 @@ function RMG(cy, actionObjs)
         end
         ry = ry + rmg.level[level] -- 加上层高
         local y = ry - rmg.origin[2]
-        local z = cy.containerPositions[bay][1][1][3] - cy.origin[3] -- 通过车移动解决z
+        local z = cy.containerPositions[bay][1][1][3] - rmg.origin[3] -- 通过车移动解决z
 
         return {x, y, z}
     end
