@@ -82,12 +82,13 @@ function RMG(cy, actionObjs)
         if bay == nil then -- 如果没有指定位置，则为抓取agv上的集装箱
             -- 判断agv上的集装箱是否为空
             if rmg.agentqueue[1] ~= nil and rmg.agentqueue[1].container ~= nil then
-                print('rmg: 从agent处attach') -- debug
+                local agent = rmg.agentqueue[1]
+                print('rmg'..rmg.id..': 从agent:', agent.type .. agent.id, '处attach') -- debug
                 -- 从agv上取出集装箱
-                rmg.attached = rmg.agentqueue[1].container
-                rmg.agentqueue[1].container = nil
+                rmg.attached = agent.container
+                agent.container = nil
             elseif rmg.stash ~= nil then
-                print('rmg: 从stash处attach') -- debug
+                print('rmg'..rmg.id..': 从stash处attach') -- debug
                 -- 从暂存中取出集装箱
                 rmg.attached = rmg.stash
                 rmg.stash = nil
@@ -119,17 +120,18 @@ function RMG(cy, actionObjs)
         -- 判断是否指定位置
         if bay == nil then
             if rmg.agentqueue[1] ~= nil and rmg.agentqueue[1].container == nil then
-                print('rmg: detach到agent处') -- debug
+                local agent = rmg.agentqueue[1]
+                print('rmg'..rmg.id..': detach到agent:', agent.type .. agent.id, '处') -- debug
                 -- 将集装箱放置到对应agv上
-                rmg.agentqueue[1].container = rmg.attached
+                agent.container = rmg.attached
                 rmg.attached = nil
             elseif rmg.stash == nil then
-                print('rmg: detach到stash处') -- debug
+                print('rmg'..rmg.id..': detach到stash处') -- debug
                 -- 将集装箱放置到对应bay位置的agv位置上
                 rmg.stash = rmg.attached
                 rmg.attached = nil
             else
-                print('rmg: agent,stash均不为nil')
+                print('rmg'..rmg.id..': agent,stash均不为nil')
             end
 
             return

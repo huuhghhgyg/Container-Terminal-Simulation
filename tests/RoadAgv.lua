@@ -28,8 +28,8 @@ local agv2Rd1Id = rd1:registerAgv(agv2, {
 agv2:addtask("moveon")
 table.insert(actionobj, agv2)
 print('agv2 rd1 id:', agv2Rd1Id)
-print('agv2 rd1 distance:', rd1.agvs[agv2Rd1Id].distance)
-print('agv2 rd1 target distance:', rd1.agvs[agv2Rd1Id].targetDistance)
+print('agv2 rd1 distance:', rd1.agvItems[agv2Rd1Id].distance)
+print('agv2 rd1 target distance:', rd1.agvItems[agv2Rd1Id].targetDistance)
 
 -- 创建agv并沿着道路行驶
 -- 预先注册道路

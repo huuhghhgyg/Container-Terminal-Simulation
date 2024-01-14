@@ -214,7 +214,7 @@ function AGV()
         execute = function(dt, params)
             -- 获取道路
             local road = agv.road
-            local roadAgvItem = road.agvs[agv.roadAgvId - road.agvLeaveNum]
+            local roadAgvItem = road:getAgvItem(agv.roadAgvId) -- 获取道路agv对象
 
             -- 判断是否到达目标
             if roadAgvItem.distance + dt * agv.speed >= roadAgvItem.targetDistance then
@@ -259,7 +259,7 @@ function AGV()
                     targetDistance = params.targetDistance,
                     stay = params.stay
                 })
-                -- print('agv' .. agv.id .. '注册得到roadAgvId=' .. agv.roadAgvId)
+                print('agv' .. agv.id .. '注册得到roadAgvId=' .. agv.roadAgvId)
             end
 
             dt = agv.road:maxstep(agv.roadAgvId) -- 使用road中的方法计算最大步进

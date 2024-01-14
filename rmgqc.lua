@@ -71,17 +71,18 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
         -- 判断是否指定位置
         if bay == nil then
             if rmgqc.agentqueue[1] ~= nil and rmgqc.agentqueue[1].container == nil then
-                print('rmgqc: detach到agent处') -- debug
+                local agent = rmgqc.agentqueue[1]
+                print('rmgqc'..rmgqc.id..': detach到agent:', agent.type .. agent.id, '处') -- debug
                 -- 将集装箱放置到对应agv上
-                rmgqc.agentqueue[1].container = rmgqc.attached
+                agent.container = rmgqc.attached
                 rmgqc.attached = nil
             elseif rmgqc.stash == nil then
-                print('rmgqc: detach到stash处') -- debug
+                print('rmgqc'..rmgqc.id..': detach到stash处') -- debug
                 -- 将集装箱放置到对应bay位置的agv位置上
                 rmgqc.stash = rmgqc.attached
                 rmgqc.attached = nil
             else
-                print('rmgqc: agent,stash均不为nil')
+                print('rmgqc'..rmgqc.id..': agent,stash均不为nil')
             end
 
             return
@@ -99,12 +100,13 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
         if bay == nil then -- 如果没有指定位置，则为抓取agv上的集装箱
             -- 判断agv上的集装箱是否为空
             if rmgqc.agentqueue[1] ~= nil and rmgqc.agentqueue[1].container ~= nil then
-                print('rmgqc: 从agent处attach') -- debug
+                local agent = rmgqc.agentqueue[1]
+                print('rmgqc'..rmgqc.id..': 从agent:', agent.type .. agent.id, '处attach') -- debug
                 -- 从agv上取出集装箱
-                rmgqc.attached = rmgqc.agentqueue[1].container
-                rmgqc.agentqueue[1].container = nil
+                rmgqc.attached = agent.container
+                agent.container = nil
             elseif rmgqc.stash ~= nil then
-                print('rmgqc: 从stash处attach') -- debug
+                print('rmgqc'..rmgqc.id..': 从stash处attach') -- debug
                 -- 从暂存中取出集装箱
                 rmgqc.attached = rmgqc.stash
                 rmgqc.stash = nil
@@ -251,8 +253,9 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
             end
             ds[3] = params.speed[3] * dt -- rmg向量速度*时间
 
-            print('[rmgqc] move2:', params[1], params[2], params[3], ' now:', params.currentXY[1], params.currentXY[2],
-                params.movedZ + params.initalZ)
+            -- debug
+            -- print('[rmgqc] move2:', params[1], params[2], params[3], ' now:', params.currentXY[1], params.currentXY[2],
+            --     params.movedZ + params.initalZ)
 
             -- 判断bay方向是否已经到达目标
             if not params.arrivedZ then
@@ -429,15 +432,16 @@ function RMGQC(origin, actionObjs) -- origin={x,y,z}
         local z = rmgqc.ship.bayPosition[bay]
         local rz = z - rmgqc.ship.origin[3] -- 通过车移动解决z
 
-        local point = scene.addobj('points', {
-            vertices = {x, y, z},
-            color = 'red',
-            size = 5
-        })
-        local label = scene.addobj('label', {
-            text = bay .. ',' .. row .. ',' .. level..'('..rx..','..y..','..rz..')'
-        })
-        label:setpos(x, y, z)
+        -- debug
+        -- local point = scene.addobj('points', {
+        --     vertices = {x, y, z},
+        --     color = 'red',
+        --     size = 5
+        -- })
+        -- local label = scene.addobj('label', {
+        --     text = bay .. ',' .. row .. ',' .. level..'('..rx..','..y..','..rz..')'
+        -- })
+        -- label:setpos(x, y, z)
 
         return {rx, ry, rz}
     end

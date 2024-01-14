@@ -20,7 +20,7 @@ local ActionObjs = {} -- 动作队列声明
 
 -- 仿真控制
 require('watchdog')
-local watchdog = WatchDog(simv, ActionObjs)
+watchdog = WatchDog(simv, ActionObjs)
 
 require('controller')
 local controller = Controller()
@@ -99,16 +99,17 @@ local pgb = ProgressBar(_,_,_,500)
 --     end
 -- end
 
+
 -- 创建堆场和rmg
 local cys = {}
 local rmgs = {}
-
-cys[3] = CY({25, 40}, {45, 110}, 3)
-cys[2] = CY({25, 160}, {45, 230}, 3)
-cys[1] = CY({25, 280}, {45, 350}, 3)
-cys[6] = CY({85, 40}, {105, 110}, 3)
-cys[5] = CY({85, 160}, {105, 230}, 3)
-cys[4] = CY({85, 280}, {105, 350}, 3)
+local cyRow, cyCol, cyLevel = 5, 10, 3
+cys[3] = CY(cyRow, cyCol, cyLevel, {origin = {30, 0, 40}})
+cys[2] = CY(cyRow, cyCol, cyLevel, {origin = {30, 0, 160}})
+cys[1] = CY(cyRow, cyCol, cyLevel, {origin = {30, 0, 280}})
+cys[6] = CY(cyRow, cyCol, cyLevel, {origin = {90, 0, 40}})
+cys[5] = CY(cyRow, cyCol, cyLevel, {origin = {90, 0, 160}})
+cys[4] = CY(cyRow, cyCol, cyLevel, {origin = {90, 0, 280}})
 
 for i = 1, 6 do
     local road = i <= 3 and rd21 or rd22
@@ -129,14 +130,14 @@ local rmgqcs = {}
 local ships = {}
 
 for i = 1, 3 do
-    rmgqcs[i] = RMGQC({-30, 0, -40 + 120 * i}, ActionObjs)
-    ships[i] = Ship({8, 9, 2}, rmgqcs[i].berthPosition)
+    rmgqcs[i] = RMGQC({-30, 0, -60 + 120 * i}, ActionObjs)
+    ships[i] = Ship({anchorPoint = rmgqcs[i].berthPosition})
     rmgqcs[i]:bindRoad(controller.Roads[i * 5 - 1]) -- 绑定road
     rmgqcs[i]:bindShip(ships[i]) -- 绑定Ship
     rmgqcs[i]:showBindingPoint()
     pgb:setp(pgb.value+1/2/3/2) -- 创建rmg和ship的进度为1/2/2
     -- ship填充集装箱
-    ships[i]:fillRandomContainerPositions(30, {'/res/ct/container_blue.glb'})
+    ships[i]:fillRandomContainerPositions(30, {'/res/ct/container_yellow.glb'})
     pgb:setp(pgb.value+1/2/3/2) -- 创建ship集装箱的进度为1/2/2
 end
 
@@ -216,7 +217,7 @@ function generateagv()
     if dataModel.positionLevels == nil then
         dataModel.positionLevels = {} -- 初始化集装箱可用位置列表
 
-        for i = 1, dataModel.bay do
+        for i = 1, dataModel.col do
             dataModel.positionLevels[i] = {}
             for j = 1, dataModel.row do
                 -- 计算此位置的堆叠层数
@@ -233,7 +234,7 @@ function generateagv()
 
     -- 识别任务类型并生成可用位置列表
     local availablePos = {} -- 可用位置
-    for i = 1, dataModel.bay do
+    for i = 1, dataModel.col do
         for j = 1, dataModel.row do
             local containerLevel = dataModel.positionLevels[i][j] -- 获取堆叠层数
             if agvTaskType == 'unload' then
@@ -295,7 +296,7 @@ function generateagv()
             targetDistance = dataModel.parkingSpaces[targetPos[1]].relativeDist,
             stay = true
         })
-        print('目标road.id=', toRoad.id, '目标node.id=', stpTargetNode.id, '目标停车位=', targetPos[1], '(',
+        print(agv.type .. agv.id, '目标road.id=', toRoad.id, '目标node.id=', stpTargetNode.id, '目标停车位=', targetPos[1], '(',
             dataModel.parkingSpaces[targetPos[1]].relativeDist, ')')
         agv:addtask('waitoperator', {operator = operatorAgent})
         agv:addtask('moveon', {
@@ -321,7 +322,7 @@ function generateagv()
         })
         controller:addAgvNaviTask(agv, operatorAgent.bindingRoad.toNode.id, 15, toRoad, {road=controller.Roads[18]})
     else
-        print('[main] error: unknown operator type', operatorAgent.type, '. stopped.')
+        print('[main] error: unknown operator type', operatorAgent.type, ', stopped.')
         os.exit()
     end
     -- 添加delete前的任务

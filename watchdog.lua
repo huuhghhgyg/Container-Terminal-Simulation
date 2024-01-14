@@ -142,16 +142,16 @@ function WatchDog(simv, ActionObjs)
     function watchdog:beforeStop()
         for i = 1, #ActionObjs do
             local obj = ActionObjs[i]
-            if obj.type == "agv" then
+            if obj.type ~= "container" then
                 local x, y, z = obj:getpos()
                 local label = scene.addobj('label', {
-                    text = 'agv' .. obj.id
+                    text = obj.type .. obj.id
                 })
                 label:setpos(x, y + 5, z)
             elseif obj.type == "node" and obj.occupied then
                 local x, y, z = obj:getpos()
                 local label = scene.addobj('label', {
-                    text = 'occupied by agv' .. obj.occupied.id
+                    text = 'occupied by ' .. obj.occupied.type .. obj.occupied.id
                 })
                 label:setpos(x, y - 1, z)
             end
