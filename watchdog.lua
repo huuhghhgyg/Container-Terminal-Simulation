@@ -1,4 +1,11 @@
 function WatchDog(simv, ActionObjs)
+    -- 验证参数
+    if type(simv) ~= 'number' then
+        print(debug.traceback('[WatchDog] simv: ' .. simv .. ' not a number'))
+    elseif type(ActionObjs) ~= 'table' then
+        print(debug.traceback('[WatchDog] ActionObjs: ' .. ActionObjs .. ' not a table'))
+    end
+
     local watchdog = {
         -- 时间
         t = os.clock(),
