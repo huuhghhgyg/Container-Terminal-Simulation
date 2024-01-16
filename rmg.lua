@@ -23,7 +23,7 @@ function RMG(cy, actionObjs)
         rmg.level[i] = cy.levelPos[i] + cy.cheight
     end
     rmg.toplevel = #rmg.level -- 最高层(吊具行走层)
-    rmg.level.agv = 2.1 -- agv高度
+    rmg.agvHeight = 2.1 -- agv高度
     rmg.spreaderpos = {0, rmg.level[2], 0} -- 初始位置(x,y)
     rmg.zpos = 0 -- 初始位置z
     rmg.tasksequence = {} -- 初始化任务队列
@@ -425,7 +425,7 @@ function RMG(cy, actionObjs)
 
         local ry = 0 -- 相对高度
         if row == -1 and level == 1 then -- 如果是要放下，则设置到移动到agv上
-            ry = ry + rmg.level.agv -- 加上agv高度
+            ry = ry + rmg.agvHeight -- 加上agv高度
         end
         ry = ry + rmg.level[level] -- 加上层高
         local y = ry - rmg.origin[2]
