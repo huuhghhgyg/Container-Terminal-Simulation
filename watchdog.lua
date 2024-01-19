@@ -15,6 +15,7 @@ function WatchDog(simv, ActionObjs)
         isImmediateStop = true -- 没有任务的时候立刻停止
     }
 
+    -- 更新
     function watchdog:update()
         -- 绘图
         watchdog.runcommand = scene.render()
@@ -74,7 +75,7 @@ function WatchDog(simv, ActionObjs)
         end
 
         -- 防止无限推进
-        if #ActionObjs == 0 or watchdog.isImmediateStop and maxstepItem == 0 then
+        if watchdog.isImmediateStop and (#ActionObjs == 0 or maxstepItem == 0) then
             scene.render()
             print('无任务实体，仿真停止 t=', coroutine.qtime())
             return
@@ -99,10 +100,6 @@ function WatchDog(simv, ActionObjs)
 
         -- 下一次更新
         coroutine.queue(watchdog.dt, watchdog.update)
-    end
-
-    function watchdog:queueAt(dt)
-        coroutine.queue(dt, watchdog.update)
     end
 
     -- 打印所有组件任务列表

@@ -81,7 +81,7 @@ function Road(originPt, destPt, roadList)
         -- 向agv对象中注入道路对象和信息
         agv.road = road -- 注入道路对象
         agv.roadAgvId = road.agvItemId
-        print(agv.type..agv.id, '注册到道路', road.id, 'agvId=', road.agvItemId)
+        -- print(agv.type..agv.id, '注册到道路', road.id, 'agvId=', road.agvItemId)
 
         return road.agvItemId -- 返回id
     end

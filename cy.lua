@@ -39,7 +39,7 @@ function CY(row, col, level, config)
             local x, y, z = road:getRelativePosition(v.relativeDist)
 
             -- 计算iox
-            cy.parkingSpaces[k].iox = -1 * math.sqrt((x - bayPos[k][1]) ^ 2 + (z - bayPos[k][2]) ^ 2)
+            cy.parkingSpaces[k].iox = -1 * math.sqrt((x - bayPos[k][1]) ^ 2 + (z - bayPos[k][2]) ^ 2) -- 由于位置关系，x轴方向取反
             -- print('cy debug: parking space', k, ' iox = ', cy.parkingSpaces[k].iox)
         end
 

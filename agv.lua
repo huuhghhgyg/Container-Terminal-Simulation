@@ -45,11 +45,7 @@ function AGV()
         agv.container = nil
     end
 
-    -- 注册任务，添加到任务列表中（主要方便debug）
-    function agv:registerTask(taskname)
-        table.insert(agv.tasks, taskname)
-    end
-
+    -- 任务相关函数
     function agv:executeTask(dt) -- 执行任务 task: {任务名称,{参数}}
         if agv.tasksequence[1] == nil or #agv.tasksequence == 0 then
             return
@@ -60,7 +56,7 @@ function AGV()
 
         -- -- debug
         -- if agv.lasttask ~= taskname then
-        --     print('[agv', agv.id, '] executing', taskname)
+        --     print('[agv', agv.id, '] executing', taskname, 'at', coroutine.qtime())
         --     agv.lasttask = taskname
         -- end
 
@@ -175,7 +171,6 @@ function AGV()
             return dt
         end
     }
-    agv:registerTask("move2") -- 注册任务
 
     -- {"waitoperator", {operator=agent}} 等待operator改变自身状态。当自身状态为nil时，删除任务；wait则继续等待。
     agv.tasks.waitoperator = {
@@ -207,7 +202,6 @@ function AGV()
             return math.huge
         end
     }
-    agv:registerTask("waitoperator") -- 注册任务
 
     -- {"moveon",{road=,distance=,targetDistance=,stay=}} 沿着当前道路行驶。注意事项：param可能为nil
     agv.tasks.moveon = {
@@ -259,14 +253,13 @@ function AGV()
                     targetDistance = params.targetDistance,
                     stay = params.stay
                 })
-                print('agv' .. agv.id .. '注册得到roadAgvId=' .. agv.roadAgvId)
+                -- print('agv' .. agv.id .. '注册得到roadAgvId=' .. agv.roadAgvId)
             end
 
             dt = agv.road:maxstep(agv.roadAgvId) -- 使用road中的方法计算最大步进
             return dt
         end
     }
-    agv:registerTask("moveon") -- 注册任务
 
     -- {"onnode", node, fromRoad, toRoad} 输入通过节点到达的道路id
     agv.tasks.onnode = {
@@ -449,24 +442,26 @@ function AGV()
             return math.min(dt, timeRemain)
         end
     }
-    agv:registerTask("onnode") -- 注册任务
 
-    -- {"register", operator}
-    -- todo 引发错误
+    -- {"register", {operator=, f=}} 注册agv到operator
     agv.tasks.register = {
         maxstep = function(params)
-            if params == nil then
-                print('[agv] register错误，没有operator参数')
+            if params.operator == nil then
+                print(debug.traceback('[agv' .. agv.id .. '] register错误，没有输入operator参数'))
                 os.exit()
             end
 
-            params:registerAgent(agv)
+            -- 需要执行的函数
+            if type(params.f) == "function" then
+                params.f()
+            end
+
+            params.operator:registerAgv(agv)
 
             agv:deltask() -- 删除任务
             return -1 -- maxstep触发重算
         end
     }
-    agv:registerTask("register") -- 注册任务
 
     function agv:InSafetyDistance(targetAgv)
         local tx, ty, tz = targetAgv:getpos()
