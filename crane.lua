@@ -104,7 +104,41 @@ function Crane(config)
 
     -- 绑定道路
     function crane:bindRoad(road)
+        crane.road = road
+    end
 
+    -- crane将agent作为agv注册。agent已经设置agent.taskType和agent.targetContainerPos
+    function crane:registerAgv(agent)
+        -- 检查参数
+        if agent.targetContainerPos == nil then
+            print(debug.traceback('[' .. crane.type .. crane.id .. '] 错误，agent没有设置targetContainerPos'))
+            os.exit() -- 检测到出错立刻停止,方便发现错误
+        end
+
+        -- crane添加任务
+        local bay, row, level = table.unpack(agent.targetContainerPos)
+
+        if agent.taskType == 'unload' then
+            -- print('['..crane.type..crane.id..'] agent:unload, targetPos=(', row, bay, level, ')') -- debug
+            crane:move2Agent(bay)
+            -- print('['..crane.type..crane.id..'] move2Agent()完成') -- debug
+            crane:lift2TargetPos(row, bay, level, agent)
+            -- print('['..crane.type..crane.id..'] lift2TargetPos()完成') -- debug
+        elseif agent.taskType == 'load' then
+            -- print('['..crane.type..crane.id..'] agent:load, targetPos=(', row, bay, level, ')') -- debug
+            crane:move2TargetPos(row, bay)
+            -- print('['..crane.type..crane.id..'] move2TargetPos()完成') -- debug
+            crane:lift2Agent(row, bay, level, agent)
+            -- print('['..crane.type..crane.id..'] lift2Agent()完成') -- debug
+        else
+            print(debug.traceback('[' .. crane.type .. crane.id .. '] 错误，没有检测到' .. agent.type ..
+                                      '的任务类型，注册失败'))
+            os.exit()
+        end
+
+        -- 注册agv
+        table.insert(crane.agentqueue, agent) -- 加入agv队列
+        -- print('[rmg] agv注册完成, #agv.tasksequence=', #agent.tasksequence, ' #actionObjs=', #actionObjs) -- debug
     end
 
     -- 转换函数
@@ -124,8 +158,8 @@ function Crane(config)
                                       '] 错误，没有绑定 stack，无法使用 getContainerCoord()'))
             os.exit() -- 检测到出错立刻停止,方便发现错误
         end
-        local stack = crane.stack
 
+        local stack = crane.stack -- 绑定的stack
         -- print('crane:getContainerCoord', row, bay, level) -- debug
 
         local x, rx
@@ -158,34 +192,34 @@ function Crane(config)
         crane:addtask("move2", crane:getContainerCoord(-1, bay, 1)) -- 抓取agent上的箱子
         crane:addtask("attach", nil) -- 抓取
         crane:addtask("unwaitagent", 1) -- 发送信号，解除agent的阻塞
-        crane:addtask("move2", crane:getContainerCoord(-1, bay, crane.toplevel)) -- 吊具提升到移动层
-        crane:addtask("move2", crane:getContainerCoord(row, bay, crane.toplevel)) -- 移动爪子到指定位置
+        crane:addtask("move2", crane:getContainerCoord(-1, bay, #crane.stack.levelPos)) -- 吊具提升到移动层
+        crane:addtask("move2", crane:getContainerCoord(row, bay, #crane.stack.levelPos)) -- 移动爪子到指定位置
         crane:addtask("move2", crane:getContainerCoord(row, bay, level)) -- 移动爪子到指定位置
         crane:addtask("detach", {row, bay, level}) -- 放下指定箱
-        crane:addtask("move2", crane:getContainerCoord(row, bay, crane.toplevel)) -- 爪子抬起到移动层
+        crane:addtask("move2", crane:getContainerCoord(row, bay, #crane.stack.levelPos)) -- 爪子抬起到移动层
     end
 
     -- 将集装箱从目标位置移动到agent，默认在移动层。这个函数会标记当前crane任务目标位置
     function crane:lift2Agent(row, bay, level, operatedAgent)
         crane:addtask("move2", crane:getContainerCoord(row, bay, level)) -- 移动爪子到指定位置
         crane:addtask("attach", {row, bay, level}) -- 抓取
-        crane:addtask("move2", crane:getContainerCoord(row, bay, crane.toplevel)) -- 吊具提升到移动层
-        crane:addtask("move2", crane:getContainerCoord(-1, bay, crane.toplevel)) -- 移动爪子到agent上方
+        crane:addtask("move2", crane:getContainerCoord(row, bay, #crane.stack.levelPos)) -- 吊具提升到移动层
+        crane:addtask("move2", crane:getContainerCoord(-1, bay, #crane.stack.levelPos)) -- 移动爪子到agent上方
         crane:addtask("waitagent", operatedAgent) -- 等待agent到达
         crane:addtask("move2", crane:getContainerCoord(-1, bay, 1)) -- 移动爪子到agent
         crane:addtask("detach", nil) -- 放下指定箱
         crane:addtask("unwaitagent", 1) -- 发送信号，解除agent的阻塞
-        crane:addtask("move2", crane:getContainerCoord(-1, bay, crane.toplevel)) -- 爪子抬起到移动层
+        crane:addtask("move2", crane:getContainerCoord(-1, bay, #crane.stack.levelPos)) -- 爪子抬起到移动层
     end
 
     -- 移动到目标位置，默认在移动层
     function crane:move2TargetPos(row, bay)
-        crane:addtask("move2", crane:getContainerCoord(row, bay, crane.toplevel))
+        crane:addtask("move2", crane:getContainerCoord(row, bay, #crane.stack.levelPos))
     end
 
     -- 移动到agv上方，默认在移动层
     function crane:move2Agent(bay)
-        crane:addtask("move2", crane:getContainerCoord(-1, bay, crane.toplevel))
+        crane:addtask("move2", crane:getContainerCoord(-1, bay, #crane.stack.levelPos))
     end
 
     -- 任务相关函数
@@ -320,7 +354,7 @@ function Crane(config)
 
             -- 判断是否到达目标位置
             if crane.pos[1] == params[1] and crane.pos[2] == params[2] and crane.pos[3] == params[3] then
-                print('[' .. crane.type .. crane.id .. '] 到达目标位置 at', coroutine.qtime() + dt) -- 下一次推进时间才是到达时间
+                print('[' .. crane.type .. crane.id .. '] 到达目标位置 at', coroutine.qtime() + dt) -- debug 下一次推进时间才是到达时间
                 crane:deltask()
             end
         end

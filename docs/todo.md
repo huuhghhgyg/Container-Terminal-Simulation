@@ -3,7 +3,7 @@
 - [x] 将各组件提取模块
 - [x] 多场桥排队线路
 - [x] 提取ship和cy的父类stack
-- [ ] 提取crane作为RMG和RMGQC的父类
+- [x] 提取crane作为RMG和RMGQC的父类
 - [ ] 统一位置称呼为row, col, level
 - [ ] 码头堆场整体自动布局
 

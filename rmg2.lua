@@ -1,4 +1,3 @@
--- 测试
 function RMG(config)
     -- 参数设置
     if config == nil then
@@ -19,14 +18,6 @@ function RMG(config)
     rmg.agvHeight = 2.1
     -- 绑定参数设置
     rmg.stack = config.stack or nil -- 绑定的stack
-
-    function rmg:init()
-        -- 初始化位置
-        if config.anchorPoint ~= nil then
-            rmg:setpos(table.unpack(config.anchorPoint))
-        end
-    end
-    rmg:init()
 
     -- 动作函数
     -- 移动至某坐标（工作状态）
@@ -52,6 +43,21 @@ function RMG(config)
         rmg.anchorPoint = {x, y, z} -- 设置锚点
         rmg:move2(x, y, z) -- 移动到锚点
     end
+
+    -- 初始化Agent
+    function rmg:init()
+        -- 初始化位置
+        if config.anchorPoint ~= nil then
+            rmg:setpos(table.unpack(config.anchorPoint))
+        end
+        if config.stack ~= nil then
+            rmg:bindStack(config.stack)
+        end
+        if config.actionObjs ~= nil then
+            table.insert(config.actionObjs, rmg)
+        end
+    end
+    rmg:init()
 
     return rmg
 end

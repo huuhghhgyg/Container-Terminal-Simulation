@@ -49,7 +49,7 @@ function RMG(cy, actionObjs)
 
     -- 函数
     -- rmg注册agent。agent已经设置agent.taskType和agent.targetContainerPos
-    function rmg:registerAgent(agent)
+    function rmg:registerAgv(agent)
         -- rmg添加任务
         local bay, row, level = table.unpack(agent.targetContainerPos)
 
