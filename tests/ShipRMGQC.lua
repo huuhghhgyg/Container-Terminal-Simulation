@@ -1,6 +1,7 @@
-require('rmgqc')
+require('rmgqc2')
 require('ship')
 require('road')
+require('agv')
 require('watchdog')
 
 -- 控制器
@@ -15,53 +16,58 @@ local RoadList = {} -- 道路列表
 
 -- 创建对象
 -- local rmgqc = RMGQC({-16, 0, 130})
-local rmgqc = RMGQC({0, 0, 0}, ActionObjs)
+local rmgqc = RMGQC({actionObjs = ActionObjs})
 local ship = Ship({anchorPoint = rmgqc.berthPosition})
-local road = Road({0,0,-60}, {0,0,60}, RoadList)
-rmgqc:bindRoad(road)
+local road = Road({0,0,0}, {0,0,60}, RoadList)
 
 -- ship填充集装箱
 ship:fillAllContainerPositions()
 
 -- 绑定Ship
-rmgqc:bindShip(ship)
+rmgqc:bindRoad(road) -- 先绑定road
+rmgqc:bindStack(ship) -- 再绑定stack
 
 -- 添加任务
 local target1 = {3, 4, 2}
-rmgqc:addtask("move2", rmgqc:getContainerCoord(target1[1], -1, rmgqc.toplevel)) -- 初始化位置
+rmgqc:addtask("move2", rmgqc:getContainerCoord(-1, target1[1], #rmgqc.stack.levelPos)) -- 初始化位置
 
 -- 单个任务
 local bay, row, level = 3, 4, 2
+
+-- 添加目标agv
+local agv = AGV()
+local ax, _, az = table.unpack(rmgqc:getContainerCoord(-1, bay, 1))
+agv:move2(ax, 0, az)
+rmgqc.agentqueue = {agv}
+agv:addtask('waitoperator', {operator = rmgqc})
+-- agv:addtask('register', {
+--     operator = rmgqc, 
+--     f = function() 
+--         agv.targetContainerPos = {bay, row, level}
+--         agv.taskType = 'unload'
+--     end
+-- })
+-- agv:addtask('waitoperator', {operator = rmgqc})
+-- agv:addtask('waitoperator', {operator = rmgqc})
+table.insert(ActionObjs, agv)
+
 -- 取下1
-rmgqc:addtask("move2", rmgqc:getContainerCoord(bay, row, rmgqc.toplevel))
-rmgqc:addtask("move2", rmgqc:getContainerCoord(bay, row, level)) -- 移动爪子到指定位置
-rmgqc:addtask("attach", {bay, row, level}) -- 抓取
-rmgqc:addtask("move2", rmgqc:getContainerCoord(bay, row, rmgqc.toplevel)) -- 吊具提升到移动层
-rmgqc:addtask("move2", rmgqc:getContainerCoord(bay, -1, rmgqc.toplevel)) -- 移动爪子到agv上方
+rmgqc:addtask("move2", rmgqc:getContainerCoord(row, bay, #rmgqc.stack.levelPos))
+rmgqc:addtask("move2", rmgqc:getContainerCoord(row, bay, level)) -- 移动爪子到指定位置
+rmgqc:addtask("attach", {row, bay, level}) -- 抓取
+rmgqc:addtask("move2", rmgqc:getContainerCoord(row, bay, #rmgqc.stack.levelPos)) -- 吊具提升到移动层
+rmgqc:addtask("move2", rmgqc:getContainerCoord(-1, bay, #rmgqc.stack.levelPos)) -- 移动爪子到agv上方
 -- rmgqc:addtask("waitagv") -- 等待agv到达
-rmgqc:addtask("move2", rmgqc:getContainerCoord(bay, -1, 1)) -- 移动爪子到agv
+rmgqc:addtask("move2", rmgqc:getContainerCoord(-1, bay, 1)) -- 移动爪子到agv
 rmgqc:addtask("detach", nil) -- 放下指定箱
-rmgqc:addtask("move2", rmgqc:getContainerCoord(bay, -1, rmgqc.toplevel)) -- 爪子抬起到移动层
+rmgqc:addtask("move2", rmgqc:getContainerCoord(-1, bay, #rmgqc.stack.levelPos)) -- 爪子抬起到移动层
 
--- 集成任务
--- -- 添加fakeAgv
--- local fakeAgv = {
---     arrived = true,
---     taskType = 'load',
---     occupier = rmgqc,
---     id = 1,
---     type = 'agv',
---     contaienr = {}
--- }
-
--- -- 取下
--- rmgqc:move2TargetPos(bay, row)
--- rmgqc:lift2Agent(bay, row, level, fakeAgv)
--- -- 装载
--- -- rmgqc:move2Agent(bay)
--- -- rmgqc:lift2TargetPos(bay, row, level, fakeAgv)
-
--- rmgqc.agentqueue[1] = fakeAgv -- 测试时注入fakeAgv（只能支持同时测试一个任务）
+-- 取下
+-- rmgqc:move2TargetPos(row, bay)
+-- rmgqc:lift2Agent(row, bay, level, agv)
+-- 装载
+-- rmgqc:move2Agent(bay)
+-- rmgqc:lift2TargetPos(row, bay, level, agv)
 
 -- 开始仿真
 local watchdog = WatchDog(simv, ActionObjs)

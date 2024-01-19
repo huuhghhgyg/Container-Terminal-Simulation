@@ -8,7 +8,7 @@ require('agv')
 require('node')
 require('road')
 require('ship')
-require('rmgqc')
+require('rmgqc2')
 
 -- 参数设置
 local simv = 8 -- 仿真速度
@@ -45,11 +45,11 @@ local rd9 = node5:createRoad(node8, RoadList)
 local rd10 = node8:createRoad(node9, RoadList)
 
 -- 创建堆场和rmg
-local rmgqc = RMGQC({-30, 0, 210}, ActionObjs)
+local rmgqc = RMGQC({anchorPoint = {-30, 0, 210}, actionObjs = ActionObjs})
 local ship = Ship({anchorPoint = rmgqc.berthPosition})
 
 rmgqc:bindRoad(rd7) -- 绑定road
-rmgqc:bindShip(ship) -- 绑定Ship
+rmgqc:bindStack(ship) -- 绑定Ship
 rmgqc:showBindingPoint()
 
 -- ship填充集装箱
@@ -141,13 +141,13 @@ function generateagv()
     agv:addtask('onnode', {node6, rd6, rd7})
     agv:addtask('moveon', {
         road = rd7,
-        targetDistance = rmgqc.parkingSpaces[targetPos[1]].relativeDist,
+        targetDistance = rmgqc.stack.parkingSpaces[targetPos[1]].relativeDist,
         stay = true
     })
     agv:addtask('waitoperator', {operator = rmgqc})
     agv:addtask('moveon', {
         road = rd7,
-        distance = rmgqc.parkingSpaces[targetPos[1]].relativeDist,
+        distance = rmgqc.stack.parkingSpaces[targetPos[1]].relativeDist,
         stay = false
     })
     agv:addtask('onnode', {node7, rd7, rd8})
@@ -160,7 +160,7 @@ function generateagv()
     })
     agv:addtask('onnode', {node9, rd10, nil})
 
-    rmgqc:registerAgent(agv)
+    rmgqc:registerAgv(agv)
     print('[main] agv target=', agv.targetContainerPos[1], agv.targetContainerPos[2], agv.targetContainerPos[3],
         ', agv taskType=', agv.taskType)
 

@@ -5,13 +5,13 @@ scene.setenv({
 
 -- 引用组件
 require('cy')
-require('rmg')
+require('rmg2')
 require('agv')
 require('node')
 require('road')
 
 -- 参数设置
-local simv = 4 -- 仿真速度
+local simv = 2 -- 仿真速度
 local ActionObjs = {} -- 动作队列声明
 
 -- 仿真控制
@@ -35,23 +35,26 @@ cy:showBindingPoint()
 -- cy:fillRandomContainerPositions(50, {'/res/ct/container_blue.glb'})
 cy:fillAllContainerPositions()
 
-local rmg = RMG(cy, ActionObjs) -- 创建rmg时会自动添加到ActionObjs中
+local rmg = RMG() -- 创建rmg时会自动添加到ActionObjs中
+table.insert(ActionObjs, rmg)
+rmg:bindStack(cy)
+
 scene.render()
 
 -- test1
-rmg:addtask('move2', rmg:getContainerCoord(3, 2, 3))
-rmg:addtask('attach', {3, 2, 3})
-rmg:addtask('move2', rmg:getContainerCoord(3, 2, rmg.toplevel))
-rmg:addtask('move2', rmg:getContainerCoord(6, -1, rmg.toplevel))
-rmg:addtask('move2', rmg:getContainerCoord(6, -1, 1))
+rmg:addtask('move2', rmg:getContainerCoord(2, 3, 3))
+rmg:addtask('attach', {2, 3, 3})
+rmg:addtask('move2', rmg:getContainerCoord(2, 3, #cy.levelPos))
+rmg:addtask('move2', rmg:getContainerCoord(-1, 6, #cy.levelPos))
+rmg:addtask('move2', rmg:getContainerCoord(-1, 6, 1))
 rmg:addtask('detach', nil)
-rmg:addtask('move2', rmg:getContainerCoord(6, -1, rmg.toplevel)) -- t=17.42, end t=19.315
+rmg:addtask('move2', rmg:getContainerCoord(-1, 6, #cy.levelPos)) -- t=17.42, end t=19.315
 
 -- test1.5
 -- 添加agv作为测试agent
-local agentPosition = rmg:getContainerCoord(6, -1, 1)
+local agentPosition = rmg:getContainerCoord(-1, 6, 1)
 agentPosition[2] = 0 -- 修正高度
-agentPosition[1], agentPosition[3] = rmg.origin[1] + agentPosition[1], rmg.origin[3] + agentPosition[3] -- 修正坐标系
+agentPosition[1], agentPosition[3] = agentPosition[1], agentPosition[3] -- 修正坐标系
 print('agentPosition', table.unpack(agentPosition))
 local agv = AGV()
 agv:setpos(table.unpack(agentPosition))
@@ -59,11 +62,8 @@ agv:setpos(table.unpack(agentPosition))
 agv.occupier = rmg
 agv.state = 'wait'
 rmg.occupier = agv
-
--- test2
--- rmg:addtask('move2', {10,10,10}) -- t=0
--- rmg:addtask('move2', {10,10,30}) -- t=5 
--- rmg:addtask('move2', {0,10,30}) -- t=15, end t=16.25
+rmg.agentqueue = {agv}
 
 -- 仿真任务
-watchdog:update()
+-- debug.pause()
+watchdog.update()

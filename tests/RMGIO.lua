@@ -5,7 +5,7 @@ scene.setenv({
 
 -- 引用组件
 require('cy')
-require('rmg')
+require('rmg2')
 require('agv')
 require('node')
 require('road')
@@ -34,7 +34,7 @@ cy:bindRoad(rd1)
 cy:showBindingPoint()
 cy:fillRandomContainerPositions(50, {'/res/ct/container_blue.glb'})
 
-local rmg = RMG(cy, ActionObjs) -- 创建rmg时会自动添加到ActionObjs中
+local rmg = RMG({stack = cy, actionObjs = ActionObjs})
 scene.render()
 
 local containerUrls = {'/res/ct/container.glb', '/res/ct/container_brown.glb', '/res/ct/container_blue.glb',
@@ -122,7 +122,7 @@ function generateagv()
     })
     agv:addtask('onnode', {node2, rd1, nil})
 
-    rmg:registerAgent(agv)
+    rmg:registerAgv(agv)
     table.insert(ActionObjs, agv)
 
     -- 程序控制
