@@ -8,7 +8,7 @@ function WatchDog(simv, ActionObjs)
 
     local watchdog = {
         -- 时间
-        t = os.clock(),
+        lasttime = os.clock(), -- 上一次更新的系统时间
         dt = 0,
         -- 程序控制
         runcommand = true,
@@ -32,8 +32,8 @@ function WatchDog(simv, ActionObjs)
         end
 
         -- 刷新运行时间间隔
-        watchdog.dt = (os.clock() - watchdog.t) * simv
-        watchdog.t = os.clock() -- 刷新update时间
+        watchdog.dt = (os.clock() - watchdog.lasttime) * simv
+        watchdog.lasttime = os.clock() -- 刷新update时间
 
         local maxstep
         local maxstepItem = 0 -- 作用于isImmediateStop
@@ -47,7 +47,7 @@ function WatchDog(simv, ActionObjs)
 
                     local objectTask = ActionObjs[i].tasksequence[1][1]
                     local objectMaxstep = ActionObjs[i]:maxstep()
-                    -- print('[' .. ActionObjs[i].type .. ActionObjs[i].id .. ']', objectTask, 'maxstep=', objectMaxstep)
+                    print('[' .. ActionObjs[i].type .. ActionObjs[i].id .. ']', objectTask, 'maxstep=', objectMaxstep, 'at', coroutine.qtime())
                     maxstep = math.min(maxstep, objectMaxstep)
 
                     if maxstep < 0 then
@@ -99,7 +99,7 @@ function WatchDog(simv, ActionObjs)
         -- end
 
         -- 下一次更新
-        coroutine.queue(watchdog.dt, watchdog.update)
+        coroutine.queue(watchdog.dt, watchdog.update, watchdog)
     end
 
     -- 打印所有组件任务列表

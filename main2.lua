@@ -7,12 +7,19 @@ print()
 
 -- 引用组件
 require('cy')
-require('rmg')
+require('rmg2')
 require('agv')
 require('node')
 require('road')
 require('ship')
-require('rmgqc')
+require('rmgqc2')
+
+-- 1.下载函数库到虚拟磁盘
+print('正在下载依赖库到虚拟磁盘...')
+os.upload('https://www.zhhuu.top/ModelResource/libs/tablestr.lua')
+print('下载完成')
+-- 2.引用库
+require('tablestr')
 
 -- 参数设置
 local simv = 10 -- 仿真速度
@@ -117,7 +124,7 @@ for i = 1, 6 do
     cys[i]:showBindingPoint()
     cys[i]:fillRandomContainerPositions(50, {'/res/ct/container_blue.glb'})
     pgb:setp(pgb.value+1/2/6/2) -- 创建cy集装箱的进度为1/2/2
-    rmgs[i] = RMG(cys[i], ActionObjs) -- 创建rmg时会自动添加到ActionObjs中
+    rmgs[i] = RMG({stack = cys[i], actionObjs = ActionObjs}) -- 创建rmg时会自动添加到ActionObjs中
     pgb:setp(pgb.value+1/2/6/2) -- 创建rmg的进度为1/2/2
 end
 
@@ -130,10 +137,10 @@ local rmgqcs = {}
 local ships = {}
 
 for i = 1, 3 do
-    rmgqcs[i] = RMGQC({-30, 0, -60 + 120 * i}, ActionObjs)
+    rmgqcs[i] = RMGQC({anchorPoint = {-30, 0, -70 + 120 * i}, actionObjs = ActionObjs})
     ships[i] = Ship({anchorPoint = rmgqcs[i].berthPosition})
     rmgqcs[i]:bindRoad(controller.Roads[i * 5 - 1]) -- 绑定road
-    rmgqcs[i]:bindShip(ships[i]) -- 绑定Ship
+    rmgqcs[i]:bindStack(ships[i]) -- 绑定Ship
     rmgqcs[i]:showBindingPoint()
     pgb:setp(pgb.value+1/2/3/2) -- 创建rmg和ship的进度为1/2/2
     -- ship填充集装箱
@@ -178,7 +185,7 @@ local containerUrls = {'/res/ct/container.glb', '/res/ct/container_brown.glb', '
                        '/res/ct/container_yellow.glb'} -- 集装箱模型路径列表（从其他文件中复制过来的）
 
 local generateConfig = {
-    summonNum = 50,
+    summonNum = 3,
     averageSummonSpan = 15,
     rate = {
         rmg = 0.5, -- 生成rmg类型任务的几率
@@ -195,11 +202,11 @@ function generateTaskType() -- Operator=operator, DataModel = datamodel, type = 
     if operatorType == 'rmg' then
         local randRMGId = math.random(#controller.rmgs)
         local rmg = controller.rmgs[randRMGId]
-        return rmg, rmg.cy, taskType
+        return rmg, rmg.stack, taskType
     elseif operatorType == 'rmgqc' then
         local randRMGQCId = math.random(#controller.rmgqcs)
         local rmgqc = controller.rmgqcs[randRMGQCId]
-        return rmgqc, rmgqc.ship, taskType
+        return rmgqc, rmgqc.stack, taskType
     else
         print('[main] error: unknown operatorType', operatorType, '. stopped.')
         os.exit()
@@ -208,38 +215,45 @@ end
 
 -- 生成具有任务的agv(ship)
 function generateagv()
+    -- 程序控制
+    if not watchdog.runcommand or generateConfig.summonNum == 0 then
+        return
+    end
+    generateConfig.summonNum = generateConfig.summonNum - 1 -- agv剩余生成次数减1
+
+    
     -- 抽取生成agv任务类型
-    local operatorAgent, dataModel, agvTaskType = generateTaskType()
+    local operatorAgent, stack, agvTaskType = generateTaskType()
     print('生成AGV，taskType=', agvTaskType, ', operatorType=', operatorAgent.type, 'operator.id=', operatorAgent.id)
 
     -- 获取位置可用箱数信息，如果没有则注入
     -- 只有generateagv函数中能存取集装箱，因此只有此处设置positionLevels
-    if dataModel.positionLevels == nil then
-        dataModel.positionLevels = {} -- 初始化集装箱可用位置列表
+    if stack.positionLevels == nil then
+        stack.positionLevels = {} -- 初始化集装箱可用位置列表
 
-        for i = 1, dataModel.col do
-            dataModel.positionLevels[i] = {}
-            for j = 1, dataModel.row do
+        for i = 1, stack.col do
+            stack.positionLevels[i] = {}
+            for j = 1, stack.row do
                 -- 计算此位置的堆叠层数
                 local levelCount = 0
-                for k = 1, dataModel.level do
-                    if dataModel.containers[i][j][k] ~= nil then
+                for k = 1, stack.level do
+                    if stack.containers[i][j][k] ~= nil then
                         levelCount = levelCount + 1
                     end
                 end
-                dataModel.positionLevels[i][j] = levelCount
+                stack.positionLevels[i][j] = levelCount
             end
         end
     end
 
     -- 识别任务类型并生成可用位置列表
     local availablePos = {} -- 可用位置
-    for i = 1, dataModel.col do
-        for j = 1, dataModel.row do
-            local containerLevel = dataModel.positionLevels[i][j] -- 获取堆叠层数
+    for i = 1, stack.col do
+        for j = 1, stack.row do
+            local containerLevel = stack.positionLevels[i][j] -- 获取堆叠层数
             if agvTaskType == 'unload' then
-                -- agv卸货，找到所有可用的存货位置(availableNum < dataModel.level)
-                if containerLevel < dataModel.level then
+                -- agv卸货，找到所有可用的存货位置(availableNum < stack.level)
+                if containerLevel < stack.level then
                     table.insert(availablePos, {i, j, containerLevel + 1}) -- 记录可用位置{bay, row}
                 end
             else
@@ -254,7 +268,7 @@ function generateagv()
     local targetPos = availablePos[math.random(#availablePos)] -- 抽取可用位置
     -- 记录抽取位置的影响
     local trow, tcol = targetPos[1], targetPos[2]
-    dataModel.positionLevels[trow][tcol] = dataModel.positionLevels[trow][tcol] + (agvTaskType == 'unload' and 1 or -1)
+    stack.positionLevels[trow][tcol] = stack.positionLevels[trow][tcol] + (agvTaskType == 'unload' and 1 or -1)
 
     -- 生成agv
     local agv = AGV()
@@ -264,18 +278,18 @@ function generateagv()
     end
     agv:move2(10, 0, -10)
     agv.targetContainerPos = targetPos -- 设置agv目标位置{bay,row,col}
-    agv:bindCrane(dataModel, targetPos) -- 绑定agv和船
+    agv:bindCrane(stack, targetPos) -- 绑定agv和船
 
     -- agv添加任务
-    -- if dataModel.type == 'cy' then
+    -- if stack.type == 'cy' then
     --     -- 直接到rmg
     --     agv2rmgTask(agv, targetPos)
     --     print('[main] agv', agv.id, '2rmg')
-    -- elseif dataModel.type == 'ship' then
+    -- elseif stack.type == 'ship' then
     --     agv2rmgqcTask(agv, targetPos)
     --     print('[main] agv', agv.id, '2rmgqc')
     -- else
-    --     print('[main] error: unknown dataModel type', dataModel.type, '. stopped.')
+    --     print('[main] error: unknown dataModel type', stack.type, '. stopped.')
     --     os.exit()
     -- end
     -- table.insert(ActionObjs, agv)
@@ -283,44 +297,44 @@ function generateagv()
 
     -- print('[main] agv target=', agv.targetContainerPos[1], agv.targetContainerPos[2], agv.targetContainerPos[3],
     --     ', agv taskType=', agv.taskType)
-    agv:addtask('register', operatorAgent)
+    agv:addtask('register', {operator = operatorAgent})
     agv:addtask('moveon', {
         road = controller.Roads[1]
     })
     if operatorAgent.type == 'rmg' then
         -- operator类型为rmg
-        local toRoad = dataModel.bindingRoad
+        local toRoad = stack.bindingRoad
         local stpTargetNode = toRoad.fromNode
         controller:addAgvNaviTask(agv, 2, stpTargetNode.id, controller.Roads[1], {
-            road = dataModel.bindingRoad,
-            targetDistance = dataModel.parkingSpaces[targetPos[1]].relativeDist,
+            road = stack.bindingRoad,
+            targetDistance = stack.parkingSpaces[targetPos[1]].relativeDist,
             stay = true
         })
         print(agv.type .. agv.id, '目标road.id=', toRoad.id, '目标node.id=', stpTargetNode.id, '目标停车位=', targetPos[1], '(',
-            dataModel.parkingSpaces[targetPos[1]].relativeDist, ')')
+            stack.parkingSpaces[targetPos[1]].relativeDist, ')')
         agv:addtask('waitoperator', {operator = operatorAgent})
         agv:addtask('moveon', {
-            road = dataModel.bindingRoad,
-            distance = dataModel.parkingSpaces[targetPos[1]].relativeDist,
+            road = stack.bindingRoad,
+            distance = stack.parkingSpaces[targetPos[1]].relativeDist,
             stay = false
         })
-        controller:addAgvNaviTask(agv, dataModel.bindingRoad.toNode.id, 15, toRoad, {road=controller.Roads[18]})
+        controller:addAgvNaviTask(agv, stack.bindingRoad.toNode.id, 15, toRoad, {road=controller.Roads[18]})
     elseif operatorAgent.type == 'rmgqc' then
         -- operator类型为rmgqc
-        local toRoad = operatorAgent.bindingRoad
+        local toRoad = operatorAgent.road
         local stpTargetNode = toRoad.fromNode
         controller:addAgvNaviTask(agv, 2, stpTargetNode.id, controller.Roads[1], {
-            road = operatorAgent.bindingRoad,
-            targetDistance = operatorAgent.parkingSpaces[targetPos[1]].relativeDist,
+            road = operatorAgent.road,
+            targetDistance = operatorAgent.stack.parkingSpaces[targetPos[1]].relativeDist,
             stay = true
         })
         agv:addtask('waitoperator', {operator = operatorAgent})
         agv:addtask('moveon', {
-            road = operatorAgent.bindingRoad,
-            distance = operatorAgent.parkingSpaces[targetPos[1]].relativeDist,
+            road = operatorAgent.road,
+            distance = operatorAgent.stack.parkingSpaces[targetPos[1]].relativeDist,
             stay = false
         })
-        controller:addAgvNaviTask(agv, operatorAgent.bindingRoad.toNode.id, 15, toRoad, {road=controller.Roads[18]})
+        controller:addAgvNaviTask(agv, operatorAgent.road.toNode.id, 15, toRoad, {road=controller.Roads[18]})
     else
         print('[main] error: unknown operator type', operatorAgent.type, ', stopped.')
         os.exit()
@@ -328,16 +342,12 @@ function generateagv()
     -- 添加delete前的任务
     agv:addtask('onnode',{controller.Nodes[20], controller.Roads[18]})
     table.insert(ActionObjs, agv)
-    print('[main] agv', agv.id, 'added to ActionObjs, #ActionObjs=', #ActionObjs)
-
-    -- 程序控制
-    if not watchdog.runcommand or generateConfig.summonNum == 0 then
-        return
-    end
-    generateConfig.summonNum = generateConfig.summonNum - 1 -- agv剩余生成次数减1
+    print('[main] agv', agv.id, 'added to ActionObjs, #ActionObjs=', #ActionObjs, 'agv #tasks=', #agv.tasksequence)
+    print(tablestr(agv.tasksequence, 2))
 
     -- 添加事件
-    print("[agv", agv.roadAgvId or agv.id, "] summon at: ", coroutine.qtime())
+    print("[agv"..agv.id.. "] summon at: ", coroutine.qtime())
+    watchdog:update()
     local tArriveSpan = math.random(generateConfig.averageSummonSpan)
     coroutine.queue(tArriveSpan, generateagv)
 end
