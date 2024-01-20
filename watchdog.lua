@@ -1,3 +1,5 @@
+-- simv: 仿真速度
+-- ActionObjs: 所有需要更新的对象
 function WatchDog(simv, ActionObjs)
     -- 验证参数
     if type(simv) ~= 'number' then
@@ -9,97 +11,39 @@ function WatchDog(simv, ActionObjs)
     local watchdog = {
         -- 时间
         lasttime = os.clock(), -- 上一次更新的系统时间
-        dt = 0,
         -- 程序控制
         runcommand = true,
         isImmediateStop = true -- 没有任务的时候立刻停止
     }
 
-    -- 更新
-    function watchdog:update()
-        -- 绘图
-        watchdog.runcommand = scene.render()
-
-        -- 回收
-        watchdog:scanRecycle()
-
-        -- 检测暂停指令
-        if not watchdog.runcommand then
-            watchdog:beforeStop()
-            scene.render() -- 最后一次绘图
-            print('仿真推进停止')
-            return
-        end
-
-        -- 刷新运行时间间隔
-        watchdog.dt = (os.clock() - watchdog.lasttime) * simv
-        watchdog.lasttime = os.clock() -- 刷新update时间
-
-        local maxstep
-        local maxstepItem = 0 -- 作用于isImmediateStop
-        repeat
-            maxstep = watchdog.dt
-
-            -- 计算最大更新时间
-            for i = 1, #ActionObjs do
-                if #ActionObjs[i].tasksequence > 0 then
-                    maxstepItem = maxstepItem + 1 -- 记录起作用的item
-
-                    local objectTask = ActionObjs[i].tasksequence[1][1]
-                    local objectMaxstep = ActionObjs[i]:maxstep()
-                    print('[' .. ActionObjs[i].type .. ActionObjs[i].id .. ']', objectTask, 'maxstep=', objectMaxstep, 'at', coroutine.qtime())
-                    maxstep = math.min(maxstep, objectMaxstep)
-
-                    if maxstep < 0 then
-                        -- print('maxstep < 0，跳出actionobjs循环')
-                        break -- 立刻跳出循环
-                    end
-                end
-            end
-
-            -- 如果正常可以直接跳出循环
-            if maxstep > 0 then
-                break
-            end
-            watchdog:scanRecycle() -- 检查回收
-
-        until maxstep >= 0
-
-        watchdog.dt = maxstep -- 修正dt(严格模式)
-
-        -- 执行更新
+    function watchdog.refresh()
+        -- 刷新所有agent的状态
+        local actionObjNum = 0 -- 有效更新agent数量
         for i = 1, #ActionObjs do
-            -- print('[' .. ActionObjs[i].type .. ActionObjs[i].id .. '] executeTask', ActionObjs[i].tasksequence[1][1],
-            --     'at ', coroutine.qtime())
-            ActionObjs[i]:executeTask(watchdog.dt)
+            local agent = ActionObjs[i]
+            if #agent.tasksequence > 0 then
+                agent:execute() -- 刷新对象状态，可能导致任务删除并预定新时间
+                actionObjNum = actionObjNum + 1
+            end
         end
 
-        -- 防止无限推进
-        if watchdog.isImmediateStop and (#ActionObjs == 0 or maxstepItem == 0) then
-            scene.render()
-            print('无任务实体，仿真停止 t=', coroutine.qtime())
+        -- 检查是否需要回收
+        watchdog:scanRecycle()
+        
+        -- 检查运行许可
+        watchdog.runcommand = scene.render()
+        if not watchdog.runcommand or (watchdog.isImmediateStop and actionObjNum == 0) then
+            print('推进已停止')
             return
         end
+        
+        -- 更新时钟
+        local now = os.clock()
+        local dt = (now - watchdog.lasttime) * simv -- 本次调度与上次调度的时间间隔
+        watchdog.lasttime = now -- 刷新调度时间记录
 
-        -- -- debug 检测是否有删除任务
-        -- local isItemDeletedTask = false
-        -- for k, v in ipairs(ActionObjs) do
-        --     if v.isDeletedTask then
-        --         isItemDeletedTask = true -- 标记flag
-        --         v.isDeletedTask = false -- 恢复标记
-        --         print("watchdog debug 检测到"..v.type..v.id.."有删除任务，已暂停==")
-        --         break
-        --     end
-        -- end
-        -- -- 打印所有组件任务列表
-        -- if isItemDeletedTask then
-        --     watchdog:printTasks(ActionObjs)
-        --     scene.render()
-        --     -- debug.pause()
-        -- end
-
-        -- 下一次更新
-        coroutine.queue(watchdog.dt, watchdog.update, watchdog)
+        -- 预定下一次更新
+        coroutine.queue(dt * simv, watchdog.refresh)
     end
 
     -- 打印所有组件任务列表

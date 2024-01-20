@@ -12,6 +12,12 @@ function Agent()
     agent.type = 'agent'
     agent.id = agent.model.id
 
+    -- 原生函数
+    function agent:delete()
+        agent.model:delete()
+    end
+    
+    -- 任务相关函数
     function agent:addtask(name, params)
         table.insert(agent.tasksequence, {name, params})
         -- 如果是空闲状态，立刻执行
