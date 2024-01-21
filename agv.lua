@@ -14,7 +14,7 @@ function AGV()
     -- 新增（by road)
     -- agv.safetyDistance = 5 -- 安全距离
     agv.safetyDistance = 20 -- 安全距离
-    agv.road = nil -- 相对应road:registerAgv中设置agv的road属性.
+    agv.road = nil -- 相对应road:registerAgv中设置agv的road属性
     agv.state = nil -- 正常状态
     agv.targetContainerPos = nil -- 目标集装箱位置{bay, col, level}
 

@@ -1,7 +1,7 @@
 function Agent()
     local agent = {
         speed = {1, 1, 1},
-        model = scene.addobj('box'),
+        model = nil,
         pos = {0, 0, 0}, -- Agent位置，只有init更新，相当于每个任务的Origin
         lastupdate = 0,
         tasks = {},
@@ -10,7 +10,7 @@ function Agent()
     }
 
     agent.type = 'agent'
-    agent.id = agent.model.id
+    agent.id = agent.model ~= nil and agent.model.id or nil
 
     -- 原生函数
     function agent:delete()
