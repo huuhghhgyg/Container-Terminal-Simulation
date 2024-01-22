@@ -78,7 +78,7 @@ function Agent()
         end
 
         -- 检测时间推进
-        if dt > params.dt and dt - params.dt > agent.timeerror then -- 如果误差时间大于允许计算误差
+        if params.dt ~= nil and dt > params.dt and dt - params.dt > agent.timeerror then -- 如果误差时间大于允许计算误差
             print(agent.type .. agent.id .. '任务' .. taskname .. '时间推进异常 at ' .. coroutine.qtime())
             print('任务预计params.dt=', params.dt, '实际输入dt=', dt, '时间差异=', dt - params.dt)
             print(debug.traceback())
