@@ -3,7 +3,7 @@ function Agent()
         speed = {1, 1, 1},
         model = nil,
         pos = {0, 0, 0}, -- Agent位置，只有init更新，相当于每个任务的Origin
-        lastupdate = 0,
+        taskstart = 0,
         tasks = {},
         tasksequence = {},
         state = 'idle'
@@ -11,6 +11,7 @@ function Agent()
 
     agent.type = 'agent'
     agent.id = agent.model ~= nil and agent.model.id or nil
+    agent.timeerror = 10e-8 -- 可以忽略不记的时间误差范围
 
     -- 原生函数
     function agent:delete()
@@ -35,13 +36,13 @@ function Agent()
         -- 如果任务队列为空，进入空闲状态
         if #agent.tasksequence == 0 then
             agent.state = 'idle'
-            agent.lastupdate = nil
+            agent.taskstart = nil
             print('[' .. agent.type .. agent.id .. '] stopped at', coroutine.qtime())
             return
         end
 
         -- 任务推进
-        agent.lastupdate = coroutine.qtime()
+        agent.taskstart = coroutine.qtime()
         coroutine.queue(0, agent.execute, agent)
     end
 
@@ -58,14 +59,14 @@ function Agent()
             os.exit()
         end
 
-        local dt = coroutine.qtime() - agent.lastupdate -- 计算仿真时间差
+        local dt = coroutine.qtime() - agent.taskstart -- 计算仿真时间差
 
         -- 检查任务初始化
         if params == nil then
             params = {}
         end
         if not params.init then
-            agent.lastupdate = coroutine.qtime()
+            agent.taskstart = coroutine.qtime()
             if agent.tasks[taskname].init ~= nil then
                 agent.tasks[taskname].init(params)
             end
@@ -77,9 +78,9 @@ function Agent()
         end
 
         -- 检测时间推进
-        if dt > params.dt then
+        if dt > params.dt and dt - params.dt > agent.timeerror then -- 如果误差时间大于允许计算误差
             print(agent.type .. agent.id .. '任务' .. taskname .. '时间推进异常 at ' .. coroutine.qtime())
-            print('任务预计params.dt=', params.dt, '实际输入dt=', dt)
+            print('任务预计params.dt=', params.dt, '实际输入dt=', dt, '时间差异=', dt - params.dt)
             print(debug.traceback())
             os.exit()
         end
@@ -102,7 +103,7 @@ function Agent()
             params.dt = math.max(table.unpack(params.est)) -- 任务所需时间
 
             params.init = true -- 标记完成初始化
-            coroutine.queue(params.dt, agent.execute, agent) -- 确定结束时间
+            coroutine.queue(params.dt, agent.execute, agent) -- 结束时间唤醒execute
         end,
         execute = function(dt, params)
             -- 计算坐标
@@ -110,14 +111,14 @@ function Agent()
             for i = 1, 3 do
                 position[i] = dt <= params.est[i] and agent.pos[i] + agent.speed[i] * dt * params.vecE[i] or params[i]
             end
+            
+            -- 设置位置
+            agent.model:setpos(table.unpack(position))
 
             if dt == params.dt then
                 agent.pos = position -- 更新位置
                 agent:deltask() -- 删除任务
             end
-
-            -- 设置位置
-            agent.model:setpos(table.unpack(position))
         end
     }
 
