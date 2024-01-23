@@ -33,7 +33,7 @@ function WatchDog(simv, ActionObjs)
         -- 检查运行许可
         watchdog.runcommand = scene.render()
         if not watchdog.runcommand or (watchdog.isImmediateStop and actionObjNum == 0) then
-            print('推进已停止')
+            print('刷新已停止', coroutine.qtime())
             return
         end
         
@@ -82,7 +82,7 @@ function WatchDog(simv, ActionObjs)
             if obj.container ~= nil then
                 obj.container:delete()
             end
-            print('agv', obj.id, 'leave at ', coroutine.qtime())
+            -- print('agv', obj.id, 'leave at ', coroutine.qtime())
             obj:delete()
         end
     end

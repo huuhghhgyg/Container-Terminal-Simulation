@@ -1,19 +1,20 @@
 # Agent模板
 
 ## 任务
-总流程
+Agent 自刷新总流程
 ```mermaid
 graph
-addtask(添加任务)
-execute(执行任务)
-deltask(删除任务)
+addtask(添加任务 addtask)
+execute(执行任务...)
+deltask(删除任务 deltask)
 invoke(协程唤醒 agent.execute)
 running(设为运行状态 running)
 idle(设为空闲状态 idle)
 
 addtask-->running-->invoke
-invoke-->execute
-deltask-->idle-->|有任务|invoke
+invoke-->execute -->deltask
+deltask-->|有任务|invoke
+deltask-->|无任务|idle
 ```
 
 ### 添加任务
@@ -22,19 +23,22 @@ graph
 addtask(添加任务)
 invoke(协程唤醒 agent.execute)
 running(设为运行状态 running)
+execute(执行任务...)
 
-addtask-->running-->|coroutine.queue|invoke
+addtask-->running-->|coroutine.queue|invoke-->execute
 ```
 
 ### 删除任务
 ```mermaid
 graph
 deltask(删除任务)
-invoke(协程唤醒 agent.execute)
+invoke(协程唤醒立即 agent.execute)
+execute_next(执行下一个任务...)
 idle(设为空闲状态 idle)
 has_task(判断是否还有任务)
 
-deltask-->idle-->has_task-->|coroutine.queue|invoke
+deltask-->has_task-->|没有其他任务|idle
+has_task-->|还有任务|invoke-->execute_next
 ```
 
 ### 任务执行
@@ -49,11 +53,14 @@ execute(执行task.execute)
 verify_dt(推进时间验证)
 exit(退出)
 
-nail(预定结束时刻唤醒)
+subgraph agent.init
+  init_params(初始化参数)
+  nail(预定结束时刻唤醒)
+end
 
 invoke-->|有任务|get_task-->init-->|已初始化|execute-->verify_dt-->exit
 invoke-->|无任务|exit
-init-->|未初始化|nail-->execute
+init-->|未初始化|init_params-->nail-->execute
 ```
 
 任务相关变量

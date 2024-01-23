@@ -1,19 +1,32 @@
 # WatchDog
 
-## 更新流程
-`update()` 总体推进
+WatchDog的作用是刷新显示，不会影响仿真进程。
+
+## 工作模式
+WatchDog根据CPU运行时间，通过`coroutine.queue()`添加到协程队列中。通过不断递归调用实现定时唤醒刷新。
+
+WatchDog每次唤醒都会执行`agent:execute()`，刷新所有对象的状态，然后刷新显示。
+
 ```mermaid
 graph
-render(绘图 render) --> recycle(检查回收) --> runcommand(是否允许运行)
-runcommand -- yes --> refresh_time(计算CPU运行时间) --> maxstep(计算最大推进时间 maxstep) --> execute("执行 execute(dt) 及其 deltask()") --> queue("任务推进 queue(dt)")
-queue -->|dt后被唤醒| render
-runcommand ----->|no| stop(结束)
-%% maxstep -->|dt<0| recycle2(检查回收) --> maxstep
+invoke(coroutine唤醒)
+execute(刷新所有Agent的状态)
+recycle(检查回收)
+render(刷新显示)
+run_command(检查运行许可)
+refresh_clock(更新时钟、计算运行时间)
+queue(预定下一次唤醒更新)
+stop(结束刷新)
+
+invoke --> execute --> recycle --> render --> run_command -->|继续运行| refresh_clock --> queue
+queue -->|等待coroutine唤醒|invoke
+run_command --->|停止运行|stop
 ```
 
-1. maxstep对本次推进任务具有影响
-2. 如果本任务在maxstep就能确认执行完成（如agv到达事件），需要删除任务，可以直接删除任务然后返回-1，触发任务删除并重新运行。
-3. render后再回收可以保证agv在正确的时间被回收。
+### 现象
+**回收延迟**：目前由于不认为回收会对仿真造成影响，因此把回收放在WatchDog中进行。
+- 由于WatchDog根据CPU运行时间刷新，而不是在仿真关键时间节点刷新，因此会造成回收延迟。
+- 回收时间只代表WatchDog删除Agent的时间，没有其他含义。
 
 ## 参数
-- `isImmediateStop`: 当所有组件都没有需要执行的任务时停止仿真。如果仿真事件不是紧接着的（如随机生成或导入事件），则建议关闭（设置为`false`）。
+- `isImmediateStop`: 当所有组件都没有需要执行的任务时停止刷新。如果仿真事件不是紧接着的（如随机生成或导入事件），则建议关闭（设置为`false`）。
