@@ -124,7 +124,7 @@ function AGV(config)
                 params.road:registerAgv(agv, {
                     -- 输入参数，并使用registerAgv的nil检测
                     distance = params.distance,
-                    targetDistance = params.targetDistance,
+                    targetDistance = params.targetDistance
                 })
             end
 
@@ -154,7 +154,201 @@ function AGV(config)
         end
     }
 
+    -- {'onnode', {node=, fromRoad=, toRoad=, ...}}
+    agv.tasks.onnode = {
+        init = function(params)
+            -- 默认已经占用了节点
+            agv.road = nil -- 清空agv道路信息
+            local node = params[1]
+            -- 获取道路信息
+            local fromRoad = params[2]
+            local toRoad = params[3]
 
+            -- 检查参数
+            if node == nil then
+                print(debug.traceback(agv.type .. agv.id, 'onnode错误：没有输入node参数'))
+                os.exit()
+            elseif fromRoad == nil then
+                print(debug.traceback(agv.type .. agv.id, 'onnode错误：没有输入fromRoad参数'))
+                os.exit()
+            end
+
+            -- 初始化
+            -- 判断是否在本节点终止
+            if toRoad == nil then
+                -- 在本节点终止，交由execute删除任务
+                return
+            end
+
+            -- 获取fromRoad的终点坐标
+            -- 由于已知角度，toRoad的起点坐标就不需要了
+            local fromRoadEndPoint = fromRoad.destPt -- {x,y,z}
+
+            -- 到达节点（转弯）
+            -- 计算需要旋转的弧度(两条道路向量之差的弧度，Road1->Road2)
+            params.fromRadian = math.atan(fromRoad.vecE[1], fromRoad.vecE[3]) - math.atan(0, 1)
+            params.toRadian = math.atan(toRoad.vecE[1], toRoad.vecE[3]) - math.atan(0, 1)
+            params.deltaRadian = params.toRadian - params.fromRadian
+            -- 模型假设弧度变化在-pi~pi之间，检测是否在这个区间内，如果不在需要修正
+            if math.abs(params.deltaRadian) >= math.pi then
+                params.deltaRadian = params.deltaRadian * (1 - math.pi * 2 / math.abs(params.deltaRadian))
+            end
+            params.walked = 0 -- 已经旋转的弧度/已经通过的直线距离
+
+            -- 判断是否需要转弯（可能存在直线通过的情况）
+            if params.deltaRadian % math.pi ~= 0 then
+                params.radius = node.radius / math.tan(math.abs(params.deltaRadian) / 2) -- 转弯半径
+                -- 计算圆心
+                -- 判断左转/右转，左转deltaRadian > 0，右转deltaRadian < 0
+                params.direction = params.deltaRadian / math.abs(params.deltaRadian) -- 用于设置步进方向
+
+                -- 向左旋转90度坐标为(z,-x)，向右旋转90度坐标为(-z,x)
+                if params.deltaRadian > 0 then
+                    -- 左转
+                    -- 向左旋转90度vecE坐标变为(z,-x)
+                    params.center = {fromRoadEndPoint[1] + params.radius * fromRoad.vecE[3], fromRoadEndPoint[2],
+                                     fromRoadEndPoint[3] + params.radius * -fromRoad.vecE[1]}
+                    params.turnOriginRadian = math.atan(-fromRoad.vecE[3], fromRoad.vecE[1]) -- 转弯圆的起始位置弧度(右转)
+                else
+                    -- 右转
+                    -- 向右旋转90度vecE坐标变为(-z,x)
+                    params.center = {fromRoadEndPoint[1] + params.radius * -fromRoad.vecE[3], fromRoadEndPoint[2],
+                                     fromRoadEndPoint[3] + params.radius * fromRoad.vecE[1]}
+                    params.turnOriginRadian = math.atan(fromRoad.vecE[3], -fromRoad.vecE[1]) -- 转弯圆的起始位置弧度(左转)
+                end
+
+                -- 显示转弯圆心
+                scene.addobj('points', {
+                    vertices = params.center,
+                    color = 'red',
+                    size = 5
+                })
+                -- 显示半径连线
+                scene.addobj('polyline', {
+                    vertices = {fromRoadEndPoint[1], fromRoadEndPoint[2], fromRoadEndPoint[3], params.center[1],
+                                params.center[2], params.center[3], toRoad.originPt[1], toRoad.originPt[2],
+                                toRoad.originPt[3]},
+                    color = 'red'
+                })
+                -- 计算两段半径的长度
+                local l1 = math.sqrt((fromRoadEndPoint[1] - params.center[1]) ^ 2 +
+                                         (fromRoadEndPoint[2] - params.center[2]) ^ 2 +
+                                         (fromRoadEndPoint[3] - params.center[3]) ^ 2)
+                local l2 = math.sqrt((toRoad.originPt[1] - params.center[1]) ^ 2 +
+                                         (toRoad.originPt[2] - params.center[2]) ^ 2 +
+                                         (toRoad.originPt[3] - params.center[3]) ^ 2)
+                -- 初始化轨迹
+                params.trail = {fromRoadEndPoint[1], fromRoadEndPoint[2], fromRoadEndPoint[3]}
+
+                -- 计算角速度
+                params.angularSpeed = agv.speed / params.radius
+            end
+
+            -- 计算最大步进
+            local timeRemain
+            if params.deltaRadian == 0 then
+                -- 直线通过，不存在角速度
+                local distanceRemain = node.radius * 2 - params.walked -- 计算剩余距离
+                timeRemain = math.abs(distanceRemain / agv.speed)
+            else
+                -- 转弯，存在角速度
+                local radianRemain = params.deltaRadian - params.walked -- 计算剩余弧度
+                timeRemain = math.abs(radianRemain / params.angularSpeed)
+            end
+
+            params.dt = timeRemain
+            params.init = true -- 标记完成初始化
+            coroutine.queue(params.dt, agv.execute, agv) -- 结束时间唤醒execute
+        end,
+        execute = function(dt, params)
+            -- 默认已经占用了节点
+            local function tryExitNode()
+                local x, y, z = table.unpack(params[3].originPt)
+                local radian = math.atan(params[3].vecE[1], params[3].vecE[3]) - math.atan(0, 1)
+                agv.roty = radian -- 设置agv旋转，下面的move2会一起设置
+                agv.pos = {x, y, z} -- 更新位置
+                agv:setpos(x, y, z) -- 到达目标
+
+                -- 满足退出条件，删除本任务
+                params[1].occupied = nil -- 解除节点占用
+                params[1].agv = nil -- 清空节点agv信息
+                agv:deltask() -- 删除任务
+                return true -- 本轮任务完成
+            end
+
+            local fromRoad = params[2]
+            local toRoad = params[3]
+
+            -- 判断是否在本节点终止
+            if toRoad == nil then
+                -- 在本节点终止
+                local node = params[1]
+                node.occupied = nil -- 解除节点占用
+                node.agv = nil -- 清空节点agv信息
+                agv:deltask()
+                return
+            end
+
+            -- 判断是转弯还是直行的情况
+            if params.angularSpeed == nil then
+                -- 直线
+                -- 判断是否到达目标
+                if dt >= params.dt then
+                    params.arrived = true
+                    if tryExitNode() then
+                        -- 正常退出，显示轨迹
+                        scene.addobj('polyline', {
+                            vertices = {fromRoad.destPt[1], fromRoad.destPt[2], fromRoad.destPt[3], toRoad.originPt[1],
+                                        toRoad.originPt[2], toRoad.originPt[3]}
+                        })
+                    end
+                    return
+                end
+
+                -- 设置步进
+                params.walked = agv.speed * dt
+                -- 计算坐标
+                local position = {table.unpack(agv.pos)}
+                for i = 1, 3 do
+                    position[i] = position[i] + params.walked * fromRoad.vecE[i]
+                end
+                agv:setpos(table.unpack(position)) -- 设置agv位置
+            else
+                -- 转弯
+                -- 计算位置
+                if not params.arrived then
+                    params.walked = params.angularSpeed * dt * params.direction
+                end
+
+                -- 判断是否到达目标
+                if dt >= params.dt then
+                    params.arrived = true
+                    if tryExitNode() then
+                        -- 正常退出，显示轨迹
+                        scene.addobj('polyline', {
+                            vertices = params.trail
+                        })
+                    end
+                    return
+                end
+
+                -- 计算步进
+                local y = agv.pos[2] -- y不变
+                local x, z = params.radius * math.sin(params.walked + params.turnOriginRadian) + params.center[1],
+                    params.radius * math.cos(params.walked + params.turnOriginRadian) + params.center[3]
+
+                -- 记录轨迹
+                table.insert(params.trail, x)
+                table.insert(params.trail, y)
+                table.insert(params.trail, z)
+
+                agv.roty = math.atan(params[2].vecE[1], params[2].vecE[3]) + params.walked - math.atan(0, 1)
+
+                -- 应用计算结果
+                agv:setpos(x, y, z)
+            end
+        end
+    }
 
     agv:init(config)
     return agv
