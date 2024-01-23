@@ -125,7 +125,6 @@ function AGV(config)
                     -- 输入参数，并使用registerAgv的nil检测
                     distance = params.distance,
                     targetDistance = params.targetDistance,
-                    stay = params.stay
                 })
             end
 
@@ -139,7 +138,7 @@ function AGV(config)
             local road = agv.road
 
             -- 步进
-            local position = road:setAgvPos(dt, agv.roadAgvId)
+            local position = road:setAgvDistance(dt, agv.roadAgvId)
 
             if dt >= params.dt then
                 -- 参数检查
@@ -154,6 +153,8 @@ function AGV(config)
             end
         end
     }
+
+
 
     agv:init(config)
     return agv
