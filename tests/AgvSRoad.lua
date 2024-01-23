@@ -2,13 +2,15 @@
 scene.setenv({
     grid = 'plane'
 })
+print()
 
 -- 参数设置
-local simv = 4 -- 仿真速度
+local simv = 2 -- 仿真速度
 local actionobj = {} -- 动作队列声明
 
 -- 引用库
-require('agv')
+require('agent')
+require('agv2')
 require('road')
 require('node')
 require('watchdog')
@@ -60,4 +62,4 @@ agv1:addtask("onnode",{node8,roadAuto7})
 table.insert(actionobj, agv1)
 
 -- 仿真任务
-watchdog:update()
+watchdog:refresh()

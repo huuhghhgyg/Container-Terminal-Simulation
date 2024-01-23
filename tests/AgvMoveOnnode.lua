@@ -11,7 +11,7 @@ require('road')
 require('node')
 
 local ActionObjs = {}
-local simv = 1
+local simv = 2
 
 local watchdog = WatchDog(simv, ActionObjs)
 

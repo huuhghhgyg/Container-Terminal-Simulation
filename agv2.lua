@@ -78,7 +78,7 @@ function AGV(config)
             -- 设置agv位置
             agv:setpos(table.unpack(position))
 
-            if dt >= params.dt then -- 如果时间误差小于agv.timeerror，任务结束
+            if math.abs(params.dt - dt) < agv.timeError then -- 如果时间误差小于agv.timeerror，任务结束
                 agv.pos = position -- 更新位置
                 agv:deltask() -- 删除任务
             end
@@ -140,7 +140,7 @@ function AGV(config)
             -- 步进
             local position = road:setAgvDistance(dt, agv.roadAgvId)
 
-            if dt >= params.dt then
+            if math.abs(params.dt - dt) < agv.timeError then
                 -- 参数检查
                 if position == nil then
                     print(debug.traceback(agv.type .. agv.id,
@@ -244,15 +244,15 @@ function AGV(config)
                 params.angularSpeed = agv.speed / params.radius
             end
 
-            -- 计算最大步进
+            -- 计算任务所需时间
             local timeRemain
             if params.deltaRadian == 0 then
                 -- 直线通过，不存在角速度
-                local distanceRemain = node.radius * 2 - params.walked -- 计算剩余距离
+                local distanceRemain = node.radius * 2 -- 计算剩余距离
                 timeRemain = math.abs(distanceRemain / agv.speed)
             else
                 -- 转弯，存在角速度
-                local radianRemain = params.deltaRadian - params.walked -- 计算剩余弧度
+                local radianRemain = params.deltaRadian -- 计算剩余弧度
                 timeRemain = math.abs(radianRemain / params.angularSpeed)
             end
 
@@ -293,7 +293,7 @@ function AGV(config)
             if params.angularSpeed == nil then
                 -- 直线
                 -- 判断是否到达目标
-                if dt >= params.dt then
+                if math.abs(params.dt - dt) < agv.timeError then
                     params.arrived = true
                     if tryExitNode() then
                         -- 正常退出，显示轨迹
@@ -321,7 +321,7 @@ function AGV(config)
                 end
 
                 -- 判断是否到达目标
-                if dt >= params.dt then
+                if math.abs(params.dt - dt) < agv.timeError then
                     params.arrived = true
                     if tryExitNode() then
                         -- 正常退出，显示轨迹

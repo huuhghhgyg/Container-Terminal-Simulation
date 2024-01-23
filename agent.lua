@@ -11,7 +11,7 @@ function Agent()
 
     agent.type = 'agent'
     agent.id = agent.model ~= nil and agent.model.id or nil
-    agent.timeerror = 10e-8 -- 可以忽略不记的时间误差范围
+    agent.timeError = 10e-8 -- 可以忽略不记的时间误差范围
 
     -- 原生函数
     function agent:delete()
@@ -78,7 +78,7 @@ function Agent()
         end
 
         -- 检测时间推进
-        if params.dt ~= nil and dt > params.dt and dt - params.dt > agent.timeerror then -- 如果误差时间大于允许计算误差
+        if params.dt ~= nil and dt - params.dt > agent.timeError then -- 如果误差时间大于允许计算误差
             print(agent.type .. agent.id .. '任务' .. taskname .. '时间推进异常 at ' .. coroutine.qtime())
             print('任务预计params.dt=', params.dt, '实际输入dt=', dt, '时间差异=', dt - params.dt)
             print(debug.traceback())
