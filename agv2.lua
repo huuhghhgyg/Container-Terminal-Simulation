@@ -86,6 +86,7 @@ function AGV(config)
     }
 
     -- {'waitoperator', {operator = operator}}
+    -- operator需要通知本agent结束waitoperator任务
     agv.tasks.waitoperator = {
         init = function(params)
             -- 判断operator是否为空
@@ -104,7 +105,7 @@ function AGV(config)
             -- print('agv.operator', agv.operator, 'agv.occupier', agv.occupier)
             if agv.operator == nil then
                 agv:deltask() -- 删除任务
-                coroutine.queue(0, agv.execute, agv) -- 结束时间唤醒execute重新运行一次
+                coroutine.queue(0, agv.execute, agv) -- 收到通知，运行下一个任务
             end
         end
     }
@@ -347,6 +348,27 @@ function AGV(config)
                 -- 应用计算结果
                 agv:setpos(x, y, z)
             end
+        end
+    }
+
+    -- {'register', {operator=, f=}}
+    agv.tasks.register = {
+        init = function(params)
+            if params.operator == nil then
+                print(debug.traceback('[' .. agv.type .. agv.id .. '] register错误，没有输入operator参数'))
+                os.exit()
+            end
+
+            -- 需要执行的函数
+            if type(params.f) == "function" then
+                params.f()
+            end
+
+            params.operator:registerAgv(agv)
+
+            agv:deltask() -- 删除任务
+            coroutine.queue(0, agv.execute, agv) -- 虚任务，继续运行下一个任务
+            coroutine.queue(0, params.operator.execute, params.operator) -- 通知operator开始运行
         end
     }
 
