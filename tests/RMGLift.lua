@@ -4,9 +4,10 @@ scene.setenv({
 })
 
 -- 引用组件
+require('agent')
 require('cy')
 require('rmg2')
-require('agv')
+require('agv2')
 require('node')
 require('road')
 
@@ -50,20 +51,20 @@ rmg:addtask('move2', rmg:getContainerCoord(-1, 6, 1))
 rmg:addtask('detach', nil)
 rmg:addtask('move2', rmg:getContainerCoord(-1, 6, #cy.levelPos)) -- t=17.42, end t=19.315
 
--- test1.5
--- 添加agv作为测试agent
-local agentPosition = rmg:getContainerCoord(-1, 6, 1)
-agentPosition[2] = 0 -- 修正高度
-agentPosition[1], agentPosition[3] = agentPosition[1], agentPosition[3] -- 修正坐标系
-print('agentPosition', table.unpack(agentPosition))
-local agv = AGV()
-agv:setpos(table.unpack(agentPosition))
--- 设置占用
-agv.occupier = rmg
-agv.state = 'wait'
-rmg.occupier = agv
-rmg.agentqueue = {agv}
+-- -- test1.5
+-- -- 添加agv作为测试agent
+-- local agentPosition = rmg:getContainerCoord(-1, 6, 1)
+-- agentPosition[2] = 0 -- 修正高度
+-- agentPosition[1], agentPosition[3] = agentPosition[1], agentPosition[3] -- 修正坐标系
+-- print('agentPosition', table.unpack(agentPosition))
+-- local agv = AGV()
+-- agv:setpos(table.unpack(agentPosition))
+-- -- 设置占用
+-- agv.occupier = rmg
+-- agv.state = 'wait'
+-- rmg.occupier = agv
+-- rmg.agentqueue = {agv}
 
 -- 仿真任务
 -- debug.pause()
-watchdog.update()
+watchdog.refresh()

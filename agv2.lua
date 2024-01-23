@@ -104,8 +104,7 @@ function AGV(config)
         execute = function(dt, params)
             -- print('agv.operator', agv.operator, 'agv.occupier', agv.occupier)
             if agv.operator == nil then
-                agv:deltask() -- 删除任务
-                coroutine.queue(0, agv.execute, agv) -- 收到通知，运行下一个任务
+                agv:deltask() -- 删除任务，立刻运行下一个任务
             end
         end
     }
@@ -367,7 +366,6 @@ function AGV(config)
             params.operator:registerAgv(agv)
 
             agv:deltask() -- 删除任务
-            coroutine.queue(0, agv.execute, agv) -- 虚任务，继续运行下一个任务
             coroutine.queue(0, params.operator.execute, params.operator) -- 通知operator开始运行
         end
     }
