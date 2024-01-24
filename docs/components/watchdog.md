@@ -11,8 +11,8 @@ WatchDog每次唤醒都会执行`agent:execute()`，刷新所有对象的状态�
 graph
 invoke(coroutine唤醒)
 execute(刷新所有Agent的状态)
-recycle(检查回收)
-render(刷新显示)
+recycle(检查回收recycle)
+render(刷新显示render)
 run_command(检查运行许可)
 refresh_clock(更新时钟、计算运行时间)
 queue(预定下一次唤醒更新)

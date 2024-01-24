@@ -15,20 +15,46 @@
 - `agv.taskType` agv执行的任务类型，包括`unload`和`load`
 - `agv.targetContainerPos` agv目标位置`{bay,row,col}`
 
+## 位置管理
+- `agv.pos`：agv当前位置
+- `agv.lastpos`：agv上一次位置/agv任务开始时的位置
+
+与位置有关的任务，位置管理流程如下：
+```mermaid
+graph
+init(任务开始)
+set_lastpos("设置agv.lastpos = agv.pos")
+execute(agv:execute)
+arrive(到达目标位置)
+
+init-->set_lastpos-->execute-->arrive-->set_lastpos
+```
+
+## 交互流程
+```mermaid
+graph
+agv_setoperator("agv.operator = operator")
+
+agv_detect("检测agv.operator")
+agv_occupying(agv正在被占用)
+agv_released(agv已结束占用)
+
+agv_setoperator-->agv_detect
+agv_detect-->|"agv.operator!=nil"|agv_occupying-->agv_detect
+agv_detect--->|"agv.operator==nil"|agv_released
+```
+
 ## 任务
 
 ### move2
 ```lua
-{"move2", x, z, [occupied=bool, vectorDistanceXZ={dx, dz}, movedXZ={mx, mz}, originXZ={ox, oz}]}
+{"move2", {x, y, z, ...}}
 ```
 
 #### 参数列表
-- `param[1], param[2]` 目标位置(x,z)，默认y=0且所有设备均在初始平面
-- `occupy` 元胞自动机排队模型中元胞位置是否占用
-- `param.vectorDistanceXZ` xz方向向量距离（原函数 3，4）
-- `param.movedXZ` xz方向已经移动的距离（原函数 5，6）
-- `param.originXZ` xz方向初始位置（原函数 7，8）
-- `param.speed` 各个方向的分速度，也用于判断是否已经初始化
+- `params.delta[i]`：各方向移动的距离
+- `params.speed[i]`：各方向移动速度
+- `prams.est`：预计到达时间
 
 ### moveon
 ```lua
@@ -69,7 +95,3 @@ this_cycle(本次循环)-->maxstep(maxstep 静态判断)-->execute(execute 执�
 - `param.center` 转弯中心(圆心)
 - `param.turnOriginRadian` 转弯起始弧度，旋转90度方向与转弯方向相反
 - `param.angularSpeed` 角速度
-
-## 问题
-agv前方堵塞时休眠问题
-只有当前方agv在安全距离外时才会继续前进。
