@@ -16,15 +16,16 @@ function RMG(config)
     local wirerope = scene.addobj('/res/ct/wirerope.glb')
     rmg.id = body.id
     rmg.agvHeight = 2.1
-    -- 绑定参数设置
-    rmg.stack = config.stack or nil -- 绑定的stack
 
     -- 动作函数
-    -- 移动至某坐标（工作状态）
-    function rmg:move2(x, y, z)
+    -- 瞬移或整体移动的函数（非正常工作状态）
+    function rmg:setpos(x, y, z)
         -- 设置位置
         rmg.pos = {x, y, z}
-        rmg.anchorPoint[3] = z -- 只更新锚点的z坐标
+
+        if rmg.anchorPoint ~= nil then
+            rmg.anchorPoint[3] = z -- 只更新锚点的z坐标
+        end
 
         body:setpos(rmg.anchorPoint[1], 0, rmg.pos[3]) -- 设置车的位置（z方向可移动）
         trolley:setpos(rmg.pos[1], 0, rmg.pos[3]) -- 设置trolley的位置
@@ -38,20 +39,11 @@ function RMG(config)
         end
     end
 
-    -- 瞬移或整体移动的函数（非正常工作状态）
-    function rmg:setpos(x, y, z)
-        rmg.anchorPoint = {x, y, z} -- 设置锚点
-        rmg:move2(x, y, z) -- 移动到锚点
-    end
-
     -- 初始化Agent
     function rmg:init()
-        -- 初始化位置
-        if config.anchorPoint ~= nil then
-            rmg:setpos(table.unpack(config.anchorPoint))
-        end
+        -- 绑定堆场
         if config.stack ~= nil then
-            rmg:bindStack(config.stack)
+            rmg:bindStack(config.stack) -- crane:bindStack()中自带初始化位置
         end
         if config.actionObjs ~= nil then
             table.insert(config.actionObjs, rmg)

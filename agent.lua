@@ -3,7 +3,7 @@ function Agent()
         speed = {1, 1, 1},
         model = nil,
         pos = {0, 0, 0}, -- Agent位置，只有init更新，相当于每个任务的Origin
-        taskstart = 0,
+        taskstart = coroutine.qtime(),
         tasks = {},
         tasksequence = {},
         state = 'idle'
@@ -11,13 +11,14 @@ function Agent()
 
     agent.type = 'agent'
     agent.id = agent.model ~= nil and agent.model.id or nil
-    agent.timeError = 10e-8 -- 可以忽略不记的时间误差范围
+    agent.timeError = 10e-8 -- 允许的计算时间误差范围
+    agent.lastpos = agent.pos -- 初始化任务初始位置
 
     -- 原生函数
     function agent:delete()
         agent.model:delete()
     end
-    
+
     -- 任务相关函数
     function agent:addtask(name, params)
         table.insert(agent.tasksequence, {name, params})
@@ -30,7 +31,8 @@ function Agent()
     end
 
     function agent:deltask()
-        print('删除任务', agent.tasksequence[1][1], 'at', coroutine.qtime())
+        print('[' .. agent.type .. tostring(agent.id) .. '] 删除任务', agent.tasksequence[1][1], 'at',
+            coroutine.qtime())
         table.remove(agent.tasksequence, 1)
 
         -- 如果任务队列为空，进入空闲状态
@@ -42,6 +44,7 @@ function Agent()
         end
 
         -- 任务推进
+        -- print('[' .. agent.type .. tostring(agent.id) .. '] 任务:', agent.tasksequence[1][1], 'at', coroutine.qtime())
         agent.taskstart = coroutine.qtime()
         coroutine.queue(0, agent.execute, agent)
     end
@@ -91,12 +94,12 @@ function Agent()
         init = function(params)
             print('init move2 at', coroutine.qtime())
             local px, py, pz = agent.model:getpos()
-            agent.pos = {px, py, pz}
+            agent.lastpos = {px, py, pz}
             params.est, params.delta, params.vecE = {}, {}, {}
 
             -- 计算坐标
             for i = 1, 3 do
-                params.delta[i] = params[i] - agent.pos[i]
+                params.delta[i] = params[i] - agent.lastpos[i]
                 params.vecE[i] = params.delta[i] == 0 and 0 or params.delta[i] / math.abs(params.delta[i])
                 params.est[i] = params.delta[i] == 0 and 0 or math.abs(params.delta[i]) / agent.speed[i]
             end
@@ -107,11 +110,11 @@ function Agent()
         end,
         execute = function(dt, params)
             -- 计算坐标
-            local position = {table.unpack(agent.pos)}
+            local position = {table.unpack(agent.lastpos)}
             for i = 1, 3 do
-                position[i] = dt <= params.est[i] and agent.pos[i] + agent.speed[i] * dt * params.vecE[i] or params[i]
+                position[i] = dt <= params.est[i] and agent.lastpos[i] + agent.speed[i] * dt * params.vecE[i] or params[i]
             end
-            
+
             -- 设置位置
             agent.model:setpos(table.unpack(position))
 

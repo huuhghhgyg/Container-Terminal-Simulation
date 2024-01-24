@@ -21,18 +21,20 @@ function AGV(config)
         agv.road = config.road or nil -- 相对应road:registerAgv中设置agv的road属性
         agv.state = nil -- 状态，设为正常状态
         agv.targetContainerPos = nil -- 目标集装箱位置{row, col, level}
+
+        agv.lastpos = {table.unpack(agv.pos)} -- 设置任务初始位置
     end
 
     -- 绑定对象
     function agv:bindCrane(targetStack, targetContainer)
         agv.stack = targetStack -- 目标stack
-        agv.operator = targetStack.operator -- 目标operator
         agv.targetContainerPos = targetContainer -- 目标集装箱{row, col, level}
-        agv.arrived = false -- ?是否到达目标
+        -- 由于可能影响waitagent，因此不会在此处设置agv.operator
     end
 
-    -- 动作函数(不会更新agv.pos)
+    -- 动作函数
     function agv:setpos(x, y, z)
+        agv.pos = {x, y, z}
         agv.model:setpos(x, y, z)
         agv.model:setrot(0, agv.roty, 0)
 
@@ -55,7 +57,11 @@ function AGV(config)
     -- {'move2', {x, y, z, ...}}
     agv.tasks.move2 = {
         init = function(params)
-            params.delta = {params[1] - agv.pos[1], params[2] - agv.pos[2], params[3] - agv.pos[3]} -- 位移
+            -- 设置任务初始位置
+            agv.lastpos = {table.unpack(agv.pos)}
+
+            -- 设置参数
+            params.delta = {params[1] - agv.lastpos[1], params[2] - agv.lastpos[2], params[3] - agv.lastpos[3]} -- 位移
             local distance = math.sqrt(params.delta[1] ^ 2 + params.delta[2] ^ 2 + params.delta[3] ^ 2)
             params.est = distance / agv.speed -- 预计到达时间
             params.speed = {} -- agv只有一个总速度，需要计算分方向的速度
@@ -70,7 +76,7 @@ function AGV(config)
         end,
         execute = function(dt, params)
             -- 计算坐标
-            local position = {table.unpack(agv.pos)}
+            local position = {table.unpack(agv.lastpos)}
             for i = 1, 3 do
                 position[i] = position[i] + params.speed[i] * dt
             end
@@ -79,7 +85,7 @@ function AGV(config)
             agv:setpos(table.unpack(position))
 
             if math.abs(params.dt - dt) < agv.timeError then -- 如果时间误差小于agv.timeerror，任务结束
-                agv.pos = position -- 更新位置
+                agv.lastpos = position -- 更新位置
                 agv:deltask() -- 删除任务
             end
         end
@@ -95,14 +101,16 @@ function AGV(config)
                 os.exit()
             end
 
-            agv.occupier = params.operator -- 设置当前agv的占用者
-            print('agv.operator', agv.operator, 'agv.occupier', agv.occupier)
+            agv.operator = params.operator -- 设置当前agv的占用者
+            -- print('agv.operator', agv.operator.type .. tostring(agv.operator.id), 'agv.operator',
+            --     agv.operator.type .. tostring(agv.operator.id))
 
+            coroutine.queue(0, agv.operator.execute, agv.operator) -- 通知operator进行检测
             params.dt = nil -- 任务所需时间为nil，需要别的任务带动被动运行
             params.init = true -- 标记完成初始化
         end,
         execute = function(dt, params)
-            -- print('agv.operator', agv.operator, 'agv.occupier', agv.occupier)
+            -- print('agv.operator', agv.operator, 'agv.operator', agv.operator)
             if agv.operator == nil then
                 agv:deltask() -- 删除任务，立刻运行下一个任务
             end
@@ -112,6 +120,9 @@ function AGV(config)
     -- {'moveon', {road=, distance=, targetDistance=, stay=}}
     agv.tasks.moveon = {
         init = function(params)
+            -- 设置任务初始位置
+            agv.lastpos = {table.unpack(agv.pos)}
+
             -- 如果需要注册road
             if agv.road == nil then
                 -- 检查参数
@@ -149,7 +160,7 @@ function AGV(config)
 
                 agv.road:removeAgv(agv.roadAgvId) -- 从道路中移除agv
                 agv:deltask()
-                agv.pos = position
+                agv.lastpos = position -- 更新关键节点位置
             end
         end
     }
@@ -157,6 +168,9 @@ function AGV(config)
     -- {'onnode', {node=, fromRoad=, toRoad=, ...}}
     agv.tasks.onnode = {
         init = function(params)
+            -- 设置任务初始位置
+            agv.lastpos = {table.unpack(agv.pos)}
+
             -- 默认已经占用了节点
             agv.road = nil -- 清空agv道路信息
             local node = params[1]
@@ -266,7 +280,7 @@ function AGV(config)
                 local x, y, z = table.unpack(params[3].originPt)
                 local radian = math.atan(params[3].vecE[1], params[3].vecE[3]) - math.atan(0, 1)
                 agv.roty = radian -- 设置agv旋转，下面的move2会一起设置
-                agv.pos = {x, y, z} -- 更新位置
+                agv.lastpos = {x, y, z} -- 更新位置
                 agv:setpos(x, y, z) -- 到达目标
 
                 -- 满足退出条件，删除本任务
@@ -308,7 +322,7 @@ function AGV(config)
                 -- 设置步进
                 params.walked = agv.speed * dt
                 -- 计算坐标
-                local position = {table.unpack(agv.pos)}
+                local position = {table.unpack(agv.lastpos)}
                 for i = 1, 3 do
                     position[i] = position[i] + params.walked * fromRoad.vecE[i]
                 end
@@ -333,7 +347,7 @@ function AGV(config)
                 end
 
                 -- 计算步进
-                local y = agv.pos[2] -- y不变
+                local y = agv.lastpos[2] -- y不变
                 local x, z = params.radius * math.sin(params.walked + params.turnOriginRadian) + params.center[1],
                     params.radius * math.cos(params.walked + params.turnOriginRadian) + params.center[3]
 

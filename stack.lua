@@ -16,9 +16,10 @@ function Stack(row, col, level, config)
     stack.clength = config.clength or 6.06
     stack.cwidth = config.cwidth or 2.44
     stack.cheight = config.cheight or 2.42
-    stack.cspan = config.cspan or {0.6, 0.6} --{xspan, zspan}
-    stack.containerUrls = config.containerUrls or {'/res/ct/container.glb', '/res/ct/container_brown.glb', '/res/ct/container_blue.glb',
-    '/res/ct/container_yellow.glb'}
+    stack.cspan = config.cspan or {0.6, 0.6} -- {xspan, zspan}
+    stack.containerUrls = config.containerUrls or
+                              {'/res/ct/container.glb', '/res/ct/container_brown.glb', '/res/ct/container_blue.glb',
+                               '/res/ct/container_yellow.glb'}
     -- 位置参数
     stack.origin = config.origin or {0, 0, 0} -- 原点：用于计算集装箱相对位置
     stack.rot = config.rot or 0 -- 旋转弧度
@@ -35,7 +36,8 @@ function Stack(row, col, level, config)
     function stack:init()
         stack.length = stack.clength * stack.col + (stack.col - 1) * stack.cspan[2] -- 堆场长度
         stack.width = stack.cwidth * stack.row + (stack.row - 1) * stack.cspan[1] -- 堆场宽度
-        stack.anchorPoint = stack.anchorPoint or {stack.origin[1] + stack.width / 2, stack.origin[2], stack.origin[3] + stack.length} -- 锚点，可能自定义
+        stack.anchorPoint = stack.anchorPoint or
+                                {stack.origin[1] + stack.width / 2, stack.origin[2], stack.origin[3] + stack.length} -- 锚点，可能自定义
 
         -- 集装箱层数
         stack.levelPos = {} -- 层数y坐标集合，已经考虑了origin的位置

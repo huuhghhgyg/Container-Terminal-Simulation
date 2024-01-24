@@ -33,7 +33,7 @@ function RMGQC(config)
 
         local bayPos = {} -- bay的第一行坐标{x,z}
         for i = 1, stack.bay do
-            bayPos[i] = {stack.containerPositions[i][1][1][1], stack.containerPositions[i][1][1][3]}
+            bayPos[i] = {stack.containerPositions[1][i][1][1], stack.containerPositions[1][i][1][3]}
             -- 显示baypos位置
             scene.addobj('points', {
                 vertices = {bayPos[i][1], 0, bayPos[i][2]},
@@ -83,11 +83,14 @@ function RMGQC(config)
     end
 
     -- 动作函数
-    -- 移动至某坐标（工作状态）
-    function rmgqc:move2(x, y, z)
+    -- 移动至某坐标
+    function rmgqc:setpos(x, y, z)
         -- 设置位置
         rmgqc.pos = {x, y, z}
-        rmgqc.anchorPoint[3] = z -- 只更新锚点的z坐标
+
+        if rmgqc.anchorPoint ~= nil then
+            rmgqc.anchorPoint[3] = z -- 只更新锚点的z坐标
+        end
 
         body:setpos(rmgqc.anchorPoint[1], 0, rmgqc.pos[3])
         trolley:setpos(rmgqc.pos[1], 0, rmgqc.pos[3])
@@ -99,12 +102,6 @@ function RMGQC(config)
         if rmgqc.attached ~= nil then
             rmgqc.attached:setpos(table.unpack(rmgqc.pos))
         end
-    end
-
-    -- 瞬移或整体移动的函数（非正常工作状态）
-    function rmgqc:setpos(x, y, z)
-        rmgqc.anchorPoint = {x, y, z} -- 设置锚点
-        rmgqc:move2(x, y, z) -- 移动到锚点
     end
 
     -- 初始化Agent

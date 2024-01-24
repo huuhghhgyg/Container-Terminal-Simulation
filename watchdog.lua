@@ -10,13 +10,18 @@ function WatchDog(simv, ActionObjs)
 
     local watchdog = {
         -- 时间
-        lasttime = os.clock(), -- 上一次更新的系统时间
+        lasttime = nil, -- 上一次更新的系统时间
         -- 程序控制
         runcommand = true,
         isImmediateStop = true -- 没有任务的时候立刻停止
     }
 
     function watchdog.refresh()
+        -- 参数检查
+        if watchdog.lasttime == nil then -- 避免自动开始计时
+            watchdog.lasttime = os.clock()
+        end
+
         -- 刷新所有agent的状态
         local actionObjNum = 0 -- 有效更新agent数量
         for i = 1, #ActionObjs do
