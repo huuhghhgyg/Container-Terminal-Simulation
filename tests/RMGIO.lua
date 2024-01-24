@@ -2,16 +2,18 @@
 scene.setenv({
     grid = 'plane'
 })
+print()
 
 -- 引用组件
+require('agent')
 require('cy')
 require('rmg2')
-require('agv')
+require('agv2')
 require('node')
 require('road')
 
 -- 参数设置
-local simv = 8 -- 仿真速度
+local simv = 4 -- 仿真速度
 local ActionObjs = {} -- 动作队列声明
 
 -- 仿真控制
@@ -53,9 +55,9 @@ function generateagv()
     if cy.positionLevels == nil then
         cy.positionLevels = {} -- 初始化集装箱可用位置列表
 
-        for i = 1, cy.col do
+        for i = 1, cy.row do
             cy.positionLevels[i] = {}
-            for j = 1, cy.row do
+            for j = 1, cy.col do
                 -- 计算此位置的堆叠层数
                 local levelCount = 0
                 for k = 1, cy.level do
@@ -70,12 +72,11 @@ function generateagv()
 
     -- 生成agv任务类型
     local taskType = math.random(2) == 1 and 'unload' or 'load' -- 1:agv卸货，2:agv装货
-    print('生成AGV，taskType=', taskType)
 
     -- 识别任务类型并生成可用位置列表
     local availablePos = {} -- 可用位置
-    for i = 1, cy.col do
-        for j = 1, cy.row do
+    for i = 1, cy.row do
+        for j = 1, cy.col do
             local containerLevel = cy.positionLevels[i][j] -- 获取堆叠层数
             if taskType == 'unload' then
                 -- agv卸货，找到所有可用的存货位置(availableNum < cy.level)
@@ -95,6 +96,7 @@ function generateagv()
     -- 记录抽取位置的影响
     local trow, tcol = targetPos[1], targetPos[2]
     cy.positionLevels[trow][tcol] = cy.positionLevels[trow][tcol] + (taskType == 'unload' and 1 or -1)
+    print('生成AGV，taskType=', taskType, '目标位置=', table.unpack(targetPos))
 
     -- 生成agv
     local agv = AGV()
@@ -102,7 +104,7 @@ function generateagv()
     if agv.taskType == 'unload' then -- agv卸货，生成集装箱
         agv.container = scene.addobj(containerUrls[1]) -- 生成agv携带的集装箱
     end
-    agv:move2(10, 0, -10)
+    agv:setpos(10, 0, -10)
     agv.targetContainerPos = targetPos -- 设置agv目标位置{bay,row,col}
     agv:bindCrane(cy, targetPos) -- 绑定agv和堆场
 
@@ -111,13 +113,13 @@ function generateagv()
     -- print('[agv] targetPos=', targetPos[1], targetPos[2], targetPos[3]) -- debug
     agv:addtask('moveon', {
         road = rd1,
-        targetDistance = cy.parkingSpaces[targetPos[1]].relativeDist,
+        targetDistance = cy.parkingSpaces[targetPos[2]].relativeDist,
         stay = true
     })
     agv:addtask('waitoperator', {operator = rmg})
     agv:addtask('moveon', {
         road = rd1,
-        distance = cy.parkingSpaces[targetPos[1]].relativeDist,
+        distance = cy.parkingSpaces[targetPos[2]].relativeDist,
         stay = false
     })
     agv:addtask('onnode', {node2, rd1, nil})
@@ -139,4 +141,4 @@ end
 generateagv()
 
 -- 仿真任务
-watchdog:update()
+watchdog:refresh()

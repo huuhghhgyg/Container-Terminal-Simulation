@@ -3,8 +3,9 @@ scene.setenv({
 })
 
 local ActionObjs = {}
-local simv = 10
+local simv = 2
 
+require('agent')
 require('rmgqc2')
 local rmgqc = RMGQC()
 -- rmgqc:move2(0, 0, 10)
@@ -35,4 +36,4 @@ setpoint(0,0,0,{text='origin'})
 
 scene.render()
 
-watchdog.update()
+watchdog:refresh()

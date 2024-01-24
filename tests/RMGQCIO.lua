@@ -2,16 +2,18 @@
 scene.setenv({
     grid = 'plane'
 })
+print()
 
 -- 引用组件
-require('agv')
+require('agent')
+require('agv2')
 require('node')
 require('road')
 require('ship')
 require('rmgqc2')
 
 -- 参数设置
-local simv = 8 -- 仿真速度
+local simv = 10 -- 仿真速度
 local ActionObjs = {} -- 动作队列声明
 
 -- 仿真控制
@@ -72,9 +74,9 @@ function generateagv()
     if ship.positionLevels == nil then
         ship.positionLevels = {} -- 初始化集装箱可用位置列表
 
-        for i = 1, ship.bay do
+        for i = 1, ship.row do
             ship.positionLevels[i] = {}
-            for j = 1, ship.row do
+            for j = 1, ship.bay do
                 -- 计算此位置的堆叠层数
                 local levelCount = 0
                 for k = 1, ship.level do
@@ -93,8 +95,8 @@ function generateagv()
 
     -- 识别任务类型并生成可用位置列表
     local availablePos = {} -- 可用位置
-    for i = 1, ship.bay do
-        for j = 1, ship.row do
+    for i = 1, ship.row do
+        for j = 1, ship.bay do
             local containerLevel = ship.positionLevels[i][j] -- 获取堆叠层数
             if tasktype == 'unload' then
                 -- agv卸货，找到所有可用的存货位置(availableNum < ship.level)
@@ -121,7 +123,7 @@ function generateagv()
     if agv.taskType == 'unload' then -- agv卸货，生成集装箱
         agv.container = scene.addobj(containerUrls[1]) -- 生成agv携带的集装箱
     end
-    agv.targetContainerPos = targetPos -- 设置agv目标位置{bay,row,col}
+    agv.targetContainerPos = targetPos -- 设置agv目标位置{row,bay,col}
     agv:bindCrane(ship, targetPos) -- 绑定agv和船
     table.insert(ActionObjs, agv)
 
@@ -141,13 +143,13 @@ function generateagv()
     agv:addtask('onnode', {node6, rd6, rd7})
     agv:addtask('moveon', {
         road = rd7,
-        targetDistance = rmgqc.stack.parkingSpaces[targetPos[1]].relativeDist,
+        targetDistance = rmgqc.stack.parkingSpaces[targetPos[2]].relativeDist,
         stay = true
     })
     agv:addtask('waitoperator', {operator = rmgqc})
     agv:addtask('moveon', {
         road = rd7,
-        distance = rmgqc.stack.parkingSpaces[targetPos[1]].relativeDist,
+        distance = rmgqc.stack.parkingSpaces[targetPos[2]].relativeDist,
         stay = false
     })
     agv:addtask('onnode', {node7, rd7, rd8})
@@ -171,11 +173,11 @@ function generateagv()
     generateConfig.summonNum = generateConfig.summonNum - 1 -- agv剩余生成次数减1
 
     -- 添加事件
-    print("[agv", agv.roadAgvId or agv.id, "] summon at: ", coroutine.qtime())
+    print('[agv', agv.roadAgvId or agv.id, '] summon at: ', coroutine.qtime())
     local tArriveSpan = math.random(generateConfig.averageSummonSpan)
     coroutine.queue(tArriveSpan, generateagv)
 end
 generateagv()
 
 -- 仿真任务
-watchdog:update()
+watchdog:refresh()

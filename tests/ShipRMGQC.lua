@@ -1,8 +1,10 @@
+require('agent')
 require('rmgqc2')
 require('ship')
 require('road')
-require('agv')
+require('agv2')
 require('watchdog')
+print()
 
 -- 控制器
 scene.setenv({
@@ -10,7 +12,7 @@ scene.setenv({
 })
 
 -- 参数设置
-local simv = 8 -- 仿真速度
+local simv = 2 -- 仿真速度
 local ActionObjs = {} -- 动作队列声明
 local RoadList = {} -- 道路列表
 
@@ -26,6 +28,7 @@ ship:fillAllContainerPositions()
 -- 绑定Ship
 rmgqc:bindRoad(road) -- 先绑定road
 rmgqc:bindStack(ship) -- 再绑定stack
+rmgqc:showBindingPoint()
 
 -- 添加任务
 local target1 = {3, 4, 2}
@@ -37,7 +40,7 @@ local bay, row, level = 3, 4, 2
 -- 添加目标agv
 local agv = AGV()
 local ax, _, az = table.unpack(rmgqc:getContainerCoord(-1, bay, 1))
-agv:move2(ax, 0, az)
+agv:setpos(ax, 0, az)
 rmgqc.agentqueue = {agv}
 agv:addtask('waitoperator', {operator = rmgqc})
 -- agv:addtask('register', {
@@ -47,7 +50,6 @@ agv:addtask('waitoperator', {operator = rmgqc})
 --         agv.taskType = 'unload'
 --     end
 -- })
--- agv:addtask('waitoperator', {operator = rmgqc})
 -- agv:addtask('waitoperator', {operator = rmgqc})
 table.insert(ActionObjs, agv)
 
@@ -71,4 +73,4 @@ rmgqc:addtask("move2", rmgqc:getContainerCoord(-1, bay, #rmgqc.stack.levelPos)) 
 
 -- 开始仿真
 local watchdog = WatchDog(simv, ActionObjs)
-watchdog:update()
+watchdog:refresh()

@@ -7,6 +7,8 @@ require('agent')
 
 print()
 local agent = Agent()
+agent.model = scene.addobj('box')
+agent.id = agent.model.id
 agent:addtask('move2', {0, 0, 10})
 agent:addtask('move2', {10, 0, 10})
 agent:addtask('move2', {10, 10, 10})
