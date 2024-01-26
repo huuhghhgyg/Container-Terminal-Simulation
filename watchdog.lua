@@ -16,7 +16,11 @@ function WatchDog(simv, ActionObjs)
         isImmediateStop = true -- 没有任务的时候立刻停止
     }
 
-    function watchdog.refresh()
+    function watchdog.refresh(f)
+        if type(f) == 'function' then
+            f()
+        end
+        
         -- 参数检查
         if watchdog.lasttime == nil then -- 避免自动开始计时
             watchdog.lasttime = os.clock()
@@ -48,7 +52,7 @@ function WatchDog(simv, ActionObjs)
         watchdog.lasttime = now -- 刷新调度时间记录
 
         -- 预定下一次更新
-        coroutine.queue(dt * simv, watchdog.refresh)
+        coroutine.queue(dt * simv, watchdog.refresh, f)
     end
 
     -- 打印所有组件任务列表
