@@ -5,12 +5,13 @@ scene.setenv({
 
 -- 引用库
 require('watchdog')
-require('agv')
+require('agent')
+require('agv2')
 require('road')
 require('node')
 
 local ActionObjs = {}
-local simv = 4
+local simv = 2
 
 local watchdog = WatchDog(simv, ActionObjs)
 
@@ -41,4 +42,4 @@ agv:addtask('onnode',{n3,rd3})
 
 table.insert(ActionObjs, agv)
 
-watchdog.update()
+watchdog:refresh()

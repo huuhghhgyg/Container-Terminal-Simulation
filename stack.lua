@@ -16,9 +16,10 @@ function Stack(row, col, level, config)
     stack.clength = config.clength or 6.06
     stack.cwidth = config.cwidth or 2.44
     stack.cheight = config.cheight or 2.42
-    stack.cspan = config.cspan or {0.6, 0.6} --{xspan, zspan}
-    stack.containerUrls = config.containerUrls or {'/res/ct/container.glb', '/res/ct/container_brown.glb', '/res/ct/container_blue.glb',
-    '/res/ct/container_yellow.glb'}
+    stack.cspan = config.cspan or {0.6, 0.6} -- {xspan, zspan}
+    stack.containerUrls = config.containerUrls or
+                              {'/res/ct/container.glb', '/res/ct/container_brown.glb', '/res/ct/container_blue.glb',
+                               '/res/ct/container_yellow.glb'}
     -- 位置参数
     stack.origin = config.origin or {0, 0, 0} -- 原点：用于计算集装箱相对位置
     stack.rot = config.rot or 0 -- 旋转弧度
@@ -35,7 +36,8 @@ function Stack(row, col, level, config)
     function stack:init()
         stack.length = stack.clength * stack.col + (stack.col - 1) * stack.cspan[2] -- 堆场长度
         stack.width = stack.cwidth * stack.row + (stack.row - 1) * stack.cspan[1] -- 堆场宽度
-        stack.anchorPoint = stack.anchorPoint or {stack.origin[1] + stack.width / 2, stack.origin[2], stack.origin[3] + stack.length} -- 锚点，可能自定义
+        stack.anchorPoint = stack.anchorPoint or
+                                {stack.origin[1] + stack.width / 2, stack.origin[2], stack.origin[3] + stack.length} -- 锚点，可能自定义
 
         -- 集装箱层数
         stack.levelPos = {} -- 层数y坐标集合，已经考虑了origin的位置
@@ -44,17 +46,17 @@ function Stack(row, col, level, config)
         end
 
         -- 初始化集装箱对象表
-        for i = 1, stack.col do
+        for i = 1, stack.row do
             stack.containerPositions[i] = {} -- 初始化
             stack.containers[i] = {}
-            for j = 1, stack.row do
+            for j = 1, stack.col do
                 stack.containerPositions[i][j] = {}
                 stack.containers[i][j] = {}
                 for k = 1, stack.level do
                     -- 初始化集装箱位置
-                    local x = stack.origin[1] + (j - 1) * (stack.cwidth + stack.cspan[1]) + stack.cwidth / 2
+                    local x = stack.origin[1] + (i - 1) * (stack.cwidth + stack.cspan[1]) + stack.cwidth / 2
                     local y = stack.origin[2] + stack.cheight * (k - 1)
-                    local z = stack.origin[3] + (stack.col - i) * (stack.clength + stack.cspan[2]) + stack.clength / 2
+                    local z = stack.origin[3] + (stack.col - j) * (stack.clength + stack.cspan[2]) + stack.clength / 2
                     stack.containerPositions[i][j][k] = {x, y, z}
 
                     -- 初始化集装箱对象列表
@@ -77,8 +79,8 @@ function Stack(row, col, level, config)
 
     -- 将堆场所有可用位置填充集装箱
     function stack:fillAllContainerPositions()
-        for i = 1, stack.col do
-            for j = 1, stack.row do
+        for i = 1, stack.row do
+            for j = 1, stack.col do
                 for k = 1, stack.level do
                     stack:fillWithContainer(i, j, k)
                 end
@@ -102,9 +104,9 @@ function Stack(row, col, level, config)
 
         -- 初始化
         local containerNum = {}
-        for i = 1, stack.col do
+        for i = 1, stack.row do
             containerNum[i] = {}
-            for j = 1, stack.row do
+            for j = 1, stack.col do
                 containerNum[i][j] = 0
             end
         end
@@ -112,19 +114,19 @@ function Stack(row, col, level, config)
         -- 随机生成
         local summon = 0
         while summon < sum do
-            local bay = math.random(stack.col)
             local row = math.random(stack.row)
-            if containerNum[bay][row] < stack.level then
-                containerNum[bay][row] = containerNum[bay][row] + 1
+            local bay = math.random(stack.col)
+            if containerNum[row][bay] < stack.level then
+                containerNum[row][bay] = containerNum[row][bay] + 1
                 summon = summon + 1
             end
         end
 
         -- 填充
-        for i = 1, stack.col do
-            for j = 1, stack.row do
+        for i = 1, stack.row do
+            for j = 1, stack.col do
                 for k = 1, stack.level do
-                    -- 如果层数小于当前(bay,row)生成的层数，则放置集装箱，否则不放置
+                    -- 如果层数小于当前(row, bay)生成的层数，则放置集装箱，否则不放置
                     if k <= containerNum[i][j] then
                         stack:fillWithContainer(i, j, k)
                     end
@@ -133,14 +135,14 @@ function Stack(row, col, level, config)
         end
     end
 
-    -- 在指定的(bay, row, level)位置生成集装箱
-    function stack:fillWithContainer(bay, row, level)
+    -- 在指定的(row, bay, level)位置生成集装箱
+    function stack:fillWithContainer(row, bay, level)
         local url = stack.containerUrls[math.random(1, #stack.containerUrls)] -- 随机选择集装箱颜色
-        local containerPos = stack.containerPositions[bay][row][level] -- 获取集装箱位置
+        local containerPos = stack.containerPositions[row][bay][level] -- 获取集装箱位置
 
         local container = scene.addobj(url) -- 生成集装箱
         container:setpos(table.unpack(containerPos)) -- 设置集装箱位置
-        stack.containers[bay][row][level] = container
+        stack.containers[row][bay][level] = container
     end
 
     return stack

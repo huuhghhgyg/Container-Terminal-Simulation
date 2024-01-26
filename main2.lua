@@ -6,9 +6,10 @@ scene.setenv({
 print()
 
 -- 引用组件
+require('agent')
 require('cy')
 require('rmg2')
-require('agv')
+require('agv2')
 require('node')
 require('road')
 require('ship')
@@ -22,7 +23,7 @@ print('下载完成')
 require('tablestr')
 
 -- 参数设置
-local simv = 10 -- 仿真速度
+local simv = 2 -- 仿真速度
 local ActionObjs = {} -- 动作队列声明
 
 -- 仿真控制
@@ -185,7 +186,7 @@ local containerUrls = {'/res/ct/container.glb', '/res/ct/container_brown.glb', '
                        '/res/ct/container_yellow.glb'} -- 集装箱模型路径列表（从其他文件中复制过来的）
 
 local generateConfig = {
-    summonNum = 3,
+    summonNum = 6,
     averageSummonSpan = 15,
     rate = {
         rmg = 0.5, -- 生成rmg类型任务的几率
@@ -231,9 +232,9 @@ function generateagv()
     if stack.positionLevels == nil then
         stack.positionLevels = {} -- 初始化集装箱可用位置列表
 
-        for i = 1, stack.col do
+        for i = 1, stack.row do
             stack.positionLevels[i] = {}
-            for j = 1, stack.row do
+            for j = 1, stack.col do
                 -- 计算此位置的堆叠层数
                 local levelCount = 0
                 for k = 1, stack.level do
@@ -248,8 +249,8 @@ function generateagv()
 
     -- 识别任务类型并生成可用位置列表
     local availablePos = {} -- 可用位置
-    for i = 1, stack.col do
-        for j = 1, stack.row do
+    for i = 1, stack.row do
+        for j = 1, stack.col do
             local containerLevel = stack.positionLevels[i][j] -- 获取堆叠层数
             if agvTaskType == 'unload' then
                 -- agv卸货，找到所有可用的存货位置(availableNum < stack.level)
@@ -276,7 +277,7 @@ function generateagv()
     if agv.taskType == 'unload' then -- agv卸货，生成集装箱
         agv.container = scene.addobj(containerUrls[1]) -- 生成agv携带的集装箱
     end
-    agv:move2(10, 0, -10)
+    agv:setpos(10, 0, -10)
     agv.targetContainerPos = targetPos -- 设置agv目标位置{bay,row,col}
     agv:bindCrane(stack, targetPos) -- 绑定agv和船
 
@@ -307,15 +308,15 @@ function generateagv()
         local stpTargetNode = toRoad.fromNode
         controller:addAgvNaviTask(agv, 2, stpTargetNode.id, controller.Roads[1], {
             road = stack.bindingRoad,
-            targetDistance = stack.parkingSpaces[targetPos[1]].relativeDist,
+            targetDistance = stack.parkingSpaces[targetPos[2]].relativeDist,
             stay = true
         })
-        print(agv.type .. agv.id, '目标road.id=', toRoad.id, '目标node.id=', stpTargetNode.id, '目标停车位=', targetPos[1], '(',
-            stack.parkingSpaces[targetPos[1]].relativeDist, ')')
+        print(agv.type .. agv.id, '目标road.id=', toRoad.id, '目标node.id=', stpTargetNode.id, '目标停车位=', targetPos[2], '(',
+            stack.parkingSpaces[targetPos[2]].relativeDist, ')')
         agv:addtask('waitoperator', {operator = operatorAgent})
         agv:addtask('moveon', {
             road = stack.bindingRoad,
-            distance = stack.parkingSpaces[targetPos[1]].relativeDist,
+            distance = stack.parkingSpaces[targetPos[2]].relativeDist,
             stay = false
         })
         controller:addAgvNaviTask(agv, stack.bindingRoad.toNode.id, 15, toRoad, {road=controller.Roads[18]})
@@ -325,13 +326,13 @@ function generateagv()
         local stpTargetNode = toRoad.fromNode
         controller:addAgvNaviTask(agv, 2, stpTargetNode.id, controller.Roads[1], {
             road = operatorAgent.road,
-            targetDistance = operatorAgent.stack.parkingSpaces[targetPos[1]].relativeDist,
+            targetDistance = operatorAgent.stack.parkingSpaces[targetPos[2]].relativeDist,
             stay = true
         })
         agv:addtask('waitoperator', {operator = operatorAgent})
         agv:addtask('moveon', {
             road = operatorAgent.road,
-            distance = operatorAgent.stack.parkingSpaces[targetPos[1]].relativeDist,
+            distance = operatorAgent.stack.parkingSpaces[targetPos[2]].relativeDist,
             stay = false
         })
         controller:addAgvNaviTask(agv, operatorAgent.road.toNode.id, 15, toRoad, {road=controller.Roads[18]})
@@ -343,15 +344,14 @@ function generateagv()
     agv:addtask('onnode',{controller.Nodes[20], controller.Roads[18]})
     table.insert(ActionObjs, agv)
     print('[main] agv', agv.id, 'added to ActionObjs, #ActionObjs=', #ActionObjs, 'agv #tasks=', #agv.tasksequence)
-    print(tablestr(agv.tasksequence, 2))
+    -- print(tablestr(agv.tasksequence, 2))
 
     -- 添加事件
     print("[agv"..agv.id.. "] summon at: ", coroutine.qtime())
-    watchdog:update()
     local tArriveSpan = math.random(generateConfig.averageSummonSpan)
     coroutine.queue(tArriveSpan, generateagv)
 end
 generateagv()
 
 -- 仿真任务
-watchdog:update()
+watchdog:refresh()

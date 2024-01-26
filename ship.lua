@@ -29,10 +29,8 @@ function Ship(config)
     ship.anchorPoint = config.anchorPoint or {0, 0, 0} -- 锚点，可能覆盖，因此重新赋值
 
     -- 初始化bay位置
-    -- local bayLength = ship.clength * ship.bay + ship.cspan[2] * (ship.bay - 1)
     for bay = 1, ship.bay do
-        -- ship.bayPosition[bay] = -28 + bayLength - (bay - 1) * (ship.clength + ship.cspan[2]) -- 初始位置+bay位置+bay间距
-        ship.bayPosition[bay] = ship.containerPositions[bay][1][1][3]
+        ship.bayPosition[bay] = ship.containerPositions[1][bay][1][3]
     end
 
     -- 设置setpos函数
@@ -65,11 +63,11 @@ function Ship(config)
     -- 返回空余位置编号(old)
     function ship:getIdlePosition()
         for level = 1, ship.level do
-            for bay = 1, ship.bay do
-                for col = 1, ship.row do
-                    if ship.containers[bay][col][level] == nil then
-                        ship.containers[bay][col][level] = {}
-                        return {bay, col, level}
+            for row = 1, ship.row do
+                for bay = 1, ship.bay do
+                    if ship.containers[row][bay][level] == nil then
+                        ship.containers[row][bay][level] = {}
+                        return {row, bay, level}
                     end
                 end
             end

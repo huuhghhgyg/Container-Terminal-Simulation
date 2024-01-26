@@ -2,21 +2,19 @@
 scene.setenv({
     grid = 'plane'
 })
+print()
 
 -- 引用组件
+require('agent')
 require('cy')
 require('rmg2')
-require('agv')
+require('agv2')
 require('node')
 require('road')
 
 -- 参数设置
 local simv = 2 -- 仿真速度
 local ActionObjs = {} -- 动作队列声明
-
--- 仿真控制
-require('watchdog')
-local watchdog = WatchDog(simv, ActionObjs)
 
 -- 创建道路系统
 local RoadList = {} -- 道路列表
@@ -35,13 +33,18 @@ cy:showBindingPoint()
 -- cy:fillRandomContainerPositions(50, {'/res/ct/container_blue.glb'})
 cy:fillAllContainerPositions()
 
+print('cy.origin=',table.unpack(cy.origin))
+
 local rmg = RMG() -- 创建rmg时会自动添加到ActionObjs中
 table.insert(ActionObjs, rmg)
 rmg:bindStack(cy)
+print('cy.anchorPoint=',table.unpack(cy.anchorPoint))
+print('rmg.anchorPoint=',table.unpack(rmg.anchorPoint))
 
 scene.render()
 
 -- test1
+rmg:addtask('move2', rmg:getContainerCoord(2, 3, 4))
 rmg:addtask('move2', rmg:getContainerCoord(2, 3, 3))
 rmg:addtask('attach', {2, 3, 3})
 rmg:addtask('move2', rmg:getContainerCoord(2, 3, #cy.levelPos))
@@ -66,4 +69,8 @@ rmg.agentqueue = {agv}
 
 -- 仿真任务
 -- debug.pause()
-watchdog.update()
+
+-- 仿真控制
+require('watchdog')
+local watchdog = WatchDog(simv, ActionObjs)
+watchdog.refresh()

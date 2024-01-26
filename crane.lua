@@ -3,19 +3,21 @@ function Crane(config)
         config = {}
     end
 
-    local crane = {
-        -- 基本参数
-        type = config.type or 'crane', -- 类型
-        stack = nil, -- 对应的stack对象
-        anchorPoint = config.anchorPoint or {0, 0, 0}, -- crane锚点坐标
-        pos = config.pos or {0, 0, 0}, -- crane位置坐标
-        speed = config.speed or {2, 4, 8}, -- 各方向速度
-        attached = nil, -- 当前吊具挂载的集装箱
-        -- 任务相关
-        tasksequence = {}, -- 任务序列
-        tasks = {}, -- 支持的任务类型
-        agentqueue = {} -- 等待服务的agent队列
-    }
+    local crane = Agent()
+
+    crane.agentqueue = {} -- 等待服务的agent队列
+
+    -- 初始化参数
+    function crane:init(config)
+        crane.type = config.type or 'crane' -- 类型
+        crane.stack = nil -- 对应的stack对象
+        crane.anchorPoint = config.anchorPoint or {0, 0, 0} -- crane锚点坐标
+        crane.pos = config.pos or {0, 0, 0} -- crane位置坐标
+        crane.speed = config.speed or {2, 4, 8} -- 各方向速度
+        crane.attached = nil -- 当前吊具挂载的集装箱
+
+        crane.lastpos = crane.pos -- 设置任务初始位置
+    end
 
     -- 对象相关函数
     function crane:getpos()
@@ -28,11 +30,6 @@ function Crane(config)
     end
 
     -- 驱动函数
-    -- 涉及到具体的流程会留空
-    function crane:move2(x, y, z)
-        print(debug.traceback(crane.type .. crane.id .. ':move2(x,y,z) 没有定义,无法调用'))
-        os.exit()
-    end
 
     -- 抓箱子
     -- bay:堆场位置，row:行，level:层
@@ -58,15 +55,15 @@ function Crane(config)
         end
 
         -- 判断抓取的集装箱是否为空
-        if crane.stack.containers[bay][row][level] == nil then
+        if crane.stack.containers[row][bay][level] == nil then
             print(debug.traceback('[crane' .. crane.id .. '] 错误，抓取堆场中的集装箱为空'))
             -- debug
             os.exit()
         end
 
         -- 抓取堆场中的集装箱
-        crane.attached = crane.stack.containers[bay][row][level]
-        crane.stack.containers[bay][row][level] = nil
+        crane.attached = crane.stack.containers[row][bay][level]
+        crane.stack.containers[row][bay][level] = nil
     end
 
     -- 放箱子
@@ -90,7 +87,7 @@ function Crane(config)
         end
 
         -- 将集装箱放到船上的指定位置
-        crane.stack.containers[bay][row][level] = crane.attached
+        crane.stack.containers[row][bay][level] = crane.attached
         crane.attached = nil
     end
 
@@ -99,6 +96,8 @@ function Crane(config)
     function crane:bindStack(stack)
         -- 包括最大能够访问的高度:levelPos, topLevel
         crane.stack = stack
+        stack.operator = crane
+        crane.anchorPoint = {table.unpack(stack.anchorPoint)}
         crane:setpos(stack.anchorPoint[1], stack.levelPos[#stack.levelPos], stack.anchorPoint[3])
     end
 
@@ -116,7 +115,7 @@ function Crane(config)
         end
 
         -- crane添加任务
-        local bay, row, level = table.unpack(agent.targetContainerPos)
+        local row, bay, level = table.unpack(agent.targetContainerPos)
 
         if agent.taskType == 'unload' then
             -- print('['..crane.type..crane.id..'] agent:unload, targetPos=(', row, bay, level, ')') -- debug
@@ -158,16 +157,23 @@ function Crane(config)
                                       '] 错误，没有绑定 stack，无法使用 getContainerCoord()'))
             os.exit() -- 检测到出错立刻停止,方便发现错误
         end
-
         local stack = crane.stack -- 绑定的stack
-        -- print('crane:getContainerCoord', row, bay, level) -- debug
 
+        if row > stack.row or level > #stack.levelPos or bay > stack.col then
+            print(stack.type .. tostring(stack.id) .. '输入位置超出范围:')
+            print('input row, bay, level=', row, bay, level)
+            print('max row, col, level=', stack.row, stack.col, #stack.levelPos)
+            print(debug.traceback())
+            os.exit() -- 检测到出错立刻停止,方便发现错误
+        end
+
+        -- 获取坐标
         local x, rx
         if row == -1 then
             rx = stack.parkingSpaces[bay].iox + stack.cwidth / 2
             x = rx + stack.origin[1]
         else
-            x = stack.containerPositions[1][row][1][1]
+            x = stack.containerPositions[row][1][1][1]
             rx = x - stack.origin[1]
         end
 
@@ -178,20 +184,24 @@ function Crane(config)
             y = stack.levelPos[level] -- 加上层高
         end
         local ry = y - stack.origin[2]
-        local z = stack.containerPositions[bay][1][1][3]
+
+        local z = stack.containerPositions[1][bay][1][3]
         local rz = z - stack.origin[3] -- 通过车移动解决z
 
-        -- return {rx, ry, rz}
         return {x, y, z}
     end
 
     -- 集合流程函数
     -- 将集装箱从agent抓取到目标位置，默认在移动层。这个函数会标记当前rmg任务目标位置
     function crane:lift2TargetPos(row, bay, level, operatedAgent)
-        crane:addtask("waitagent", operatedAgent) -- 等待agent到达
+        crane:addtask("waitagent", {
+            agent = operatedAgent
+        }) -- 等待agent到达
         crane:addtask("move2", crane:getContainerCoord(-1, bay, 1)) -- 抓取agent上的箱子
         crane:addtask("attach", nil) -- 抓取
-        crane:addtask("unwaitagent", 1) -- 发送信号，解除agent的阻塞
+        crane:addtask("unwaitagent", {
+            index = 1
+        }) -- 发送信号，解除agent的阻塞
         crane:addtask("move2", crane:getContainerCoord(-1, bay, #crane.stack.levelPos)) -- 吊具提升到移动层
         crane:addtask("move2", crane:getContainerCoord(row, bay, #crane.stack.levelPos)) -- 移动爪子到指定位置
         crane:addtask("move2", crane:getContainerCoord(row, bay, level)) -- 移动爪子到指定位置
@@ -205,10 +215,14 @@ function Crane(config)
         crane:addtask("attach", {row, bay, level}) -- 抓取
         crane:addtask("move2", crane:getContainerCoord(row, bay, #crane.stack.levelPos)) -- 吊具提升到移动层
         crane:addtask("move2", crane:getContainerCoord(-1, bay, #crane.stack.levelPos)) -- 移动爪子到agent上方
-        crane:addtask("waitagent", operatedAgent) -- 等待agent到达
+        crane:addtask("waitagent", {
+            agent = operatedAgent
+        }) -- 等待agent到达
         crane:addtask("move2", crane:getContainerCoord(-1, bay, 1)) -- 移动爪子到agent
         crane:addtask("detach", nil) -- 放下指定箱
-        crane:addtask("unwaitagent", 1) -- 发送信号，解除agent的阻塞
+        crane:addtask("unwaitagent", {
+            index = 1
+        }) -- 发送信号，解除agent的阻塞
         crane:addtask("move2", crane:getContainerCoord(-1, bay, #crane.stack.levelPos)) -- 爪子抬起到移动层
     end
 
@@ -222,200 +236,146 @@ function Crane(config)
         crane:addtask("move2", crane:getContainerCoord(-1, bay, #crane.stack.levelPos))
     end
 
-    -- 任务相关函数
-    -- 添加任务
-    function crane:addtask(name, param)
-        local task = {name, param}
-        table.insert(crane.tasksequence, task)
-    end
-
-    -- 删除任务
-    function crane:deltask()
-        -- debug
-        -- print('delete task', crane.tasksequence[1][1], 'at', coroutine.qtime())
-        table.remove(crane.tasksequence, 1)
-        crane.lasttask = nil -- 重置debug记录的上一个任务
-
-        -- debug
-        -- if (crane.tasksequence[1] ~= nil) then
-        --     print('['..crane.type..crane.id..'] task executing: ', crane.tasksequence[1][1], 'at', coroutine.qtime())
-        -- end
-    end
-
-    -- interface:计算最大允许步进
-    function crane:maxstep()
-        local dt = math.huge -- 初始化步进
-        if crane.tasksequence[1] == nil then -- 对象无任务，直接返回0
-            return dt
-        end
-
-        local taskname = crane.tasksequence[1][1] -- 任务名称
-        local params = crane.tasksequence[1][2] -- 任务参数
-
-        -- -- debug
-        -- if taskname ~= crane.lasttask then
-        --     print('[crane] maxstep task', taskname)
-        -- end
-
-        if crane.tasks[taskname] == nil then
-            print(debug.traceback('[' .. crane.type .. crane.id .. '] 错误，没有找到任务' .. taskname))
-            os.exit() -- 检测到出错立刻停止,方便发现错误
-        end
-
-        if crane.tasks[taskname].maxstep ~= nil then
-            dt = math.min(dt, crane.tasks[taskname].maxstep(params))
-        end
-
-        return dt
-    end
-
-    -- 获取当前控件支持的任务的列表
-    function crane:getSupportedTasks()
-        local supportedTasks = {}
-        for key in pairs(crane.tasks) do
-            table.insert(supportedTasks, key)
-        end
-        return supportedTasks
-    end
-
-    -- 执行任务
-    -- task: {任务名称,{参数}}
-    function crane:executeTask(dt)
-        if #crane.tasksequence == 0 then
-            return
-        end
-
-        local task = crane.tasksequence[1]
-        local taskname, params = task[1], task[2]
-
-        -- -- debug
-        -- if crane.lasttask ~= taskname then
-        --     print('[crane] 当前任务', taskname, 'at', coroutine.qtime())
-        --     crane.lasttask = taskname
-        -- end
-
-        if crane.tasks[taskname] == nil then
-            print(debug.traceback('[' .. crane.type .. crane.id .. '] 错误，没有找到任务' .. taskname))
-            os.exit() -- 检测到出错立刻停止,方便发现错误
-        end
-
-        if crane.tasks[taskname].execute ~= nil then
-            crane.tasks[taskname].execute(dt, params)
-        end
-    end
-
     -- 内置任务
     -- 'move2', {x, y, z, params}
     crane.tasks.move2 = {
-        maxstep = function(params)
-            -- 判断是否已经初始化
-            if params.vecE == nil then
-                -- 计算三个方向的向量
-                params.vecE = {}
-                for i = 1, 3 do
-                    local d = params[i] - crane.pos[i] -- 计算距离差值
-                    params.vecE[i] = d == 0 and 0 or d / math.abs(d)
-                end
-                params.timeRemain = {} -- 初始化参数：各方向剩余时间
-                params.distRemain = {} -- 初始化参数：初次执行任务时各方向剩余距离
-            end
+        init = function(params)
+            -- 记录初始位置
+            crane.lastpos = {table.unpack(crane.pos)}
 
-            -- 计算各方向剩余时间
-            -- print()
+            -- 计算三个方向的向量
+            params.vecE = {}
             for i = 1, 3 do
-                params.distRemain[i] = params[i] - crane.pos[i]
-                params.timeRemain[i] = params.distRemain[i] * params.vecE[i] / crane.speed[i]
-                -- print('direction', i, 'distRemain =', params.distRemain[i])
+                local d = params[i] - crane.pos[i] -- 计算距离差值
+                params.vecE[i] = d == 0 and 0 or d / math.abs(d)
             end
-            -- print('distRemain', TableString(params.distRemain))
-            -- print('timeRemain', TableString(params.timeRemain))
+            params.delta = {} -- 初始化参数：各方向运动距离
+            params.runtime = {} -- 初始化参数：各方向所需时间
 
-            local maxRemainTime = math.max(table.unpack(params.timeRemain)) -- 获取各方向上的最大值
-            return maxRemainTime
+            -- 计算各方向所需时间
+            for i = 1, 3 do
+                params.delta[i] = params[i] - crane.pos[i]
+                params.runtime[i] = params.delta[i] * params.vecE[i] / crane.speed[i]
+                -- print('direction', i, 'delta =', params.delta[i])
+                -- print('direction', i, 'runtime =', params.runtime[i])
+            end
+            local maxRuntime = math.max(table.unpack(params.runtime)) -- 获取各方向上的最大值
+
+            params.dt = maxRuntime -- 任务所需时间
+            params.init = true
+            coroutine.queue(params.dt, crane.execute, crane)
         end,
         execute = function(dt, params)
             -- 计算步进
-            local nextPosition = {} -- 各方向下一步位置
+            local position = {} -- 各方向位置
             for i = 1, 3 do
-                if params.timeRemain[i] >= dt then
-                    nextPosition[i] = crane.pos[i] + crane.speed[i] * params.vecE[i] * dt -- 步进
+                if params.runtime[i] >= dt then
+                    position[i] = crane.lastpos[i] + crane.speed[i] * params.vecE[i] * dt -- 步进
                 else
-                    nextPosition[i] = params[i] -- 设置为终点
+                    position[i] = params[i] -- 设置为终点
                 end
             end
-            -- print('[' .. crane.type .. crane.id .. '] pos', crane.pos[1], crane.pos[2],
-            --       crane.pos[3])
-            -- print('[' .. crane.type .. crane.id .. '] move2 timeRemain', params.timeRemain[1], params.timeRemain[2],
-            --       params.timeRemain[3], 'dt=', dt)
-            -- print('[' .. crane.type .. crane.id .. '] move2 nextPosition', nextPosition[1], nextPosition[2],
-            --       nextPosition[3])
 
-            crane:move2(table.unpack(nextPosition))
+            crane:setpos(table.unpack(position))
 
-            -- 判断是否到达目标位置
-            if crane.pos[1] == params[1] and crane.pos[2] == params[2] and crane.pos[3] == params[3] then
-                print('[' .. crane.type .. crane.id .. '] 到达目标位置 at', coroutine.qtime() + dt) -- debug 下一次推进时间才是到达时间
+            -- -- debug
+            -- print()
+            -- print('runtime=', table.unpack(params.runtime))
+            -- print('params.dt=', params.dt, 'dt=', dt)
+            -- print('delta=', table.unpack(params.delta))
+            -- print('pos=', table.unpack(crane.pos))
+            -- print('position=', table.unpack(position))
+
+            if math.abs(params.dt - dt) < crane.timeError then
+                print('[' .. crane.type .. crane.id .. '] 到达目标位置 at', coroutine.qtime()) -- debug
                 crane:deltask()
+                crane.lastpos = {table.unpack(position)} -- 更新位置
             end
         end
     }
 
     -- {'attach', {row, col, level}}
     crane.tasks.attach = {
-        execute = function(dt, params)
+        init = function(params)
             if params == nil then
                 params = {nil, nil, nil}
             end
+
+            params.init = true
+            coroutine.queue(0, crane.execute, crane)
+            -- 设置状态，不需要设置dt
+        end,
+        execute = function(dt, params)
             crane:attach(params[1], params[2], params[3])
             crane:deltask()
-        end,
-        maxstep = function(params)
-            return 0
         end
     }
 
     -- {'detach', {row, col, level}}
     crane.tasks.detach = {
-        execute = function(dt, params)
+        init = function(params)
             if params == nil then
                 params = {nil, nil, nil}
             end
+
+            params.init = true
+            -- 设置状态，不需要设置dt
+        end,
+        execute = function(dt, params)
             crane:detach(params[1], params[2], params[3])
             crane:deltask()
-        end,
-        maxstep = function(params)
-            return 0
         end
     }
 
-    -- {'waitagent', agent} -- crane等待agent到达
+    -- {'waitagent', {agent=,...}} -- crane等待agent到达
+    -- agent需要通知（唤醒）本operator，agent已经到达
     crane.tasks.waitagent = {
-        maxstep = function(params)
-            local agent = params
-            -- 判断agent是否被当前crane有效占用
-            if #crane.agentqueue > 0 and agent.occupier == crane then
-                -- print('['..crane.type..crane.id..']', agent.type .. agent.id .. '已经被' .. crane.type .. crane.id ..
-                --     '占用，crane删除waitagent任务 at', coroutine.qtime())
+        init = function(params)
+            -- 参数检查
+            if params.agent == nil then
+                print(debug.traceback('[' .. crane.type .. crane.id .. '] waitagent错误，没有输入agent'))
+            end
+            crane.occupier = params.agent -- 当前crane被agent占用
+
+            params.dt = nil -- 任务所需时间为nil，需要别的任务带动被动运行
+            params.init = true -- 标记完成初始化
+        end,
+        execute = function(dt, params)
+            -- 检测目标agent是否被当前crane有效占用
+            if #crane.agentqueue > 0 and params.agent.operator == crane then
+                print('['..crane.type..crane.id..']', params.agent.type .. params.agent.id .. '已经被' .. crane.type .. crane.id ..
+                    '占用，crane删除waitagent任务 at', coroutine.qtime())
 
                 crane:deltask() -- 删除本任务，解除阻塞（避免相互等待），继续执行下一个任务
-                return crane:maxstep() -- 本任务不影响其他agent，因此可以直接递归调用，消除本任务的影响
+            end
+        end
+    }
+
+    -- {'unwaitagent', {index=}} -- 解除agent的阻塞，使agent继续执行其他任务
+    crane.tasks.unwaitagent = {
+        init = function(params)
+            -- 检查参数
+            if type(params.index) ~= "number" then
+                print('[' .. crane.type .. crane.id .. '] unwaitagent错误，输入index参数错误:', params.index)
+                print(debug.traceback())
             end
 
-            -- print('crane' .. crane.id, 'waitagent', agent.type .. agent.id) -- debug
-            return math.huge
-        end
-    }
+            params.dt = nil -- 任务所需时间为nil，设置状态，通知目标agent
+        end,
+        execute = function(dt, params)
+            local index = params.index
+            local targetAgent = crane.agentqueue[index]
+            -- 解除阻塞
+            targetAgent.operator = nil -- 结束占用目标agent
+            -- print('[' .. crane.type .. crane.id .. '] unwaitagent, 解除' .. crane.agentqueue[index].type ..
+            --           crane.agentqueue[index].id .. '的阻塞')
+            table.remove(crane.agentqueue, index)
 
-    -- {'unwaitagent', agentqueue_pos} -- 解除agent的阻塞，使agent继续执行其他任务
-    crane.tasks.unwaitagent = {
-        maxstep = function(params)
-            crane.agentqueue[params].occupier = nil -- 解除阻塞
-            -- print('['..crane.type..crane.id..']' unwaitagent, 解除'..crane.agentqueue[params].type..crane.agentqueue[params].id..'的阻塞')
-            table.remove(crane.agentqueue, params)
+            coroutine.queue(0, targetAgent.execute, targetAgent) -- 通知目标agent继续运行
             crane:deltask()
-            return crane:maxstep() -- 本任务不影响其他agent，因此可以直接递归调用，消除本任务的影响
         end
     }
 
+    crane:init(config)
     return crane
 end
