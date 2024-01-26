@@ -58,13 +58,14 @@ function Agent()
         end
 
         local taskname, params = table.unpack(agent.tasksequence[1])
+        -- 参数验证
         if agent.tasks[taskname] == nil then
             print(debug.traceback('错误，没有找到任务'))
             os.exit()
         end
 
         if agent.taskstart == nil then
-            print(debug.traceback('['..agent.type..agent.id..'] 错误，任务开始时间为空'))
+            print(debug.traceback('[' .. agent.type .. agent.id .. '] 错误，任务开始时间为空'))
             os.exit()
         end
         local dt = coroutine.qtime() - agent.taskstart -- 计算仿真时间差
@@ -117,7 +118,8 @@ function Agent()
             -- 计算坐标
             local position = {table.unpack(agent.lastpos)}
             for i = 1, 3 do
-                position[i] = dt <= params.est[i] and agent.lastpos[i] + agent.speed[i] * dt * params.vecE[i] or params[i]
+                position[i] = dt <= params.est[i] and agent.lastpos[i] + agent.speed[i] * dt * params.vecE[i] or
+                                  params[i]
             end
 
             -- 设置位置

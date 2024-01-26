@@ -56,6 +56,13 @@ function AGV(config)
     -- {'move2', {x, y, z, ...}}
     agv.tasks.move2 = {
         init = function(params)
+            -- 参数检查
+            if type(params[1]) ~= 'number' or type(params[2]) ~= 'number' or type(params[3]) ~= 'number' then
+                print(agv.type .. agv.id, 'move2错误：输入的坐标参数有误:', params[1], params[2], params[3])
+                print(debug.traceback())
+                os.exit()
+            end
+
             -- 设置任务初始位置
             agv.lastpos = {table.unpack(agv.pos)}
 
