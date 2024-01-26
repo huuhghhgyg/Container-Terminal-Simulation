@@ -4,7 +4,6 @@ scene.setenv({
 })
 
 -- 引用库
-require('agv')
 require('road')
 require('node')
 

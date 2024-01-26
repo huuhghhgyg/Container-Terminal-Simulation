@@ -4,8 +4,9 @@ scene.setenv({
 })
 
 local actionObjs = {}
-local simv = 1
+local simv = 2
 
+require('agent')
 require('rmg')
 
 local rmg = RMG()
@@ -18,4 +19,4 @@ table.insert(actionObjs, rmg)
 
 require('watchdog')
 local watchdog = WatchDog(simv, actionObjs)
-watchdog.update()
+watchdog.refresh()
