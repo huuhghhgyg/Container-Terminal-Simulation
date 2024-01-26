@@ -19,7 +19,6 @@ function AGV(config)
         agv.container = config.container or nil -- 集装箱
         agv.height = config.height or 2.10 -- agv平台高度
         agv.road = config.road or nil -- 相对应road:registerAgv中设置agv的road属性
-        agv.state = nil -- 状态，设为正常状态
         agv.targetContainerPos = nil -- 目标集装箱位置{row, col, level}
 
         agv.lastpos = {table.unpack(agv.pos)} -- 设置任务初始位置

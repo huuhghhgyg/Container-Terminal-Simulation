@@ -20,21 +20,23 @@ deltask-->|无任务|idle
 ### 添加任务
 ```mermaid
 graph
-addtask(添加任务)
-invoke(协程唤醒 agent.execute)
-running(设为运行状态 running)
+addtask(添加任务 addtask)
+not_idle(检查状态)
+invoke(协程立即唤醒 agent.execute)
+running(agent.state == 'running')
 execute(执行任务...)
 
-addtask-->running-->|coroutine.queue|invoke-->execute
+addtask-->not_idle-->|state=='idle'|running-->|coroutine.queue|invoke-->execute
+not_idle-->|state!='idle'|execute
 ```
 
 ### 删除任务
 ```mermaid
 graph
 deltask(删除任务)
-invoke(协程唤醒立即 agent.execute)
+invoke(协程立即唤醒 agent.execute)
 execute_next(执行下一个任务...)
-idle(设为空闲状态 idle)
+idle(agent.state=='idle')
 has_task(判断是否还有任务)
 
 deltask-->has_task-->|没有其他任务|idle
@@ -85,6 +87,9 @@ tasks表结构
     - `init()`: 限制最大步进时间的函数。如果没有则不限制，直接使用CPU运行时间得到的dt。
     - `execute()`: 执行任务的函数。
   - ...
+
+# 属性
+agent.state: 状态，有`idle`和`running`两种状态。用于检测agent是否正在执行任务。
 
 # 交互
 Agent之间通过任务相互等待进行交互。

@@ -3,7 +3,7 @@ function Agent()
         speed = {1, 1, 1},
         model = nil,
         pos = {0, 0, 0}, -- Agent位置，只有init更新，相当于每个任务的Origin
-        taskstart = coroutine.qtime(),
+        taskstart = nil,
         tasks = {},
         tasksequence = {},
         state = 'idle'
@@ -23,8 +23,9 @@ function Agent()
     function agent:addtask(name, params)
         table.insert(agent.tasksequence, {name, params})
         -- 如果是空闲状态，立刻执行
-        if agent.state == 'idle' then
+        if agent.state ~= 'running' then
             agent.state = 'running'
+            agent.taskstart = coroutine.qtime() -- 记录任务开始时间
             print('[' .. agent.type .. agent.id .. '] started at', coroutine.qtime())
             coroutine.queue(0, agent.execute, agent)
         end
@@ -62,6 +63,10 @@ function Agent()
             os.exit()
         end
 
+        if agent.taskstart == nil then
+            print(debug.traceback('['..agent.type..agent.id..'] 错误，任务开始时间为空'))
+            os.exit()
+        end
         local dt = coroutine.qtime() - agent.taskstart -- 计算仿真时间差
 
         -- 检查任务初始化

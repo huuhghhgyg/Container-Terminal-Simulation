@@ -319,7 +319,6 @@ function Crane(config)
             end
 
             params.init = true
-            coroutine.queue(0, crane.execute, crane)
             -- 设置状态，不需要设置dt
         end,
         execute = function(dt, params)
