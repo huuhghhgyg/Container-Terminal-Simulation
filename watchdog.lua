@@ -34,14 +34,14 @@ function WatchDog(simv, ActionObjs)
 
         -- 检查是否需要回收
         watchdog:scanRecycle()
-        
+
         -- 检查运行许可
         watchdog.runcommand = scene.render()
         if not watchdog.runcommand or (watchdog.isImmediateStop and actionObjNum == 0) then
             print('无任务，刷新已停止')
             return
         end
-        
+
         -- 更新时钟
         local now = os.clock()
         local dt = (now - watchdog.lasttime) * simv -- 本次调度与上次调度的时间间隔

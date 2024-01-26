@@ -6,7 +6,7 @@ scene.setenv({
 local actionObjs = {}
 local simv = 1
 
-require('rmg2')
+require('rmg')
 
 local rmg = RMG()
 rmg:addtask('move2', {0, 0, 20})

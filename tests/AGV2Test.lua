@@ -4,7 +4,8 @@ scene.setenv({
 })
 
 require('agent')
-require('agv2')
+require('agv')
+
 
 print()
 local agv = AGV()

@@ -7,8 +7,8 @@ print()
 -- 引用组件
 require('agent')
 require('cy')
-require('rmg2')
-require('agv2')
+require('rmg')
+require('agv')
 require('node')
 require('road')
 

@@ -6,11 +6,11 @@ print()
 
 -- 引用组件
 require('agent')
-require('agv2')
+require('agv')
 require('node')
 require('road')
 require('ship')
-require('rmgqc2')
+require('rmgqc')
 
 -- 参数设置
 local simv = 10 -- 仿真速度

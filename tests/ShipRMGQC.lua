@@ -1,8 +1,8 @@
 require('agent')
-require('rmgqc2')
+require('rmgqc')
 require('ship')
 require('road')
-require('agv2')
+require('agv')
 require('watchdog')
 print()
 
