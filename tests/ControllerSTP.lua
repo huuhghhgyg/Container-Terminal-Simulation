@@ -7,6 +7,7 @@ scene.setenv({
 require('node')
 require('road')
 require('controller')
+require('agent')
 require('agv')
 require('watchdog')
 local controller = Controller()
@@ -106,8 +107,8 @@ controller:addAgvNaviTask(agv, stpFromNodeId, stpToNodeId, controller.Roads[20],
 -- controller:addAgvNaviTask(agv, stpFromNodeId, stpToNodeId, controller.Roads[20]) -- 不提供下一条道路的信息
 
 local ActionObjs = {}
-local watchdog = WatchDog(4, ActionObjs)
+local watchdog = WatchDog(2, ActionObjs)
 table.insert(ActionObjs, agv)
 
 -- 仿真任务
-watchdog:update()
+watchdog:refresh()

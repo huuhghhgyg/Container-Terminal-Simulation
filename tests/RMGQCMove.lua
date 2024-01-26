@@ -6,7 +6,7 @@ local ActionObjs = {}
 local simv = 2
 
 require('agent')
-require('rmgqc2')
+require('rmgqc')
 local rmgqc = RMGQC()
 -- rmgqc:move2(0, 0, 10)
 -- rmgqc:move2(0, 10, 0)

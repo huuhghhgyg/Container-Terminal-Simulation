@@ -8,12 +8,12 @@ print()
 -- 引用组件
 require('agent')
 require('cy')
-require('rmg2')
-require('agv2')
+require('rmg')
+require('agv')
 require('node')
 require('road')
 require('ship')
-require('rmgqc2')
+require('rmgqc')
 
 -- 1.下载函数库到虚拟磁盘
 print('正在下载依赖库到虚拟磁盘...')

@@ -4,9 +4,10 @@ scene.setenv({
 })
 
 local actionObjs = {}
-local simv = 1
+local simv = 2
 
-require('rmg2')
+require('agent')
+require('rmg')
 
 local rmg = RMG()
 rmg:addtask('move2', {0, 0, 20})
@@ -18,4 +19,4 @@ table.insert(actionObjs, rmg)
 
 require('watchdog')
 local watchdog = WatchDog(simv, actionObjs)
-watchdog.update()
+watchdog.refresh()

@@ -6,7 +6,7 @@ scene.setenv({
 -- 引用库
 require('watchdog')
 require('agent')
-require('agv2')
+require('agv')
 require('road')
 require('node')
 

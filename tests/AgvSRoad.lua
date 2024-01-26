@@ -10,7 +10,7 @@ local actionobj = {} -- 动作队列声明
 
 -- 引用库
 require('agent')
-require('agv2')
+require('agv')
 require('road')
 require('node')
 require('watchdog')
