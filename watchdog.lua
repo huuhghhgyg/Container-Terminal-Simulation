@@ -40,7 +40,7 @@ function WatchDog(simv, ActionObjs)
         watchdog:scanRecycle()
 
         -- 检查运行许可
-        watchdog.runcommand = scene.render()
+        watchdog.runcommand = scene.render(0)
         if not watchdog.runcommand or (watchdog.isImmediateStop and actionObjNum == 0) then
             print('无任务，刷新已停止')
             return
