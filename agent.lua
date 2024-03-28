@@ -15,6 +15,10 @@ function Agent()
     agent.lastpos = agent.pos -- 初始化任务初始位置
 
     -- 原生函数
+    function agent:setpos(x, y, z)
+        agent.model:setpos(x, y, z)
+    end
+
     function agent:delete()
         agent.model:delete()
     end
@@ -32,8 +36,8 @@ function Agent()
     end
 
     function agent:deltask()
-        print('[' .. agent.type .. tostring(agent.id) .. '] 删除任务', agent.tasksequence[1][1], 'at',
-            coroutine.qtime())
+        -- print('[' .. agent.type .. tostring(agent.id) .. '] 删除任务', agent.tasksequence[1][1], 'at',
+        --     coroutine.qtime())
         table.remove(agent.tasksequence, 1)
 
         -- 如果任务队列为空，进入空闲状态
@@ -123,7 +127,7 @@ function Agent()
             end
 
             -- 设置位置
-            agent.model:setpos(table.unpack(position))
+            agent:setpos(table.unpack(position))
 
             if dt == params.dt then
                 agent.pos = position -- 更新位置
