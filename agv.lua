@@ -111,7 +111,7 @@ function AGV(config)
             -- print('agv.operator', agv.operator.type .. tostring(agv.operator.id), 'agv.operator',
             --     agv.operator.type .. tostring(agv.operator.id))
 
-            coroutine.queue(0, agv.operator.execute, agv.operator) -- 通知operator进行检测
+            coroutine.queue(0, agv.operator.execute, agv.operator) -- 通知operator进行检测，第二个参数是为函数传入实例
             params.dt = nil -- 任务所需时间为nil，需要别的任务带动被动运行
             params.init = true -- 标记完成初始化
         end,
