@@ -93,8 +93,14 @@ function Stack(row, col, level, config)
     ---@param containerUrls table 集装箱链接(颜色)列表，可选参数
     function stack:fillRandomContainerPositions(sum, containerUrls)
         -- 参数检查
-        if sum == nil then
-            print(debug.traceback('没有输入随机生成集装箱总数'))
+        if type(sum) ~= "number" then
+            print(debug.traceback())
+            assert(type(sum) == "number", '没有输入随机生成集装箱的总数，或输入值有误：' .. type(sum))
+        end
+
+        if type(containerUrls) ~= "nil" and type(containerUrls) ~= "table" then
+            print(debug.traceback())
+            assert(type(containerUrls) == "table" or type(containerUrls) == "nil", '输入的containerUrls参数类型不正确：' .. type(containerUrls))
         end
 
         -- 注入集装箱颜色列表
