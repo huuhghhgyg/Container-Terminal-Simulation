@@ -162,6 +162,7 @@ function AGV(config)
                 if position == nil then
                     print(debug.traceback(agv.type .. agv.id,
                         'moveon错误：没有获取到agv位置，无法设置agv.pos'))
+                    os.exit()
                 end
 
                 agv.road:removeAgv(agv.roadAgvId) -- 从道路中移除agv
