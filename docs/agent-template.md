@@ -1,7 +1,9 @@
-# Agent模板
+# Agent 模板
 
 ## 任务
+
 Agent 自刷新总流程
+
 ```mermaid
 graph
 addtask(添加任务 addtask)
@@ -18,12 +20,13 @@ deltask-->|无任务|idle
 ```
 
 ### 添加任务
+
 ```mermaid
 graph
 addtask(添加任务 addtask)
 not_idle(检查状态)
 invoke(协程立即唤醒 agent.execute)
-running(agent.state == 'running')
+running(state == 'running')
 execute(执行任务...)
 
 addtask-->not_idle-->|state=='idle'|running-->|coroutine.queue|invoke-->execute
@@ -31,6 +34,7 @@ not_idle-->|state!='idle'|execute
 ```
 
 ### 删除任务
+
 ```mermaid
 graph
 deltask(删除任务)
@@ -44,6 +48,7 @@ has_task-->|还有任务|invoke-->execute_next
 ```
 
 ### 任务执行
+
 `agent:execute()`执行任务
 
 ```mermaid
@@ -66,33 +71,34 @@ init-->|未初始化|init_params-->nail-->execute
 ```
 
 ### 任务相关变量
+
 - `parms.init`: 是否完成任务初始化。决定是否执行`task.init`函数。
-- `params.dt`：执行任务所需时间。init后应该使用`coroutine.queue`在`params.dt`后唤醒agent.execute，完成任务并删除。
+- `params.dt`：执行任务所需时间。init 后应该使用`coroutine.queue`在`params.dt`后唤醒 agent.execute，完成任务并删除。
 
 ### 任务推进
+
 任务相关变量
+
 - 任务推进相关
   - agent.tasks: 任务列表
   - agent.tasksequence: 任务队列
   - agent.taskstart: 任务开始时间
 
-```lua
--- 任务推进变量之间的关系
-agent.currentTask = agent.taskSequence[agent.currentTaskIndex]
-```
+tasks 表结构
 
-tasks表结构
 - tasks
   - 任务名
-    - `init()`: 限制最大步进时间的函数。如果没有则不限制，直接使用CPU运行时间得到的dt。
+    - `init()`: 限制最大步进时间的函数。如果没有则不限制，直接使用 CPU 运行时间得到的 dt。
     - `execute()`: 执行任务的函数。
   - ...
 
 # 属性
-agent.state: 状态，有`idle`和`running`两种状态。用于检测agent是否正在执行任务。
+
+agent.state: 状态，有`idle`和`running`两种状态。用于检测 agent 是否正在执行任务。
 
 # 交互
-Agent之间通过任务相互等待进行交互。
+
+Agent 之间通过任务相互等待进行交互。
 
 属性
-`agent.occpuier`：占用者，显示当前agent被谁占用。如果没有被占用则为nil。
+`agent.operator`：操作者，显示当前 agent 被谁占用。如果没有被占用则为 nil。
