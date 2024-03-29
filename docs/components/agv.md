@@ -2,7 +2,7 @@
 
 AGV 通常用于表示自动导引车辆（Automated Guided Vehicle）
 
-继承: AGV → [Agent](./agent.md)
+继承: AGV → [Agent](../agent.md)
 
 ```lua
 local agv = AGV(config)
@@ -66,7 +66,7 @@ agv_detect--->|"agv.operator==nil"|agv_released
 
 ## 任务
 
-列表
+任务列表
 
 - [move2](#move2) 移动到某个位置
 - [waitoperator](#waitoperator) 等待 operator 进行操作

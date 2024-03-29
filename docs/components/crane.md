@@ -2,7 +2,7 @@
 
 Crane 是起重机的抽象基类。由于各种起重机的功能和流程类似，所以将其抽象为一个基类。
 
-继承: Crane → [Agent](./agent.md)
+继承: Crane → [Agent](../agent.md)
 
 ```lua
 local crane = Crane(config)
@@ -51,6 +51,8 @@ rmgqc 要求先绑定 road，再绑定 stack
 - rmgqc 可以脱离 Ship 存在，但是 Ship 需要存取集装箱时，必须有一个 rmgqc 为其服务。
 
 ## 任务
+
+任务列表
 
 - [move2](#move2) 移动到指定位置
 - [attach](#attach) 抓取集装箱
