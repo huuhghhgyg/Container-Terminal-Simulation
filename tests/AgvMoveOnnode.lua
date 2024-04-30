@@ -42,4 +42,4 @@ agv:addtask('onnode',{n3,rd3})
 
 table.insert(ActionObjs, agv)
 
-watchdog:refresh()
+watchdog.refresh()

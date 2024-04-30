@@ -36,4 +36,4 @@ local simv = 3
 local ActionObjs = {agv}
 
 local watchdog = WatchDog(simv, ActionObjs)
-watchdog:refresh()
+watchdog.refresh()

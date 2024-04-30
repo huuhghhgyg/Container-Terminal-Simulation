@@ -111,4 +111,4 @@ local watchdog = WatchDog(2, ActionObjs)
 table.insert(ActionObjs, agv)
 
 -- 仿真任务
-watchdog:refresh()
+watchdog.refresh()

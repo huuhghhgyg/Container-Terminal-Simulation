@@ -62,4 +62,4 @@ agv1:addtask("onnode",{node8,roadAuto7})
 table.insert(actionobj, agv1)
 
 -- 仿真任务
-watchdog:refresh()
+watchdog.refresh()

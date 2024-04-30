@@ -20,4 +20,4 @@ local simv = 5
 local ActionObjs = {agent}
 
 local watchdog = WatchDog(simv, ActionObjs)
-watchdog:refresh()
+watchdog.refresh()

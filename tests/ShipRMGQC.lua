@@ -73,4 +73,4 @@ rmgqc:addtask("move2", rmgqc:getContainerCoord(-1, bay, #rmgqc.stack.levelPos)) 
 
 -- 开始仿真
 local watchdog = WatchDog(simv, ActionObjs)
-watchdog:refresh()
+watchdog.refresh()

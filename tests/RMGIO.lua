@@ -141,4 +141,4 @@ end
 generateagv()
 
 -- 仿真任务
-watchdog:refresh()
+watchdog.refresh()

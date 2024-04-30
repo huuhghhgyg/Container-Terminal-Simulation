@@ -36,4 +36,4 @@ setpoint(0,0,0,{text='origin'})
 
 scene.render()
 
-watchdog:refresh()
+watchdog.refresh()

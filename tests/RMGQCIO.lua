@@ -13,7 +13,7 @@ require('ship')
 require('rmgqc')
 
 -- 参数设置
-local simv = 10 -- 仿真速度
+local simv = 4 -- 仿真速度
 local ActionObjs = {} -- 动作队列声明
 
 -- 仿真控制
@@ -180,4 +180,4 @@ end
 generateagv()
 
 -- 仿真任务
-watchdog:refresh()
+watchdog.refresh()

@@ -1,6 +1,6 @@
 -- simv: 仿真速度
 -- ActionObjs: 所有需要更新的对象
-function WatchDog(simv, ActionObjs)
+function WatchDog(simv, ActionObjs, config)
     -- 验证参数
     if type(simv) ~= 'number' then
         print(debug.traceback('[WatchDog] simv: ' .. simv .. ' not a number'))
@@ -16,11 +16,19 @@ function WatchDog(simv, ActionObjs)
         isImmediateStop = true -- 没有任务的时候立刻停止
     }
 
+    -- 更新参数
+    if config ~= nil then
+        -- 立即停止参数 
+        if config.isImmediateStop ~= nil then
+            watchdog.isImmediateStop = config.isImmediateStop
+        end
+    end
+
     function watchdog.refresh(f)
         if type(f) == 'function' then
             f()
         end
-        
+
         -- 参数检查
         if watchdog.lasttime == nil then -- 避免自动开始计时
             watchdog.lasttime = os.clock()
@@ -41,7 +49,13 @@ function WatchDog(simv, ActionObjs)
 
         -- 检查运行许可
         watchdog.runcommand = scene.render(0)
-        if not watchdog.runcommand or (watchdog.isImmediateStop and actionObjNum == 0) then
+        if not watchdog.runcommand then
+            print('刷新已停止')
+            return
+        end
+
+        -- 检查是否需要立刻停止
+        if watchdog.isImmediateStop and actionObjNum == 0 then
             print('无任务，刷新已停止')
             return
         end
