@@ -195,27 +195,22 @@ local generateConfig = {
 }
 
 -- 生成agv任务
-function generateTaskType() -- Operator=operator, DataModel = datamodel, type = 'load','unload'
+-- return operator, operator.stack, 'rmg'/'rmgqc'
+function generateTask()
     -- 生成任务类型
     local taskType = math.random() > generateConfig.rate.load and 'unload' or 'load'
     -- 抽取operator对象并返回
     local operatorType = math.random() > 0.5 and 'rmg' or 'rmgqc'
-    if operatorType == 'rmg' then
-        local randRMGId = math.random(#controller.rmgs)
-        local rmg = controller.rmgs[randRMGId]
-        return rmg, rmg.stack, taskType
-    elseif operatorType == 'rmgqc' then
-        local randRMGQCId = math.random(#controller.rmgqcs)
-        local rmgqc = controller.rmgqcs[randRMGQCId]
-        return rmgqc, rmgqc.stack, taskType
-    else
-        print('[main] error: unknown operatorType', operatorType, '. stopped.')
-        os.exit()
-    end
+    
+    local operatorList = controller[operatorType..'s'] -- controller中存储rmgs/rmgqcs
+    local operatorId = math.random(#operatorList) -- 从列表中随机抽取
+    local operator = operatorList[operatorId]
+    
+    return operator, operator.stack, taskType
 end
 
 -- 生成具有任务的agv(ship)
-function generateagv()
+function generateAgv()
     -- 程序控制
     if not watchdog.runcommand or generateConfig.summonNum == 0 then
         return
@@ -224,7 +219,7 @@ function generateagv()
 
     
     -- 抽取生成agv任务类型
-    local operatorAgent, stack, agvTaskType = generateTaskType()
+    local operatorAgent, stack, agvTaskType = generateTask()
     print('生成AGV，taskType=', agvTaskType, ', operatorType=', operatorAgent.type, 'operator.id=', operatorAgent.id)
 
     -- 获取位置可用箱数信息，如果没有则注入
@@ -349,9 +344,9 @@ function generateagv()
     -- 添加事件
     print("[agv"..agv.id.. "] summon at: ", coroutine.qtime())
     local tArriveSpan = math.random(generateConfig.averageSummonSpan)
-    coroutine.queue(tArriveSpan, generateagv)
+    coroutine.queue(tArriveSpan, generateAgv)
 end
-generateagv()
+generateAgv()
 
 -- 仿真任务
 watchdog:refresh()

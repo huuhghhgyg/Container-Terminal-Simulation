@@ -64,7 +64,7 @@ function Agent()
         local taskname, params = table.unpack(agent.tasksequence[1])
         -- 参数验证
         if agent.tasks[taskname] == nil then
-            print(debug.traceback('错误，没有找到任务'))
+            print(debug.traceback('[' .. agent.type .. agent.id .. '] 错误，没有找到任务'..taskname))
             os.exit()
         end
 
@@ -98,6 +98,78 @@ function Agent()
             os.exit()
         end
     end
+
+    -- 运行时设置agent的value值
+    -- params = {key=, value=}
+    agent.tasks.setvalue = {
+        init = function(params)
+            -- 参数检查
+            if params.key == nil then
+                print(debug.traceback('[' .. agent.type .. agent.id .. '] 错误，setvalue任务没有找到key参数'))
+                os.exit()
+            end
+
+            if params.value == nil then
+                print(debug.traceback('[' .. agent.type .. agent.id .. '] 错误，setvalue任务没有找到value参数'))
+                os.exit()
+            end
+
+            agent[params.key] = params.value
+            -- print('[' .. agent.type .. agent.id .. '] setvalue', params.key, '=', params.value, 'at', coroutine.qtime())
+
+            params.init = true -- 标记完成初始化
+            coroutine.queue(0, agent.execute, agent) -- 结束时间唤醒execute
+        end,
+        execute = function()
+            agent:deltask() -- 只执行一次，直接删除
+        end
+    }
+
+    -- 运行时运行一个传入的函数
+    -- params = {f=,args={}}
+    agent.tasks.fn = {
+        init = function(params)
+            -- 参数检查
+            if type(params.f) ~= 'function' then
+                print('[' .. agent.type .. agent.id .. '] 错误，fn任务的fn参数错误:', params.fn)
+                print(debug.traceback())
+                os.exit()
+            end
+
+            if type(params.args) ~= 'table' then
+                print(debug.traceback('[' .. agent.type .. agent.id .. '] 错误，fn任务没有找到args参数'))
+                os.exit()
+            end
+            
+            params.init = true
+            coroutine.queue(0, agent.execute, agent) -- 结束时间唤醒execute
+        end,
+        execute = function(dt, params)
+            params.f(table.unpack(params.args))
+            agent:deltask() -- 只执行一次，直接删除
+        end
+    }
+
+    -- params = {t} 秒
+    agent.tasks.delay = {
+        init = function (params)
+            -- 参数检查
+            if type(params[1]) ~= "number" then
+                print('[' .. agent.type .. agent.id .. '] 错误，delay任务的参数不为数字',params[1])
+                print(debug.traceback())
+                os.exit()
+            end
+
+            params.init = true
+            params.dt = params[1]
+            coroutine.queue(params.dt, agent.execute, agent)
+        end,
+        execute = function (dt, params)
+            if dt == params.dt then
+                agent:deltask() -- 删除任务
+            end
+        end
+    }
 
     -- params = {x, y, z, ...}
     agent.tasks.move2 = {
