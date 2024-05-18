@@ -56,7 +56,10 @@ function Crane(config)
 
         -- 判断抓取的集装箱是否为空
         if crane.stack.containers[row][bay][level] == nil then
-            print(debug.traceback('[crane' .. crane.id .. '] 错误，抓取堆场中的集装箱为空'))
+            print('[' .. crane.type .. crane.id ..
+                      '] 错误，crane抓取堆场中的集装箱为空，(row,col,level)=', row, bay, level, 'stack=',
+                crane.stack.type .. crane.stack.id)
+            print(debug.traceback())
             -- debug
             os.exit()
         end
@@ -106,24 +109,27 @@ function Crane(config)
         crane.road = road
     end
 
-    -- crane将agent作为agv注册。agent已经设置agent.taskType和agent.targetContainerPos
-    function crane:registerAgv(agent)
+    -- crane将agent作为agv注册
+    function crane:registerAgv(agent, taskType, targetContainerPos)
+        -- 注册agv
+        table.insert(crane.agentqueue, agent) -- 加入agv队列
+
         -- 检查参数
-        if agent.targetContainerPos == nil then
+        if targetContainerPos == nil then
             print(debug.traceback('[' .. crane.type .. crane.id .. '] 错误，agent没有设置targetContainerPos'))
             os.exit() -- 检测到出错立刻停止,方便发现错误
         end
 
         -- crane添加任务
-        local row, bay, level = table.unpack(agent.targetContainerPos)
+        local row, bay, level = table.unpack(targetContainerPos)
 
-        if agent.taskType == 'unload' then
+        if taskType == 'unload' then
             -- print('['..crane.type..crane.id..'] agent:unload, targetPos=(', row, bay, level, ')') -- debug
             crane:move2Agent(bay)
             -- print('['..crane.type..crane.id..'] move2Agent()完成') -- debug
             crane:lift2TargetPos(row, bay, level, agent)
             -- print('['..crane.type..crane.id..'] lift2TargetPos()完成') -- debug
-        elseif agent.taskType == 'load' then
+        elseif taskType == 'load' then
             -- print('['..crane.type..crane.id..'] agent:load, targetPos=(', row, bay, level, ')') -- debug
             crane:move2TargetPos(row, bay)
             -- print('['..crane.type..crane.id..'] move2TargetPos()完成') -- debug
@@ -131,12 +137,10 @@ function Crane(config)
             -- print('['..crane.type..crane.id..'] lift2Agent()完成') -- debug
         else
             print(debug.traceback('[' .. crane.type .. crane.id .. '] 错误，没有检测到' .. agent.type ..
-                                      '的任务类型，注册失败'))
+                                      '的可识别任务类型，注册失败'))
             os.exit()
         end
 
-        -- 注册agv
-        table.insert(crane.agentqueue, agent) -- 加入agv队列
         -- print('[rmg] agv注册完成, #agv.tasksequence=', #agent.tasksequence, ' #actionObjs=', #actionObjs) -- debug
     end
 
@@ -287,7 +291,7 @@ function Crane(config)
             -- print('position=', table.unpack(position))
 
             if math.abs(params.dt - dt) < crane.timeError then
-                print('[' .. crane.type .. crane.id .. '] 到达目标位置 at', coroutine.qtime()) -- debug
+                -- print('[' .. crane.type .. crane.id .. '] 到达目标位置 at', coroutine.qtime()) -- debug
                 crane:deltask()
                 crane.lastpos = {table.unpack(position)} -- 更新位置
             end
@@ -334,6 +338,7 @@ function Crane(config)
             -- 参数检查
             if params.agent == nil then
                 print(debug.traceback('[' .. crane.type .. crane.id .. '] waitagent错误，没有输入agent'))
+                os.exit()
             end
             crane.occupier = params.agent -- 当前crane被agent占用
 
@@ -343,9 +348,8 @@ function Crane(config)
         execute = function(dt, params)
             -- 检测目标agent是否被当前crane有效占用
             if #crane.agentqueue > 0 and params.agent.operator == crane then
-                print('['..crane.type..crane.id..']', params.agent.type .. params.agent.id .. '已经被' .. crane.type .. crane.id ..
-                    '占用，crane删除waitagent任务 at', coroutine.qtime())
-
+                -- print('['..crane.type..crane.id..']', params.agent.type .. params.agent.id .. '已经被' .. crane.type .. crane.id ..
+                --     '占用，crane删除waitagent任务 at', coroutine.qtime())
                 crane:deltask() -- 删除本任务，解除阻塞（避免相互等待），继续执行下一个任务
             end
         end
@@ -358,6 +362,7 @@ function Crane(config)
             if type(params.index) ~= "number" then
                 print('[' .. crane.type .. crane.id .. '] unwaitagent错误，输入index参数错误:', params.index)
                 print(debug.traceback())
+                os.exit()
             end
 
             params.dt = nil -- 任务所需时间为nil，设置状态，通知目标agent

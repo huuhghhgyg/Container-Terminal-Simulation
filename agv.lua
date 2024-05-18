@@ -316,13 +316,14 @@ function AGV(config)
                 -- 判断是否到达目标
                 if math.abs(params.dt - dt) < agv.timeError then
                     params.arrived = true
-                    if tryExitNode() then
-                        -- 正常退出，显示轨迹
-                        scene.addobj('polyline', {
-                            vertices = {fromRoad.destPt[1], fromRoad.destPt[2], fromRoad.destPt[3], toRoad.originPt[1],
-                                        toRoad.originPt[2], toRoad.originPt[3]}
-                        })
-                    end
+                    -- if tryExitNode() then
+                    --     -- 正常退出，显示轨迹
+                    --     scene.addobj('polyline', {
+                    --         vertices = {fromRoad.destPt[1], fromRoad.destPt[2], fromRoad.destPt[3], toRoad.originPt[1],
+                    --                     toRoad.originPt[2], toRoad.originPt[3]}
+                    --     })
+                    -- end
+                    tryExitNode()
                     return
                 end
 
@@ -344,12 +345,13 @@ function AGV(config)
                 -- 判断是否到达目标
                 if math.abs(params.dt - dt) < agv.timeError then
                     params.arrived = true
-                    if tryExitNode() then
-                        -- 正常退出，显示轨迹
-                        scene.addobj('polyline', {
-                            vertices = params.trail
-                        })
-                    end
+                    -- -- 正常退出，显示轨迹
+                    -- if tryExitNode() then
+                    --     scene.addobj('polyline', {
+                    --         vertices = params.trail
+                    --     })
+                    -- end
+                    tryExitNode()
                     return
                 end
 
@@ -358,10 +360,10 @@ function AGV(config)
                 local x, z = params.radius * math.sin(params.walked + params.turnOriginRadian) + params.center[1],
                     params.radius * math.cos(params.walked + params.turnOriginRadian) + params.center[3]
 
-                -- 记录轨迹
-                table.insert(params.trail, x)
-                table.insert(params.trail, y)
-                table.insert(params.trail, z)
+                -- -- 记录轨迹
+                -- table.insert(params.trail, x)
+                -- table.insert(params.trail, y)
+                -- table.insert(params.trail, z)
 
                 agv.roty = math.atan(params[2].vecE[1], params[2].vecE[3]) + params.walked - math.atan(0, 1)
 
@@ -371,7 +373,7 @@ function AGV(config)
         end
     }
 
-    -- {'register', {operator=, f=}}
+    -- {'register', {operator=, [taskType=,targetContainerPos=,f=]}}
     agv.tasks.register = {
         init = function(params)
             if params.operator == nil then
@@ -384,7 +386,7 @@ function AGV(config)
                 params.f()
             end
 
-            params.operator:registerAgv(agv)
+            params.operator:registerAgv(agv, params.taskType, params.targetContainerPos)
 
             agv:deltask() -- 删除任务
             coroutine.queue(0, params.operator.execute, params.operator) -- 通知operator开始运行
