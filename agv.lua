@@ -376,10 +376,26 @@ function AGV(config)
     -- {'register', {operator=, [taskType=,targetContainerPos=,f=]}}
     agv.tasks.register = {
         init = function(params)
+            -- 参数检查
             if params.operator == nil then
                 print(debug.traceback('[' .. agv.type .. agv.id .. '] register错误，没有输入operator参数'))
                 os.exit()
             end
+
+            if params.taskType == nil and agv.taskType == nil then
+                print(debug.traceback('[' .. agv.type .. agv.id .. '] register错误，agv.taskType和params.taskType均为nil'))
+                os.exit()
+            end
+
+            
+            if params.targetContainerPos == nil and agv.targetContainerPos == nil then
+                print(debug.traceback('[' .. agv.type .. agv.id .. '] register错误，agv.targetContainerPos和params.targetContainerPos均为nil'))
+                os.exit()
+            end
+
+            -- 参数设置，优先使用输入的参数
+            params.taskType = params.taskType == nil and agv.taskType or params.taskType
+            params.targetContainerPos = params.targetContainerPos == nil and agv.targetContainerPos or params.targetContainerPos
 
             -- 需要执行的函数
             if type(params.f) == "function" then
