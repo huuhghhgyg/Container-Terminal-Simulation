@@ -162,7 +162,7 @@ function generateagv()
     })
     agv:addtask('onnode', {node9, rd10, nil})
 
-    rmgqc:registerAgv(agv)
+    rmgqc:registerAgv(agv, agv.taskType, agv.targetContainerPos)
     print('[main] agv target=', agv.targetContainerPos[1], agv.targetContainerPos[2], agv.targetContainerPos[3],
         ', agv taskType=', agv.taskType)
 

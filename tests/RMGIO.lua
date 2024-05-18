@@ -124,7 +124,7 @@ function generateagv()
     })
     agv:addtask('onnode', {node2, rd1, nil})
 
-    rmg:registerAgv(agv)
+    rmg:registerAgv(agv, agv.taskType, agv.targetContainerPos)
     table.insert(ActionObjs, agv)
 
     -- 程序控制
