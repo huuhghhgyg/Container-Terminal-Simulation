@@ -29,7 +29,7 @@ function Stack(row, col, level, config)
     stack.level = level or 0 -- 层数
 
     -- 内置变量
-    stack.containerPositions = {} -- 堆场各集装箱位置坐标列表(bay,row,level)
+    stack.containerPositions = {} -- 堆场各集装箱位置坐标列表(row,bay,level)
     stack.containers = {} -- 集装箱对象列表(使用相对坐标索引)
 
     -- 初始化计算参数
