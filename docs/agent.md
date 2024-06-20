@@ -179,27 +179,38 @@ deltask-->|无任务|idle
 
 ### 任务示例
 
+#### move2
+
 agent 默认添加了一个 move2 任务，带有 init 和 execute 部分，可以作为添加其他任务的参考。
+这个 move2 任务是从起点到终点直线匀速运动的任务，速度由 `agent.speed` 决定。
 
 [agent.lua](../../agent.lua) 中的 move2 任务：
 
 ```lua
--- params = {x, y, z, ...}
+-- {'move2', {x, y, z, ...}}
 agent.tasks.move2 = {
     init = function(params)
-        print('init move2 at', coroutine.qtime())
-        local px, py, pz = agent.model:getpos()
-        agent.lastpos = {px, py, pz}
-        params.est, params.delta, params.vecE = {}, {}, {}
-
-        -- 计算坐标
-        for i = 1, 3 do
-            params.delta[i] = params[i] - agent.lastpos[i]
-            params.vecE[i] = params.delta[i] == 0 and 0 or params.delta[i] / math.abs(params.delta[i])
-            params.est[i] = params.delta[i] == 0 and 0 or math.abs(params.delta[i]) / agent.speed[i]
+        -- 参数检查
+        if type(params[1]) ~= 'number' or type(params[2]) ~= 'number' or type(params[3]) ~= 'number' then
+            print(agent.type .. agent.id, 'move2错误：输入的坐标参数有误:', params[1], params[2], params[3])
+            print(debug.traceback())
+            os.exit()
         end
-        params.dt = math.max(table.unpack(params.est)) -- 任务所需时间
 
+        -- 设置任务初始位置
+        agent.lastpos = {table.unpack(agent.pos)}
+
+        -- 设置参数
+        params.delta = {params[1] - agent.lastpos[1], params[2] - agent.lastpos[2], params[3] - agent.lastpos[3]} -- 位移
+        local distance = math.sqrt(params.delta[1] ^ 2 + params.delta[2] ^ 2 + params.delta[3] ^ 2)
+        params.est = distance / agent.speed -- 预计到达时间
+        params.speed = {} -- agent只有一个总速度，需要计算分方向的速度
+        -- 计算速度
+        for i = 1, 3 do
+            params.speed[i] = params.delta[i] == 0 and 0 or params.delta[i] / distance * agent.speed
+        end
+
+        params.dt = params.est -- 这个任务中est就是dt
         params.init = true -- 标记完成初始化
         coroutine.queue(params.dt, agent.execute, agent) -- 结束时间唤醒execute
     end,
@@ -207,17 +218,40 @@ agent.tasks.move2 = {
         -- 计算坐标
         local position = {table.unpack(agent.lastpos)}
         for i = 1, 3 do
-            position[i] = dt <= params.est[i] and agent.lastpos[i] + agent.speed[i] * dt * params.vecE[i] or
-                              params[i]
+            position[i] = position[i] + params.speed[i] * dt
         end
 
-        -- 设置位置
-        agent.model:setpos(table.unpack(position))
+        -- 设置agent位置
+        agent:setpos(table.unpack(position))
 
-        if dt == params.dt then
+        if math.abs(params.dt - dt) < agent.timeError then -- 如果时间误差小于agent.timeerror，任务结束
             agent.pos = position -- 更新位置
             agent:deltask() -- 删除任务
         end
     end
 }
+```
+
+#### setvalue
+
+setvalue 任务用于设置 agent 的属性值，如速度、位置等。由于上面介绍了任务的结构，下面只给出添加 setvalue 任务的代码。
+
+```lua
+agent:addtask('setvalue', {key=, value=})
+```
+
+#### fn
+
+当执行 fn 任务的时候，会执行给定的函数 `f`。
+
+```lua
+agent:addtask('fn', {f=,args=})
+```
+
+#### delay
+
+当执行到 delay 任务的时候，会延迟一段时间后再执行下一个任务，类似于 sleep。
+
+```lua
+agent:addtask('delay', {dt=})
 ```
