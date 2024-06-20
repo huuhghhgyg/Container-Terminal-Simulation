@@ -64,7 +64,8 @@ function Agent()
         local taskname, params = table.unpack(agent.tasksequence[1])
         -- 参数验证
         if agent.tasks[taskname] == nil then
-            print(debug.traceback('[' .. agent.type .. agent.id .. '] 错误，没有找到任务'..taskname))
+            print('[' .. agent.type .. agent.id .. '] 错误，没有找到任务:',taskname)
+            print(debug.traceback())
             os.exit()
         end
 
