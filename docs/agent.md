@@ -184,6 +184,12 @@ deltask-->|无任务|idle
 agent 默认添加了一个 move2 任务，带有 init 和 execute 部分，可以作为添加其他任务的参考。
 这个 move2 任务是从起点到终点直线匀速运动的任务，速度由 `agent.speed` 决定。
 
+> 注意：输入到move2的表将会被更改，因此尽量不要直接输入固定坐标的表，避免坐标信息被修改。可以参考下面重新打包table的的示例代替
+> ```lua
+> fixed_position = {1,2,3}
+> agent:addtask('move2', {table.unpack(fixed_position)})
+> ```
+
 [agent.lua](../../agent.lua) 中的 move2 任务：
 
 ```lua

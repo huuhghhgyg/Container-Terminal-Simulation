@@ -210,7 +210,8 @@ function Agent()
             agent:setpos(table.unpack(position))
 
             if math.abs(params.dt - dt) < agent.timeError then -- 如果时间误差小于agent.timeerror，任务结束
-                agent.pos = position -- 更新位置
+                agent.pos = {params[1], params[2], params[3]} -- 更新位置
+                agent:setpos({table.unpack(agent.pos)})
                 agent:deltask() -- 删除任务
             end
         end
