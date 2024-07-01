@@ -17,12 +17,15 @@ function WatchDog(simv, ActionObjs, config)
     }
 
     -- 更新参数
-    if config ~= nil then
-        -- 立即停止参数 
-        if config.isImmediateStop ~= nil then
-            watchdog.isImmediateStop = config.isImmediateStop
-        end
+    if config == nil then
+        config = {}
     end
+
+    -- 立即停止参数 
+    if config.isImmediateStop ~= nil then
+        watchdog.isImmediateStop = config.isImmediateStop
+    end
+    watchdog.recycleType = config.recycleType or {"agv"} -- 需要回收的对象类型
 
     function watchdog.refresh(f)
         if type(f) == 'function' then
@@ -86,12 +89,21 @@ function WatchDog(simv, ActionObjs, config)
         print('===================================')
     end
 
+    function inRecycleList(objTypeStr)
+        assert(type(objTypeStr) == "string", "输入的类型不是字符串")
+        for _, v in ipairs(watchdog.recycleType) do
+            if v == objTypeStr then
+                return true
+            end
+        end
+    end
+
     -- 检测是否需要回收
     function watchdog:scanRecycle()
         for i = 1, #ActionObjs do
             local obj = ActionObjs[i]
 
-            if obj.type == "agv" and #obj.tasksequence == 0 then
+            if inRecycleList(obj.type) and #obj.tasksequence == 0 then
                 watchdog:recycle(obj)
                 table.remove(ActionObjs, i)
                 break -- 假设每次同时只能到达一个，因此可以中止
@@ -101,7 +113,7 @@ function WatchDog(simv, ActionObjs, config)
 
     -- 回收某个对象
     function watchdog:recycle(obj)
-        if obj.type == "agv" then
+        if inRecycleList(obj.type) then
             if obj.container ~= nil then
                 obj.container:delete()
             end

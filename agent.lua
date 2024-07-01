@@ -64,7 +64,7 @@ function Agent()
         local taskname, params = table.unpack(agent.tasksequence[1])
         -- 参数验证
         if agent.tasks[taskname] == nil then
-            print('[' .. agent.type .. agent.id .. '] 错误，没有找到任务:',taskname)
+            print('[' .. agent.type .. agent.id .. '] 错误，没有找到任务:', taskname)
             print(debug.traceback())
             os.exit()
         end
@@ -141,7 +141,7 @@ function Agent()
                 print(debug.traceback('[' .. agent.type .. agent.id .. '] 错误，fn任务没有找到args参数'))
                 os.exit()
             end
-            
+
             params.init = true
             coroutine.queue(0, agent.execute, agent) -- 结束时间唤醒execute
         end,
@@ -153,10 +153,10 @@ function Agent()
 
     -- params = {t} 秒
     agent.tasks.delay = {
-        init = function (params)
+        init = function(params)
             -- 参数检查
             if type(params[1]) ~= "number" then
-                print('[' .. agent.type .. agent.id .. '] 错误，delay任务的参数不为数字',params[1])
+                print('[' .. agent.type .. agent.id .. '] 错误，delay任务的参数不为数字', params[1])
                 print(debug.traceback())
                 os.exit()
             end
@@ -165,7 +165,7 @@ function Agent()
             params.dt = params[1]
             coroutine.queue(params.dt, agent.execute, agent)
         end,
-        execute = function (dt, params)
+        execute = function(dt, params)
             if dt == params.dt then
                 agent:deltask() -- 删除任务
             end
@@ -211,7 +211,7 @@ function Agent()
 
             if math.abs(params.dt - dt) < agent.timeError then -- 如果时间误差小于agent.timeerror，任务结束
                 agent.pos = {params[1], params[2], params[3]} -- 更新位置
-                agent:setpos({table.unpack(agent.pos)})
+                agent:setpos(table.unpack(agent.pos)) -- 设置位置
                 agent:deltask() -- 删除任务
             end
         end

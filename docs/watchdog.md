@@ -71,3 +71,4 @@ run_command --->|停止运行|stop
 - `isImmediateStop`: 当所有组件都没有需要执行的任务时停止刷新。如果仿真事件不是紧接着的（如随机生成或导入事件），则建议关闭（设置为`false`）。
 - `lasttime`: 上一次刷新的时间，用于计算刷新间隔。
 - `runcommand`: 是否允许继续运行。是从`scene.render()`函数中获得的返回值，检测程序运行状态表侄，以及时停止运行。
+- `recycleType`: 需要回收的Agent类型列表，默认为`{'agv'}`。当Agent的类型在列表中且Agent无任务时会被回收。可以通过`config`重新设置列表为空来取消回收
