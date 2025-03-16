@@ -8,12 +8,16 @@ function WatchDog(simv, ActionObjs, config)
         print(debug.traceback('[WatchDog] ActionObjs: ' .. ActionObjs .. ' not a table'))
     end
 
+    -- 默认参数
     local watchdog = {
         -- 时间
         lasttime = nil, -- 上一次更新的系统时间
         -- 程序控制
         runcommand = true,
-        isImmediateStop = true -- 没有任务的时候立刻停止
+        isImmediateStop = true, -- 没有任务的时候立刻停止
+        maxdt = 60 / 1000, -- 最大时间步长限制
+        maxdt_step = 0, -- 实际使用的替代时间步长，如果CPU过慢建议使用maxdt代替
+        recycleType = {"agv"} -- 需要回收的对象类型
     }
 
     -- 更新参数
@@ -25,7 +29,11 @@ function WatchDog(simv, ActionObjs, config)
     if config.isImmediateStop ~= nil then
         watchdog.isImmediateStop = config.isImmediateStop
     end
-    watchdog.recycleType = config.recycleType or {"agv"} -- 需要回收的对象类型
+    watchdog.recycleType = config.recycleType or watchdog.recycleType -- 需要回收的对象类型
+
+    -- delta时间上限（考虑暂停按钮）
+    watchdog.maxdt = config.maxdt or watchdog.maxdt
+    watchdog.maxdt_step = config.maxdt or watchdog.maxdt_step
 
     function watchdog.refresh(f)
         if type(f) == 'function' then
@@ -65,7 +73,8 @@ function WatchDog(simv, ActionObjs, config)
 
         -- 更新时钟
         local now = os.clock()
-        local dt = (now - watchdog.lasttime) * simv -- 本次调度与上次调度的时间间隔
+        local dt = now - watchdog.lasttime -- 本次调度与上次调度的时间间隔
+        dt = dt > watchdog.maxdt and watchdog.maxdt_step or dt -- 限制dt的上限（设为0可能导致过慢的CPU上无法运行）
         watchdog.lasttime = now -- 刷新调度时间记录
 
         -- 预定下一次更新
